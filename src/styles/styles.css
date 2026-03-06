@@ -1,0 +1,284 @@
+:root {
+  font-family: Georgia, "Times New Roman", serif;
+  color: #f8f1dd;
+  background:
+    radial-gradient(circle at top, rgba(255, 198, 84, 0.2), transparent 28%),
+    linear-gradient(180deg, #22160e 0%, #110b07 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+img {
+  display: block;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.game-frame {
+  width: min(1360px, 100%);
+  padding: 20px;
+  border: 1px solid rgba(255, 198, 84, 0.24);
+  border-radius: 24px;
+  background: rgba(22, 15, 10, 0.94);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.compact-header {
+  margin-bottom: 16px;
+}
+
+.game-title {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  line-height: 1.05;
+}
+
+.game-subtitle {
+  margin: 8px 0 0;
+  max-width: 860px;
+  color: #d7c7a6;
+  font-size: 0.95rem;
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 1.2fr) minmax(280px, 0.9fr) minmax(360px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.layout-column,
+.upgrade-category-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.foldable-panel {
+  border: 1px solid rgba(255, 198, 84, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  overflow: hidden;
+}
+
+.foldable-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  color: #ffd36a;
+  background: rgba(255, 198, 84, 0.08);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.foldable-content {
+  padding: 12px;
+}
+
+.foldable-icon {
+  width: 16px;
+  text-align: center;
+}
+
+.currency-list,
+.conversion-list,
+.upgrade-list,
+.settings-panel,
+.generator-panel-content {
+  display: grid;
+  gap: 8px;
+}
+
+.compact-row,
+.compact-summary,
+.compact-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.currency-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.currency-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.currency-row-copy,
+.currency-row-action,
+.generator-stats,
+.upgrade-copy,
+.settings-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.currency-row-side {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.currency-row-meta,
+.currency-row-rate,
+.generator-copy,
+.conversion-note,
+.conversion-reserve,
+.upgrade-description,
+.upgrade-cost,
+.settings-line {
+  margin: 0;
+  color: #d7c7a6;
+  font-size: 0.82rem;
+}
+
+.currency-row-name,
+.upgrade-name {
+  color: #f5e6bf;
+  font-size: 0.95rem;
+}
+
+.currency-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.currency-row-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffd36a;
+}
+
+.generate-button,
+.upgrade-button,
+.reset-button,
+.conversion-button,
+.mini-button {
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.compact-generate-button {
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #24160d;
+  background: linear-gradient(180deg, #ffd978 0%, #e59e24 100%);
+}
+
+.compact-button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 198, 84, 0.24);
+  text-align: left;
+  color: #f8f1dd;
+  background: rgba(255, 198, 84, 0.08);
+  font-size: 0.88rem;
+}
+
+.upgrade-button,
+.reset-button,
+.mini-button {
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 198, 84, 0.24);
+  font-weight: 700;
+  color: #24160d;
+  background: linear-gradient(180deg, #ffe08a 0%, #d99a2a 100%);
+}
+
+.compact-buy-button {
+  width: 100%;
+}
+
+.generate-button:hover,
+.upgrade-button:hover:not(:disabled),
+.reset-button:hover,
+.conversion-button:hover:not(:disabled),
+.mini-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.unlock-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.unlock-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd978 0%, #e59e24 100%);
+}
+
+.conversion-button:disabled,
+.upgrade-button:disabled,
+.mini-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1180px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 12px;
+  }
+
+  .game-frame {
+    padding: 14px;
+  }
+
+  .currency-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .currency-row-side {
+    justify-items: start;
+  }
+}
