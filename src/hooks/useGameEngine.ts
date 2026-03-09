@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { convertCurrency } from "../game/conversionEngine";
 import { fragmentCurrencyId, type CurrencyId } from "../game/currencies";
 import { generatorMap, getMaxAffordableGeneratorPurchases, type GeneratorId } from "../game/generators";
 import { createInitialGameState, startGameEngine, synchronizeGameState, type GameState } from "../game/gameEngine";
 import { AUTOSAVE_INTERVAL_MS, clearSavedGame, loadGameState, saveGameState } from "../game/saveSystem";
-import { purchaseGenerator, purchaseUpgrade, type UpgradeId } from "../game/upgradeEngine";
+import { getClickPower, purchaseGenerator, purchaseUpgrade, type UpgradeId } from "../game/upgradeEngine";
 
 export function useGameEngine() {
   const [gameState, setGameState] = useState<GameState>(() => loadGameState());
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
 
   useEffect(() => startGameEngine(setGameState), []);
 
@@ -27,21 +29,24 @@ export function useGameEngine() {
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      saveGameState(gameState);
+      saveGameState(gameStateRef.current);
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [gameState]);
+  }, []);
 
   function generateFragment() {
-    setGameState((currentState) => ({
-      ...currentState,
-      currencies: {
-        ...currentState.currencies,
-        [fragmentCurrencyId]: currentState.currencies[fragmentCurrencyId] + 1,
-      },
-    }));
+    setGameState((currentState) => {
+      const power = getClickPower(currentState.currencyProduction[fragmentCurrencyId], currentState.clickMultiplier);
+      return {
+        ...currentState,
+        currencies: {
+          ...currentState.currencies,
+          [fragmentCurrencyId]: currentState.currencies[fragmentCurrencyId] + power,
+        },
+      };
+    });
   }
 
   function manualConvert(fromCurrencyId: CurrencyId, toCurrencyId: CurrencyId) {

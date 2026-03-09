@@ -1,52 +1,91 @@
+import { useState } from "react";
 import { currencyMap, formatCurrencyValue, type CurrencyId, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
-import { getUpgradeCost, type PurchasedUpgradeState, type UpgradeCategory, type UpgradeId, type UpgradeDefinition } from "../game/upgradeEngine";
+import {
+  canAffordCost,
+  getUpgradeCost,
+  getUpgradeCategoryLabel,
+  upgradeCategories,
+  upgrades,
+  type PurchasedUpgradeState,
+  type UpgradeCategory,
+  type UpgradeId,
+} from "../game/upgradeEngine";
 
 type UpgradePanelProps = {
-  category: UpgradeCategory;
-  upgrades: readonly UpgradeDefinition[];
   currenciesState: CurrencyState;
   unlockedCurrencies: UnlockedCurrencyState;
   purchasedUpgrades: PurchasedUpgradeState;
   onBuyUpgrade: (upgradeId: UpgradeId) => void;
 };
 
-function UpgradePanel({ category, upgrades, currenciesState, unlockedCurrencies, purchasedUpgrades, onBuyUpgrade }: UpgradePanelProps) {
-  const visibleUpgrades = upgrades.filter((upgrade) => {
+function getVisibleUpgrades(unlockedCurrencies: UnlockedCurrencyState) {
+  return upgrades.filter((upgrade) => {
     if (upgrade.effect.type !== "percentProduction") {
       return true;
     }
-
     return unlockedCurrencies[upgrade.effect.currency];
   });
+}
+
+function UpgradePanel({ currenciesState, unlockedCurrencies, purchasedUpgrades, onBuyUpgrade }: UpgradePanelProps) {
+  const visible = getVisibleUpgrades(unlockedCurrencies);
+  const categoriesWithUpgrades = upgradeCategories.filter((cat) => visible.some((u) => u.category === cat));
+  const [activeCategory, setActiveCategory] = useState<UpgradeCategory>(categoriesWithUpgrades[0] ?? "currency");
+
+  const filtered = visible.filter((u) => u.category === activeCategory);
 
   return (
-    <div className="upgrade-list compact-list" data-category={category}>
-      {visibleUpgrades.map((upgrade) => {
-        const currentLevel = purchasedUpgrades[upgrade.id];
-        const cost = getUpgradeCost(upgrade.id, currentLevel);
-        const canAfford = Object.entries(cost).every(([currencyId, amount]) => Math.floor(currenciesState[currencyId as CurrencyId]) >= (amount ?? 0));
-        const isCapped = upgrade.maxLevel !== undefined && currentLevel >= upgrade.maxLevel;
-        const costLabel = Object.entries(cost)
-          .map(([currencyId, amount]) => `${amount} ${currencyMap[currencyId as CurrencyId].shortLabel}`)
-          .join(", ");
-        const effectLabel = upgrade.effect.type === "percentProduction"
-          ? `Effect: ${currencyMap[upgrade.effect.currency].shortLabel} production +${Math.round(upgrade.effect.value * 100)}% per level, x${formatCurrencyValue(2 ** Math.floor(currentLevel / 25))} breakpoint bonus`
-          : `Effect: ${upgrade.description}`;
+    <div>
+      <div className="category-tabs">
+        {categoriesWithUpgrades.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            className={`category-tab${activeCategory === cat ? " category-tab-active" : ""}`}
+            onClick={() => setActiveCategory(cat)}
+          >
+            {getUpgradeCategoryLabel(cat)}
+          </button>
+        ))}
+      </div>
+      <div className="upgrade-list">
+        {filtered.map((upgrade) => {
+          const currentLevel = purchasedUpgrades[upgrade.id];
+          const cost = getUpgradeCost(upgrade.id, currentLevel);
+          const affordable = canAffordCost(currenciesState, cost);
+          const isCapped = upgrade.maxLevel !== undefined && currentLevel >= upgrade.maxLevel;
+          const costLabel = Object.entries(cost)
+            .map(([cid, amount]) => `${amount} ${currencyMap[cid as CurrencyId].shortLabel}`)
+            .join(", ");
 
-        return (
-          <div key={upgrade.id} className="upgrade-card compact-card">
-            <div className="upgrade-copy">
-              <h3 className="upgrade-name">{upgrade.name}</h3>
-              <p className="upgrade-description">{effectLabel}</p>
-              <p className="upgrade-cost">Level {currentLevel}</p>
-              <p className="upgrade-cost">Next: {costLabel}</p>
+          let detail: string;
+          if (upgrade.effect.type === "percentProduction") {
+            detail = `Lv ${currentLevel} | ${currencyMap[upgrade.effect.currency].shortLabel} +${Math.round(upgrade.effect.value * 100)}%/lv | x${formatCurrencyValue(2 ** Math.floor(currentLevel / 25))} bonus`;
+          } else if (upgrade.effect.type === "percentClickPower") {
+            detail = `Lv ${currentLevel} | +${Math.round(upgrade.effect.value * 100)}% click/lv (x${formatCurrencyValue(1 + upgrade.effect.value * currentLevel)})`;
+          } else {
+            detail = upgrade.description;
+          }
+
+          return (
+            <div key={upgrade.id} className={`upgrade-card${isCapped ? " upgrade-card-maxed" : ""}`}>
+              <div className="upgrade-info">
+                <h3 className="upgrade-name">{upgrade.name}</h3>
+                <p className="upgrade-detail">{detail}</p>
+                {!isCapped && <p className="upgrade-detail">Cost: {costLabel}</p>}
+              </div>
+              <button
+                className="btn btn-sm"
+                type="button"
+                onClick={() => onBuyUpgrade(upgrade.id)}
+                disabled={isCapped || !affordable}
+              >
+                {isCapped ? "Maxed" : "Buy"}
+              </button>
             </div>
-            <button className="upgrade-button compact-buy-button" type="button" onClick={() => onBuyUpgrade(upgrade.id)} disabled={isCapped || !canAfford}>
-              {isCapped ? "Maxed" : "Buy"}
-            </button>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

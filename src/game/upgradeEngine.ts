@@ -20,7 +20,8 @@ export type UpgradeCost = Partial<Record<CurrencyId, number>>;
 
 export type UpgradeEffect =
   | { type: "percentProduction"; currency: CurrencyId; value: number }
-  | { type: "unlockFeature"; feature: FeatureId };
+  | { type: "unlockFeature"; feature: FeatureId }
+  | { type: "percentClickPower"; value: number };
 
 export type UpgradeDefinition = {
   id: string;
@@ -36,11 +37,19 @@ export type UpgradeDefinition = {
 export const upgrades: UpgradeDefinition[] = [
   { id: "fragmentEfficiency", category: "currency", name: "Fragment Efficiency", description: "+10% Fragment production", baseCost: { fragmentOfWisdom: 50 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "fragmentOfWisdom", value: 0.1 } },
   { id: "transmutationEfficiency", category: "currency", name: "Transmutation Tuning", description: "+10% Transmutation production", baseCost: { transmutationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "transmutationOrb", value: 0.1 } },
+  { id: "augmentationEfficiency", category: "currency", name: "Augmentation Refinement", description: "+10% Augmentation production", baseCost: { augmentationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "augmentationOrb", value: 0.1 } },
+  { id: "alterationEfficiency", category: "currency", name: "Alteration Mastery", description: "+10% Alteration production", baseCost: { alterationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "alterationOrb", value: 0.1 } },
+  { id: "jewellerEfficiency", category: "currency", name: "Jeweller Precision", description: "+10% Jeweller production", baseCost: { jewellersOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "jewellersOrb", value: 0.1 } },
+  { id: "fusingEfficiency", category: "currency", name: "Fusing Synergy", description: "+10% Fusing production", baseCost: { fusingOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "fusingOrb", value: 0.1 } },
+  { id: "alchemyEfficiency", category: "currency", name: "Alchemy Potency", description: "+10% Alchemy production", baseCost: { alchemyOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "alchemyOrb", value: 0.1 } },
   { id: "chaosAmplification", category: "currency", name: "Chaos Amplification", description: "+10% Chaos production", baseCost: { chaosOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "chaosOrb", value: 0.1 } },
+  { id: "regalEfficiency", category: "currency", name: "Regal Authority", description: "+10% Regal production", baseCost: { regalOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "regalOrb", value: 0.1 } },
+  { id: "exaltedEfficiency", category: "currency", name: "Exalted Brilliance", description: "+10% Exalted production", baseCost: { exaltedOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "exaltedOrb", value: 0.1 } },
   { id: "autoConversion", category: "automators", name: "Efficient Conversion", description: "Unlock automatic conversion between tiers", baseCost: { transmutationOrb: 1 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "autoConversion" } },
   { id: "bulkConversion", category: "automators", name: "Bulk Conversion", description: "Convert the maximum safe amount each tick", baseCost: { transmutationOrb: 2 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "bulkConversion" } },
   { id: "chainConversion", category: "converters", name: "Chain Conversion", description: "Cascade conversions upward through every tier", baseCost: { augmentationOrb: 1 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "chainConversion" } },
-  { id: "buyMax", category: "qualityOfLife", name: "Buy Max", description: "Buy the maximum affordable generators at once", baseCost: { alterationOrb: 1 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "buyMax" } }
+  { id: "buyMax", category: "qualityOfLife", name: "Buy Max", description: "Buy the maximum affordable generators at once", baseCost: { alterationOrb: 1 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "buyMax" } },
+  { id: "clickPower", category: "currency", name: "Click Power", description: "+25% click power", baseCost: { fragmentOfWisdom: 25 }, costMultiplier: 1.3, effect: { type: "percentClickPower", value: 0.25 } }
 ];
 
 export type UpgradeId = (typeof upgrades)[number]["id"];
@@ -100,6 +109,7 @@ export function getUpgradeBreakpointMultiplier(level: number) {
 export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState) {
   const currencyMultipliers = { ...initialCurrencyMultipliers };
   const unlockedFeatures = { ...initialUnlockedFeatures };
+  let clickMultiplier = 1;
 
   upgrades.forEach((upgrade) => {
     const level = purchasedUpgrades[upgrade.id as UpgradeId];
@@ -115,10 +125,20 @@ export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState) {
       return;
     }
 
+    if (upgrade.effect.type === "percentClickPower") {
+      clickMultiplier *= 1 + upgrade.effect.value * level;
+      return;
+    }
+
     unlockedFeatures[upgrade.effect.feature] = true;
   });
 
-  return { currencyMultipliers, unlockedFeatures };
+  return { currencyMultipliers, unlockedFeatures, clickMultiplier };
+}
+
+export function getClickPower(fragmentProductionRate: number, clickMultiplier: number) {
+  const baseClick = 1 + fragmentProductionRate * 0.3;
+  return Math.max(1, Math.floor(baseClick * clickMultiplier));
 }
 
 function payCost(currenciesState: CurrencyState, cost: UpgradeCost) {

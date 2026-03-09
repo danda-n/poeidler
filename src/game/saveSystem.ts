@@ -14,7 +14,17 @@ type SavePayload = {
 };
 
 function isSavePayload(payload: unknown): payload is SavePayload {
-  return Boolean(payload && typeof payload === "object");
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  return (
+    typeof candidate.currencies === "object" && candidate.currencies !== null &&
+    typeof candidate.generatorsOwned === "object" && candidate.generatorsOwned !== null &&
+    typeof candidate.purchasedUpgrades === "object" && candidate.purchasedUpgrades !== null &&
+    typeof candidate.lastSaveTime === "number"
+  );
 }
 
 export function saveGameState(gameState: GameState, timestamp = Date.now()) {

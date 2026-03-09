@@ -31,6 +31,7 @@ export type GameState = {
   currencies: CurrencyState;
   currencyProduction: CurrencyProduction;
   currencyMultipliers: CurrencyMultipliers;
+  clickMultiplier: number;
   generatorsOwned: GeneratorOwnedState;
   purchasedUpgrades: PurchasedUpgradeState;
   unlockedFeatures: FeatureState;
@@ -39,7 +40,7 @@ export type GameState = {
   lastSaveTime: number | null;
 };
 
-export const GAME_VERSION = "0.4.1";
+export const GAME_VERSION = "0.6.0";
 export const TICK_RATE_MS = 100;
 
 export function calculateCurrencyProduction(
@@ -57,7 +58,7 @@ export function calculateCurrencyProduction(
 }
 
 export function synchronizeGameState(gameState: GameState) {
-  const { currencyMultipliers, unlockedFeatures } = applyUpgradeEffects(gameState.purchasedUpgrades);
+  const { currencyMultipliers, unlockedFeatures, clickMultiplier } = applyUpgradeEffects(gameState.purchasedUpgrades);
   const currencyProduction = calculateCurrencyProduction(gameState.generatorsOwned, currencyMultipliers);
   const unlockedCurrencies = unlockCurrencies(gameState.unlockedCurrencies, currencyProduction);
 
@@ -65,6 +66,7 @@ export function synchronizeGameState(gameState: GameState) {
     ...gameState,
     currencyMultipliers,
     unlockedFeatures,
+    clickMultiplier,
     currencyProduction,
     unlockedCurrencies,
   };
@@ -75,6 +77,7 @@ export function createInitialGameState(): GameState {
     currencies: { ...initialCurrencies },
     currencyProduction: { ...initialCurrencyProduction },
     currencyMultipliers: { ...initialCurrencyMultipliers },
+    clickMultiplier: 1,
     generatorsOwned: { ...initialGeneratorsOwned },
     purchasedUpgrades: { ...initialPurchasedUpgrades },
     unlockedFeatures: { ...initialUnlockedFeatures },
@@ -110,16 +113,19 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     deltaTimeSeconds,
   );
 
-  return synchronizeGameState({
+  const currenciesAfterConversion = autoConvertCurrencies(
+    currenciesWithProduction,
+    synchronizedState.purchasedUpgrades,
+    synchronizedState.generatorsOwned,
+    synchronizedState.unlockedFeatures,
+    synchronizedState.unlockedCurrencies,
+  );
+
+  return {
     ...synchronizedState,
-    currencies: autoConvertCurrencies(
-      currenciesWithProduction,
-      synchronizedState.purchasedUpgrades,
-      synchronizedState.generatorsOwned,
-      synchronizedState.unlockedFeatures,
-      synchronizedState.unlockedCurrencies,
-    ),
-  });
+    currencies: currenciesAfterConversion,
+    unlockedCurrencies: unlockCurrencies(synchronizedState.unlockedCurrencies, synchronizedState.currencyProduction),
+  };
 }
 
 export function startGameEngine(updateState: (updater: (currentState: GameState) => GameState) => void) {

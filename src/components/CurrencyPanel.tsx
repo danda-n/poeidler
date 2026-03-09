@@ -1,5 +1,5 @@
 import { currencyMap, formatCurrencyValue, getVisibleCurrencies, type CurrencyProduction, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
-import { generatorMap, getGeneratorCost, type GeneratorId, type GeneratorOwnedState } from "../game/generators";
+import { generatorByCurrency, getGeneratorCost, type GeneratorId, type GeneratorOwnedState } from "../game/generators";
 import CurrencyRow from "./CurrencyRow";
 
 type CurrencyPanelProps = {
@@ -20,9 +20,9 @@ function CurrencyPanel({
   onBuyGenerator,
 }: CurrencyPanelProps) {
   return (
-    <div className="currency-list compact-list">
+    <div className="currency-list">
       {getVisibleCurrencies(unlockedCurrencies).map((currency) => {
-        const generator = Object.values(generatorMap).find((entry) => entry.currency === currency.id);
+        const generator = generatorByCurrency[currency.id];
         const generatorOwned = generator ? generatorsOwned[generator.id] : 0;
         const generatorCost = generator ? getGeneratorCost(generator.id, generatorOwned, 1) : null;
         const canAffordGenerator = generator
@@ -32,7 +32,7 @@ function CurrencyPanel({
           ? `${buyMaxEnabled ? "Max" : "+1"} ${generator.label}`
           : undefined;
         const generatorMeta = generator
-          ? `${generatorOwned} owned | ${generatorCost} ${currencyMap[generator.costCurrency].shortLabel}`
+          ? `${generatorOwned} owned | ${formatCurrencyValue(generatorCost ?? 0)} ${currencyMap[generator.costCurrency].shortLabel}`
           : undefined;
 
         return (
@@ -49,10 +49,6 @@ function CurrencyPanel({
           />
         );
       })}
-      <div className="currency-summary compact-summary">
-        <span>Total Passive Generation</span>
-        <strong>{formatCurrencyValue(currencyProduction.fragmentOfWisdom)} Fragment / sec</strong>
-      </div>
     </div>
   );
 }

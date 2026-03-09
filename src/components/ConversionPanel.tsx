@@ -9,28 +9,24 @@ type ConversionPanelProps = {
 };
 
 function ConversionPanel({ currenciesState, unlockedCurrencies, conversionReserve, onConvertCurrency }: ConversionPanelProps) {
-  const reserveEntries = Object.entries(conversionReserve).filter(([, amount]) => amount > 0);
   const visibleConversions = getVisibleAdjacentConversions(unlockedCurrencies);
+  const reserveEntries = Object.entries(conversionReserve).filter(([, amount]) => amount > 0);
+  const reserveLabel = reserveEntries.length > 0
+    ? `Reserve: ${reserveEntries.map(([cid, amount]) => `${amount} ${currencyMap[cid as CurrencyId].shortLabel}`).join(", ")}`
+    : undefined;
 
   return (
-    <div className="conversion-list compact-list">
-      <p className="conversion-note">
-        Conversion stays compact and only shows currently unlocked tier steps.
-      </p>
-      {reserveEntries.length > 0 ? (
-        <p className="conversion-reserve">
-          Reserve: {reserveEntries.map(([currencyId, amount]) => `${amount} ${currencyMap[currencyId as CurrencyId].shortLabel}`).join(", ")}
-        </p>
-      ) : null}
+    <div className="conversion-list">
       {visibleConversions.map((conversion) => (
         <button
           key={`${conversion.fromCurrencyId}-${conversion.toCurrencyId}`}
-          className="conversion-button compact-button"
+          className="conversion-button"
           type="button"
+          title={reserveLabel}
           onClick={() => onConvertCurrency(conversion.fromCurrencyId, conversion.toCurrencyId)}
           disabled={getSpendableAmount(currenciesState, conversion.fromCurrencyId) < conversion.ratio}
         >
-          {conversion.ratio} {currencyMap[conversion.fromCurrencyId].shortLabel} to 1 {currencyMap[conversion.toCurrencyId].shortLabel}
+          {conversion.ratio} {currencyMap[conversion.fromCurrencyId].shortLabel} &rarr; 1 {currencyMap[conversion.toCurrencyId].shortLabel}
         </button>
       ))}
     </div>

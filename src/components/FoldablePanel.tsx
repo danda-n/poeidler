@@ -11,8 +11,8 @@ function FoldablePanel({ title, defaultOpen = true, children }: FoldablePanelPro
 
   return (
     <section className="foldable-panel">
-      <button className="foldable-trigger" type="button" onClick={() => setIsOpen((currentValue) => !currentValue)}>
-        <span className="foldable-icon">{isOpen ? "v" : ">"}</span>
+      <button className="foldable-trigger" type="button" onClick={() => setIsOpen((v) => !v)}>
+        <span className="foldable-icon">{isOpen ? "\u25BE" : "\u25B8"}</span>
         <span>{title}</span>
       </button>
       {isOpen ? <div className="foldable-content">{children}</div> : null}

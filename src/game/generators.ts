@@ -1,11 +1,14 @@
-import { currencyIds, type CurrencyId } from "./currencies";
-
 export const generators = [
-  { id: "fragmentFarmer", currency: "fragmentOfWisdom", label: "Fragment Farmer", baseRate: 1, owned: 0, baseCost: 10, costMultiplier: 1.15, costCurrency: "fragmentOfWisdom" },
-  { id: "transmutationPress", currency: "transmutationOrb", label: "Transmutation Press", baseRate: 0.2, owned: 0, baseCost: 120, costMultiplier: 1.17, costCurrency: "fragmentOfWisdom" },
-  { id: "augmentationMill", currency: "augmentationOrb", label: "Augmentation Mill", baseRate: 0.12, owned: 0, baseCost: 320, costMultiplier: 1.18, costCurrency: "fragmentOfWisdom" },
-  { id: "chaosHarvester", currency: "chaosOrb", label: "Chaos Harvester", baseRate: 0.04, owned: 0, baseCost: 1800, costMultiplier: 1.22, costCurrency: "fragmentOfWisdom" },
-  { id: "exaltedForge", currency: "exaltedOrb", label: "Exalted Forge", baseRate: 0.01, owned: 0, baseCost: 9600, costMultiplier: 1.25, costCurrency: "fragmentOfWisdom" }
+  { id: "fragmentFarmer", currency: "fragmentOfWisdom", label: "Fragment Farmer", baseRate: 1, baseCost: 10, costMultiplier: 1.15, costCurrency: "fragmentOfWisdom" },
+  { id: "transmutationPress", currency: "transmutationOrb", label: "Transmutation Press", baseRate: 0.2, baseCost: 120, costMultiplier: 1.17, costCurrency: "fragmentOfWisdom" },
+  { id: "augmentationMill", currency: "augmentationOrb", label: "Augmentation Mill", baseRate: 0.12, baseCost: 320, costMultiplier: 1.18, costCurrency: "fragmentOfWisdom" },
+  { id: "alterationWorkshop", currency: "alterationOrb", label: "Alteration Workshop", baseRate: 0.08, baseCost: 25, costMultiplier: 1.19, costCurrency: "transmutationOrb" },
+  { id: "jewellerBench", currency: "jewellersOrb", label: "Jeweller's Bench", baseRate: 0.06, baseCost: 20, costMultiplier: 1.2, costCurrency: "augmentationOrb" },
+  { id: "fusingApparatus", currency: "fusingOrb", label: "Fusing Apparatus", baseRate: 0.05, baseCost: 15, costMultiplier: 1.21, costCurrency: "alterationOrb" },
+  { id: "alchemyLab", currency: "alchemyOrb", label: "Alchemy Lab", baseRate: 0.06, baseCost: 12, costMultiplier: 1.22, costCurrency: "jewellersOrb" },
+  { id: "chaosHarvester", currency: "chaosOrb", label: "Chaos Harvester", baseRate: 0.05, baseCost: 10, costMultiplier: 1.23, costCurrency: "fusingOrb" },
+  { id: "regalRefinery", currency: "regalOrb", label: "Regal Refinery", baseRate: 0.04, baseCost: 8, costMultiplier: 1.24, costCurrency: "alchemyOrb" },
+  { id: "exaltedForge", currency: "exaltedOrb", label: "Exalted Forge", baseRate: 0.03, baseCost: 6, costMultiplier: 1.25, costCurrency: "chaosOrb" }
 ] as const;
 
 export type GeneratorDefinition = (typeof generators)[number];
@@ -19,8 +22,13 @@ export const generatorMap: Record<GeneratorId, GeneratorDefinition> = generators
   return accumulator;
 }, {} as Record<GeneratorId, GeneratorDefinition>);
 
+export const generatorByCurrency: Partial<Record<string, GeneratorDefinition>> = generators.reduce((accumulator, generator) => {
+  accumulator[generator.currency] = generator;
+  return accumulator;
+}, {} as Record<string, GeneratorDefinition>);
+
 export const initialGeneratorsOwned: GeneratorOwnedState = generatorIds.reduce((accumulator, generatorId) => {
-  accumulator[generatorId] = generatorMap[generatorId].owned;
+  accumulator[generatorId] = 0;
   return accumulator;
 }, {} as GeneratorOwnedState);
 
@@ -49,11 +57,4 @@ export function getMaxAffordableGeneratorPurchases(generatorId: GeneratorId, own
     runningCost += nextCost;
     quantity += 1;
   }
-}
-
-export function createEmptyCurrencyBreakdown() {
-  return currencyIds.reduce((accumulator, currencyId) => {
-    accumulator[currencyId] = 0;
-    return accumulator;
-  }, {} as Record<CurrencyId, number>);
 }

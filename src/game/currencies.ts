@@ -43,15 +43,15 @@ export type UnlockedCurrencyState = Record<CurrencyId, boolean>;
 
 export const currencies: CurrencyDefinition[] = [
   { id: "fragmentOfWisdom", label: "Fragment of Wisdom", shortLabel: "Fragment", tier: 1, baseValue: 1, icon: fragmentIcon },
-  { id: "transmutationOrb", label: "Transmutation Orb", shortLabel: "Transmutation", tier: 2, baseValue: 8, icon: transmutationIcon, unlockRequirement: { currencyId: "fragmentOfWisdom", productionPerSecond: 10 } },
-  { id: "augmentationOrb", label: "Augmentation Orb", shortLabel: "Augmentation", tier: 3, baseValue: 16, icon: augmentationIcon, unlockRequirement: { currencyId: "transmutationOrb", productionPerSecond: 2 } },
-  { id: "alterationOrb", label: "Alteration Orb", shortLabel: "Alteration", tier: 4, baseValue: 32, icon: alterationIcon, unlockRequirement: { currencyId: "augmentationOrb", productionPerSecond: 1.5 } },
-  { id: "jewellersOrb", label: "Jeweller's Orb", shortLabel: "Jeweller", tier: 5, baseValue: 64, icon: jewellerIcon, unlockRequirement: { currencyId: "alterationOrb", productionPerSecond: 1 } },
-  { id: "fusingOrb", label: "Fusing Orb", shortLabel: "Fusing", tier: 6, baseValue: 96, icon: fusingIcon, unlockRequirement: { currencyId: "jewellersOrb", productionPerSecond: 0.75 } },
-  { id: "alchemyOrb", label: "Alchemy Orb", shortLabel: "Alchemy", tier: 7, baseValue: 128, icon: alchemyIcon, unlockRequirement: { currencyId: "fusingOrb", productionPerSecond: 0.5 } },
-  { id: "chaosOrb", label: "Chaos Orb", shortLabel: "Chaos", tier: 8, baseValue: 256, icon: chaosIcon, unlockRequirement: { currencyId: "alchemyOrb", productionPerSecond: 0.35 } },
-  { id: "regalOrb", label: "Regal Orb", shortLabel: "Regal", tier: 9, baseValue: 512, icon: regalIcon, unlockRequirement: { currencyId: "chaosOrb", productionPerSecond: 0.2 } },
-  { id: "exaltedOrb", label: "Exalted Orb", shortLabel: "Exalted", tier: 10, baseValue: 1024, icon: exaltedIcon, unlockRequirement: { currencyId: "regalOrb", productionPerSecond: 0.1 } }
+  { id: "transmutationOrb", label: "Transmutation Orb", shortLabel: "Transmutation", tier: 2, baseValue: 8, icon: transmutationIcon, unlockRequirement: { currencyId: "fragmentOfWisdom", productionPerSecond: 8 } },
+  { id: "augmentationOrb", label: "Augmentation Orb", shortLabel: "Augmentation", tier: 3, baseValue: 16, icon: augmentationIcon, unlockRequirement: { currencyId: "transmutationOrb", productionPerSecond: 1.5 } },
+  { id: "alterationOrb", label: "Alteration Orb", shortLabel: "Alteration", tier: 4, baseValue: 32, icon: alterationIcon, unlockRequirement: { currencyId: "augmentationOrb", productionPerSecond: 0.7 } },
+  { id: "jewellersOrb", label: "Jeweller's Orb", shortLabel: "Jeweller", tier: 5, baseValue: 64, icon: jewellerIcon, unlockRequirement: { currencyId: "alterationOrb", productionPerSecond: 0.5 } },
+  { id: "fusingOrb", label: "Fusing Orb", shortLabel: "Fusing", tier: 6, baseValue: 128, icon: fusingIcon, unlockRequirement: { currencyId: "jewellersOrb", productionPerSecond: 0.35 } },
+  { id: "alchemyOrb", label: "Alchemy Orb", shortLabel: "Alchemy", tier: 7, baseValue: 256, icon: alchemyIcon, unlockRequirement: { currencyId: "fusingOrb", productionPerSecond: 0.25 } },
+  { id: "chaosOrb", label: "Chaos Orb", shortLabel: "Chaos", tier: 8, baseValue: 512, icon: chaosIcon, unlockRequirement: { currencyId: "alchemyOrb", productionPerSecond: 0.3 } },
+  { id: "regalOrb", label: "Regal Orb", shortLabel: "Regal", tier: 9, baseValue: 1024, icon: regalIcon, unlockRequirement: { currencyId: "chaosOrb", productionPerSecond: 0.2 } },
+  { id: "exaltedOrb", label: "Exalted Orb", shortLabel: "Exalted", tier: 10, baseValue: 2048, icon: exaltedIcon, unlockRequirement: { currencyId: "regalOrb", productionPerSecond: 0.12 } }
 ];
 
 export const currencyIds = currencies.map((currency) => currency.id) as CurrencyId[];
@@ -118,10 +118,25 @@ export function getVisibleAdjacentConversions(unlockedCurrencies: UnlockedCurren
   }));
 }
 
+const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi"];
+
 export function formatCurrencyValue(value: number) {
-  const rounded = Math.round(value * 10) / 10;
-  const isWholeNumber = Math.abs(rounded - Math.round(rounded)) < 0.001;
-  return isWholeNumber ? String(Math.round(rounded)) : rounded.toFixed(1);
+  if (value < 1000) {
+    const rounded = Math.round(value * 10) / 10;
+    const isWholeNumber = Math.abs(rounded - Math.round(rounded)) < 0.001;
+    return isWholeNumber ? String(Math.round(rounded)) : rounded.toFixed(1);
+  }
+
+  let tier = 0;
+  let scaled = value;
+
+  while (scaled >= 1000 && tier < SUFFIXES.length - 1) {
+    scaled /= 1000;
+    tier += 1;
+  }
+
+  const formatted = scaled >= 100 ? Math.floor(scaled).toString() : scaled.toFixed(scaled >= 10 ? 1 : 2);
+  return formatted + SUFFIXES[tier];
 }
 
 export function getSpendableAmount(currenciesState: CurrencyState, currencyId: CurrencyId) {
@@ -138,4 +153,17 @@ export function getConversionRatio(fromCurrencyId: CurrencyId, toCurrencyId: Cur
 
   const ratio = toCurrency.baseValue / fromCurrency.baseValue;
   return Number.isInteger(ratio) ? ratio : null;
+}
+
+export function getNextLockedCurrencies(unlockedCurrencies: UnlockedCurrencyState, count: number) {
+  return orderedCurrencies
+    .filter((currency) => !unlockedCurrencies[currency.id] && currency.unlockRequirement)
+    .slice(0, count);
+}
+
+export function scrambleName(name: string): string {
+  return name
+    .split("")
+    .map((char, index) => (index === 0 || char === " " ? char : "\u2588"))
+    .join("");
 }
