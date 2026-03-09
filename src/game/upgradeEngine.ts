@@ -12,10 +12,10 @@ import {
   type GeneratorOwnedState,
 } from "./generators";
 
-export const upgradeCategories = ["currency", "automators", "converters", "qualityOfLife"] as const;
+export const upgradeCategories = ["currency", "qualityOfLife"] as const;
 
 export type UpgradeCategory = (typeof upgradeCategories)[number];
-export type FeatureId = "autoConversion" | "bulkConversion" | "chainConversion" | "buyMax";
+export type FeatureId = "buyMax";
 export type UpgradeCost = Partial<Record<CurrencyId, number>>;
 
 export type UpgradeEffect =
@@ -45,17 +45,13 @@ export const upgrades: UpgradeDefinition[] = [
   { id: "chaosAmplification", category: "currency", name: "Chaos Amplification", description: "+10% Chaos production", baseCost: { chaosOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "chaosOrb", value: 0.1 } },
   { id: "regalEfficiency", category: "currency", name: "Regal Authority", description: "+10% Regal production", baseCost: { regalOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "regalOrb", value: 0.1 } },
   { id: "exaltedEfficiency", category: "currency", name: "Exalted Brilliance", description: "+10% Exalted production", baseCost: { exaltedOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "exaltedOrb", value: 0.1 } },
-  { id: "autoConversion", category: "automators", name: "Efficient Conversion", description: "Unlock automatic conversion between tiers", baseCost: { transmutationOrb: 1 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "autoConversion" } },
-  { id: "bulkConversion", category: "automators", name: "Bulk Conversion", description: "Convert the maximum safe amount each tick", baseCost: { transmutationOrb: 2 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "bulkConversion" } },
-  { id: "chainConversion", category: "converters", name: "Chain Conversion", description: "Cascade conversions upward through every tier", baseCost: { augmentationOrb: 1 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "chainConversion" } },
   { id: "buyMax", category: "qualityOfLife", name: "Buy Max", description: "Buy the maximum affordable generators at once", baseCost: { alterationOrb: 1 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "buyMax" } },
-  { id: "clickPower", category: "currency", name: "Click Power", description: "+25% click power", baseCost: { fragmentOfWisdom: 25 }, costMultiplier: 1.3, effect: { type: "percentClickPower", value: 0.25 } }
+  { id: "clickPower", category: "currency", name: "Click Power", description: "+25% click power", baseCost: { fragmentOfWisdom: 25 }, costMultiplier: 1.3, effect: { type: "percentClickPower", value: 0.25 } },
 ];
 
 export type UpgradeId = (typeof upgrades)[number]["id"];
 export type PurchasedUpgradeState = Record<UpgradeId, number>;
 export type FeatureState = Record<FeatureId, boolean>;
-export type ConversionReserve = Record<CurrencyId, number>;
 
 export type UpgradeEngineState = {
   currencies: CurrencyState;
@@ -76,11 +72,16 @@ export const initialPurchasedUpgrades: PurchasedUpgradeState = upgrades.reduce((
 }, {} as PurchasedUpgradeState);
 
 export const initialUnlockedFeatures: FeatureState = {
-  autoConversion: false,
-  bulkConversion: false,
-  chainConversion: false,
   buyMax: false,
 };
+
+export const productionUpgradeByCurrency: Partial<Record<CurrencyId, UpgradeDefinition>> =
+  upgrades.reduce((accumulator, upgrade) => {
+    if (upgrade.effect.type === "percentProduction") {
+      accumulator[upgrade.effect.currency] = upgrade;
+    }
+    return accumulator;
+  }, {} as Partial<Record<CurrencyId, UpgradeDefinition>>);
 
 function scaleCost(baseCost: number, costMultiplier: number | undefined, level: number) {
   if (!costMultiplier) {
@@ -206,43 +207,10 @@ export function purchaseGenerator<T extends UpgradeEngineState>(gameState: T, ge
   };
 }
 
-export function getConversionReserve(purchasedUpgrades: PurchasedUpgradeState, generatorsOwned: GeneratorOwnedState) {
-  const reserve = currencyIds.reduce((accumulator, currencyId) => {
-    accumulator[currencyId] = 0;
-    return accumulator;
-  }, {} as ConversionReserve);
-
-  upgrades.forEach((upgrade) => {
-    const currentLevel = purchasedUpgrades[upgrade.id as UpgradeId];
-
-    if (upgrade.maxLevel !== undefined && currentLevel >= upgrade.maxLevel) {
-      return;
-    }
-
-    const nextCost = getUpgradeCost(upgrade.id as UpgradeId, currentLevel);
-
-    Object.entries(nextCost).forEach(([currencyId, amount]) => {
-      const typedCurrencyId = currencyId as CurrencyId;
-      reserve[typedCurrencyId] = Math.max(reserve[typedCurrencyId], amount ?? 0);
-    });
-  });
-
-  generators.forEach((generator) => {
-    const nextCost = getGeneratorCost(generator.id, generatorsOwned[generator.id], 1);
-    reserve[generator.costCurrency] = Math.max(reserve[generator.costCurrency], nextCost);
-  });
-
-  return reserve;
-}
-
 export function getUpgradeCategoryLabel(category: UpgradeCategory) {
   switch (category) {
     case "currency":
       return "Currency Upgrades";
-    case "automators":
-      return "Automators";
-    case "converters":
-      return "Converters";
     case "qualityOfLife":
       return "Quality of Life";
     default:

@@ -5,7 +5,7 @@ type GameLayoutProps = {
 };
 
 function GameLayout({ children }: GameLayoutProps) {
-  return <div className="game-container">{children}</div>;
+  return <div className="main-content">{children}</div>;
 }
 
 export default GameLayout;

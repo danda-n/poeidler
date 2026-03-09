@@ -80,7 +80,7 @@ export function loadGameState() {
         ...savePayload.unlockedCurrencies,
       },
       settings: {
-        version: savePayload.settings?.version ?? GAME_VERSION,
+        version: GAME_VERSION,
       },
       lastSaveTime: savePayload.lastSaveTime,
     });

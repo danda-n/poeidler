@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm install)",
       "Bash(npm run build)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(gh run list --limit 3)",
+      "Bash(where gh)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

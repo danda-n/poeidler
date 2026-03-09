@@ -1,28 +1,25 @@
 import { currencyMap, getVisibleAdjacentConversions, getSpendableAmount, type CurrencyId, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
-import type { ConversionReserve } from "../game/upgradeEngine";
 
-type ConversionPanelProps = {
+type ManualConversionRowProps = {
   currenciesState: CurrencyState;
   unlockedCurrencies: UnlockedCurrencyState;
-  conversionReserve: ConversionReserve;
   onConvertCurrency: (fromCurrencyId: CurrencyId, toCurrencyId: CurrencyId) => void;
 };
 
-function ConversionPanel({ currenciesState, unlockedCurrencies, conversionReserve, onConvertCurrency }: ConversionPanelProps) {
+function ManualConversionRow({ currenciesState, unlockedCurrencies, onConvertCurrency }: ManualConversionRowProps) {
   const visibleConversions = getVisibleAdjacentConversions(unlockedCurrencies);
-  const reserveEntries = Object.entries(conversionReserve).filter(([, amount]) => amount > 0);
-  const reserveLabel = reserveEntries.length > 0
-    ? `Reserve: ${reserveEntries.map(([cid, amount]) => `${amount} ${currencyMap[cid as CurrencyId].shortLabel}`).join(", ")}`
-    : undefined;
+
+  if (visibleConversions.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="conversion-list">
+    <div className="conversion-row">
       {visibleConversions.map((conversion) => (
         <button
           key={`${conversion.fromCurrencyId}-${conversion.toCurrencyId}`}
-          className="conversion-button"
+          className="btn btn-sm conversion-btn"
           type="button"
-          title={reserveLabel}
           onClick={() => onConvertCurrency(conversion.fromCurrencyId, conversion.toCurrencyId)}
           disabled={getSpendableAmount(currenciesState, conversion.fromCurrencyId) < conversion.ratio}
         >
@@ -33,4 +30,4 @@ function ConversionPanel({ currenciesState, unlockedCurrencies, conversionReserv
   );
 }
 
-export default ConversionPanel;
+export default ManualConversionRow;

@@ -21,7 +21,6 @@ import {
   type FeatureState,
   type PurchasedUpgradeState,
 } from "./upgradeEngine";
-import { autoConvertCurrencies } from "./conversionEngine";
 
 export type GameSettings = {
   version: string;
@@ -40,7 +39,7 @@ export type GameState = {
   lastSaveTime: number | null;
 };
 
-export const GAME_VERSION = "0.6.0";
+export const GAME_VERSION = "0.7.0";
 export const TICK_RATE_MS = 100;
 
 export function calculateCurrencyProduction(
@@ -113,17 +112,9 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     deltaTimeSeconds,
   );
 
-  const currenciesAfterConversion = autoConvertCurrencies(
-    currenciesWithProduction,
-    synchronizedState.purchasedUpgrades,
-    synchronizedState.generatorsOwned,
-    synchronizedState.unlockedFeatures,
-    synchronizedState.unlockedCurrencies,
-  );
-
   return {
     ...synchronizedState,
-    currencies: currenciesAfterConversion,
+    currencies: currenciesWithProduction,
     unlockedCurrencies: unlockCurrencies(synchronizedState.unlockedCurrencies, synchronizedState.currencyProduction),
   };
 }

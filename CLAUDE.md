@@ -48,3 +48,41 @@ Immutable state with reducer-style updates. `GameState` is the single source of 
 - Currency IDs and generator IDs are derived from `as const` tuple definitions, providing type safety without manual union types.
 - Progressive disclosure: UI sections appear based on game state milestones, with mystery teasers for next 2 locked currencies.
 - Single centered column layout (max 720px) with minimalistic dark theme.
+
+## Git
+Follow trunk-based development — branches are short-lived and merged back to main frequently.
+Avoid long-running feature branches.
+**Branch naming:** `<type>/<ticket-id-optional>-<short-description>`
+Examples: `feat/ABC-123-user-auth`, `fix/ABC-456-login-redirect`, `chore/update-deps`
+**Commit format:** Conventional Commits — `<type>(ticket-id-optional): <short description>`
+Types:
+- feat — new feature
+- fix — bug fix
+- chore — maintenance, dependency updates, config changes
+- refactor — code change that neither fixes a bug nor adds a feature
+- docs — documentation only
+- test — adding or updating tests
+- ci — CI/CD configuration changes
+Examples:
+- `feat(ABC-123): add OAuth2 login flow`
+- `fix(ABC-456): prevent double submit on slow connections`
+- `chore: upgrade TanStack Query to v5`
+
+**Rules:**
+- Co-locate tests next to source: `component.tsx` → `component.test.tsx`
+- Use `userEvent.setup()` for interactions — not `fireEvent`
+- Use `getByRole` first, then `getByLabelText`, then `getByText` — `getByTestId` is last resort
+- Wrap state changes in `act()`, async assertions in `waitFor()`
+- Test behaviour, not implementation. Test what the user sees, not internal state or method calls.
+- Do not test third-party library internals. Test that your form shows the right error, not that Zod validates.
+- Do not write tests for React Server Components — use Playwright E2E instead.
+
+## Do not
+- Do not write JavaScript — TypeScript only
+- Do not use default exports for components or hooks
+- Do not use relative ../../ imports — use @/* alias
+- Do not add eslint-disable without a comment explaining why
+- Do not bypass pre-commit hooks without good reason
+- Do not leave console.log in committed code
+- Do not hardcode env-specific values
+- Do not install a package without first checking if something already in the project covers the use case
