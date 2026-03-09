@@ -23,7 +23,7 @@ function MysteryRow({ currency, currencyProduction }: MysteryRowProps) {
       <div className="mystery-info">
         <span className="mystery-name">{scrambleName(currency.label)}</span>
         <span className="mystery-hint">
-          {formatCurrencyValue(targetRate)} {requirementCurrency.shortLabel}/sec
+          Reach {formatCurrencyValue(targetRate)} {requirementCurrency.shortLabel}/sec
         </span>
       </div>
       <div className="mystery-progress">
