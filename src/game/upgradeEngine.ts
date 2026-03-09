@@ -107,7 +107,7 @@ export function getUpgradeBreakpointMultiplier(level: number) {
   return 2 ** Math.floor(level / 25);
 }
 
-export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState) {
+export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState, breakpointBonus = 0) {
   const currencyMultipliers = { ...initialCurrencyMultipliers };
   const unlockedFeatures = { ...initialUnlockedFeatures };
   let clickMultiplier = 1;
@@ -121,7 +121,8 @@ export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState) {
 
     if (upgrade.effect.type === "percentProduction") {
       const additiveMultiplier = 1 + upgrade.effect.value * level;
-      const breakpointMultiplier = getUpgradeBreakpointMultiplier(level);
+      const baseBreakpoint = getUpgradeBreakpointMultiplier(level);
+      const breakpointMultiplier = baseBreakpoint * (1 + breakpointBonus * Math.floor(level / 25));
       currencyMultipliers[upgrade.effect.currency] *= additiveMultiplier * breakpointMultiplier;
       return;
     }

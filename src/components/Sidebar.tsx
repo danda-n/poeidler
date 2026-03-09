@@ -1,35 +1,43 @@
+export type PageId = "currency" | "maps" | "prestige" | "talents";
+
 type NavItem = {
-  id: string;
+  id: PageId;
   label: string;
   icon: string;
-  locked: boolean;
+  unlockKey?: string;
 };
 
 const navItems: NavItem[] = [
-  { id: "currency", label: "Currency", icon: "\u2692", locked: false },
-  { id: "prestige", label: "Prestige", icon: "?", locked: true },
-  { id: "achievements", label: "Achieve.", icon: "?", locked: true },
-  { id: "statistics", label: "Stats", icon: "?", locked: true },
+  { id: "currency", label: "Currency", icon: "\u2692" },
+  { id: "maps", label: "Maps", icon: "\uD83D\uDDFA\uFE0F", unlockKey: "maps" },
+  { id: "prestige", label: "Prestige", icon: "\uD83D\uDD2E", unlockKey: "prestige" },
+  { id: "talents", label: "Talents", icon: "\u2B50", unlockKey: "talents" },
 ];
 
 type SidebarProps = {
-  activePage: string;
+  activePage: PageId;
+  unlockedPages: Record<string, boolean>;
+  onNavigate: (page: PageId) => void;
 };
 
-function Sidebar({ activePage }: SidebarProps) {
+function Sidebar({ activePage, unlockedPages, onNavigate }: SidebarProps) {
   return (
     <nav className="sidebar">
-      {navItems.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          className={`sidebar-item${item.id === activePage ? " sidebar-item-active" : ""}${item.locked ? " sidebar-item-locked" : ""}`}
-          disabled={item.locked}
-        >
-          <span className="sidebar-item-icon">{item.icon}</span>
-          <span className="sidebar-item-label">{item.label}</span>
-        </button>
-      ))}
+      {navItems.map((item) => {
+        const locked = item.unlockKey ? !unlockedPages[item.unlockKey] : false;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className={`sidebar-item${item.id === activePage ? " sidebar-item-active" : ""}${locked ? " sidebar-item-locked" : ""}`}
+            disabled={locked}
+            onClick={() => !locked && onNavigate(item.id)}
+          >
+            <span className="sidebar-item-icon">{item.icon}</span>
+            <span className="sidebar-item-label">{item.label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }

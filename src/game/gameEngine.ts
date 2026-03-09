@@ -21,6 +21,24 @@ import {
   type FeatureState,
   type PurchasedUpgradeState,
 } from "./upgradeEngine";
+import {
+  type ActiveMapState,
+  isMapComplete,
+  mapMap,
+  completeMap,
+  applyMapRewards,
+} from "./maps";
+import {
+  initialPrestigeState,
+  type PrestigeState,
+} from "./prestige";
+import {
+  initialTalentsPurchased,
+  getClickPowerBonus,
+  getBreakpointBonus,
+  getMapRewardBonus,
+  type TalentPurchasedState,
+} from "./talents";
 
 export type GameSettings = {
   version: string;
@@ -37,9 +55,12 @@ export type GameState = {
   unlockedCurrencies: UnlockedCurrencyState;
   settings: GameSettings;
   lastSaveTime: number | null;
+  activeMap: ActiveMapState;
+  prestige: PrestigeState;
+  talentsPurchased: TalentPurchasedState;
 };
 
-export const GAME_VERSION = "0.7.0";
+export const GAME_VERSION = "0.8.0";
 export const TICK_RATE_MS = 100;
 
 export function calculateCurrencyProduction(
@@ -57,7 +78,15 @@ export function calculateCurrencyProduction(
 }
 
 export function synchronizeGameState(gameState: GameState) {
-  const { currencyMultipliers, unlockedFeatures, clickMultiplier } = applyUpgradeEffects(gameState.purchasedUpgrades);
+  const { currencyMultipliers, unlockedFeatures, clickMultiplier } = applyUpgradeEffects(
+    gameState.purchasedUpgrades,
+    getBreakpointBonus(gameState.talentsPurchased),
+  );
+
+  // Apply talent click power bonus
+  const talentClickBonus = getClickPowerBonus(gameState.talentsPurchased);
+  const adjustedClickMultiplier = clickMultiplier * (1 + talentClickBonus);
+
   const currencyProduction = calculateCurrencyProduction(gameState.generatorsOwned, currencyMultipliers);
   const unlockedCurrencies = unlockCurrencies(gameState.unlockedCurrencies, currencyProduction);
 
@@ -65,7 +94,7 @@ export function synchronizeGameState(gameState: GameState) {
     ...gameState,
     currencyMultipliers,
     unlockedFeatures,
-    clickMultiplier,
+    clickMultiplier: adjustedClickMultiplier,
     currencyProduction,
     unlockedCurrencies,
   };
@@ -83,6 +112,9 @@ export function createInitialGameState(): GameState {
     unlockedCurrencies: { ...initialUnlockedCurrencies },
     settings: { version: GAME_VERSION },
     lastSaveTime: null,
+    activeMap: null,
+    prestige: { ...initialPrestigeState },
+    talentsPurchased: { ...initialTalentsPurchased },
   });
 }
 
@@ -105,17 +137,52 @@ export function applyPassiveGeneration(
 }
 
 export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
-  const synchronizedState = synchronizeGameState(gameState);
-  const currenciesWithProduction = applyPassiveGeneration(
-    synchronizedState.currencies,
-    synchronizedState.currencyProduction,
+  let state = synchronizeGameState(gameState);
+  let currencies = applyPassiveGeneration(
+    state.currencies,
+    state.currencyProduction,
     deltaTimeSeconds,
   );
 
+  // Track lifetime fragment production
+  const fragmentProduced = state.currencyProduction.fragmentOfWisdom * deltaTimeSeconds;
+  let prestige = state.prestige;
+  if (fragmentProduced > 0) {
+    prestige = {
+      ...prestige,
+      lifetimeFragmentsProduced: prestige.lifetimeFragmentsProduced + fragmentProduced,
+    };
+  }
+
+  // Check map completion
+  let activeMap = state.activeMap;
+  if (activeMap && isMapComplete(activeMap, Date.now())) {
+    const mapDef = mapMap[activeMap.mapId];
+    if (mapDef) {
+      const rewardBonus = getMapRewardBonus(state.talentsPurchased, prestige.lastMapFamilyStreak);
+      const shardMultiplier = 1;
+      const result = completeMap(mapDef, rewardBonus, shardMultiplier);
+      currencies = applyMapRewards(currencies, result);
+
+      const isSameFamily = prestige.lastMapFamily === mapDef.family;
+      prestige = {
+        ...prestige,
+        mirrorShards: prestige.mirrorShards + result.shardReward,
+        totalMirrorShards: prestige.totalMirrorShards + result.shardReward,
+        mapsCompleted: prestige.mapsCompleted + 1,
+        lastMapFamily: mapDef.family,
+        lastMapFamilyStreak: isSameFamily ? prestige.lastMapFamilyStreak + 1 : 1,
+      };
+    }
+    activeMap = null;
+  }
+
   return {
-    ...synchronizedState,
-    currencies: currenciesWithProduction,
-    unlockedCurrencies: unlockCurrencies(synchronizedState.unlockedCurrencies, synchronizedState.currencyProduction),
+    ...state,
+    currencies,
+    activeMap,
+    prestige,
+    unlockedCurrencies: unlockCurrencies(state.unlockedCurrencies, state.currencyProduction),
   };
 }
 
