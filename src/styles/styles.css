@@ -1591,3 +1591,281 @@ img {
   font-style: italic;
   flex-shrink: 0;
 }
+
+/* ── Active Map Banner ── */
+
+.active-map-banner {
+  border-radius: 8px;
+  background: rgba(139, 233, 253, 0.05);
+  border: 1px solid rgba(139, 233, 253, 0.14);
+  overflow: hidden;
+}
+
+.active-map-banner-inner {
+  padding: 8px 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.active-map-banner-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.active-map-banner-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #8be9fd;
+}
+
+.active-map-banner-time {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #8be9fd;
+  font-variant-numeric: tabular-nums;
+}
+
+.active-map-banner-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.active-map-banner-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8be9fd, #50fa7b);
+  transition: width 200ms linear;
+}
+
+.active-map-banner-queue {
+  font-size: 0.68rem;
+  color: #666;
+}
+
+/* ── Map Toast ── */
+
+.map-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  min-width: 200px;
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #1a1e2a;
+  border: 1px solid rgba(80, 250, 123, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: grid;
+  gap: 6px;
+  z-index: 200;
+  pointer-events: none;
+  animation: toast-in 250ms ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.map-toast-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-toast-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #50fa7b;
+}
+
+.map-toast-shard-badge {
+  color: #bd93f9;
+  font-weight: 700;
+}
+
+.map-toast-bonus-badge {
+  color: #ffd36a;
+  font-weight: 700;
+}
+
+.map-toast-rewards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.map-toast-item {
+  font-size: 0.72rem;
+  color: #50fa7b;
+  font-weight: 500;
+}
+
+.map-toast-shard-item {
+  color: #bd93f9;
+}
+
+/* ── Map Queued Info ── */
+
+.map-queued {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 136, 68, 0.05);
+  border: 1px solid rgba(255, 136, 68, 0.15);
+}
+
+.map-queued-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-queued-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #ccc;
+}
+
+.map-queued-mods {
+  font-size: 0.72rem;
+  color: #ff8844;
+}
+
+/* ── Device Loadout ── */
+
+.device-loadout {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 136, 68, 0.04);
+  border: 1px solid rgba(255, 136, 68, 0.12);
+  display: grid;
+  gap: 8px;
+}
+
+.device-loadout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.device-loadout-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ff8844;
+}
+
+.device-loadout-count {
+  font-size: 0.68rem;
+  color: #888;
+}
+
+.device-loadout-selected {
+  display: grid;
+  gap: 4px;
+}
+
+.device-loadout-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.device-loadout-chip-name {
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.device-loadout-chip-desc {
+  font-size: 0.68rem;
+  color: #888;
+  flex: 1;
+}
+
+.device-loadout-chip-remove {
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: color 120ms;
+}
+
+.device-loadout-chip-remove:hover {
+  color: #e05050;
+}
+
+.device-loadout-pool {
+  display: grid;
+  gap: 3px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.device-pool-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  transition: background 120ms;
+}
+
+.device-pool-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.device-pool-row-added {
+  opacity: 0.35;
+}
+
+.device-pool-row-info {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.device-pool-row-name {
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.device-pool-row-tier {
+  font-size: 0.62rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.device-pool-row-desc {
+  font-size: 0.68rem;
+  color: #888;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-pool-add-btn {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  padding: 3px 7px;
+}

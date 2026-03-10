@@ -14,13 +14,12 @@ import {
   applyCraftingAction,
   type CraftedMap,
   type CraftingAction,
+  type QueuedMapSetup,
 } from "../game/maps";
 import {
-  resolveDeviceEffects,
-  canAffordDeviceAction,
-  payDeviceActionCost,
-  applyDeviceAction,
-  type DeviceAction,
+  resolveLoadoutEffects,
+  payLoadoutCost,
+  type DeviceLoadout,
 } from "../game/mapDevice";
 import { performPrestige, canPrestige } from "../game/prestige";
 import { purchaseTalent as purchaseTalentFn, getMapSpeedBonus, getMapCostReduction, getConversionBonus, getGeneratorCostReduction } from "../game/talents";
@@ -168,17 +167,11 @@ export function useGameEngine() {
     const newMap = applyCraftingAction(craftedMap, action);
     if (!newMap) return null;
 
-    // Check device craft refund chance
-    const deviceEffects = resolveDeviceEffects(currentState.mapDevice);
-    const refund = deviceEffects.craftRefundChance > 0 && Math.random() < deviceEffects.craftRefundChance;
-
-    if (!refund) {
-      setGameState((s) => ({ ...s, currencies: payCraftCost(s.currencies, action) }));
-    }
+    setGameState((s) => ({ ...s, currencies: payCraftCost(s.currencies, action) }));
     return newMap;
   }
 
-  function startMapAction(baseMapId: string, craftedMap: CraftedMap) {
+  function startMapAction(baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) {
     setGameState((currentState) => {
       const mapDef = baseMapMap[baseMapId];
       if (!mapDef) return currentState;
@@ -187,9 +180,11 @@ export function useGameEngine() {
 
       const costReduction = getMapCostReduction(currentState.talentsPurchased);
       const speedBonus = getMapSpeedBonus(currentState.talentsPurchased);
-      const deviceEffects = resolveDeviceEffects(currentState.mapDevice);
+      const deviceEffects = resolveLoadoutEffects(deviceLoadout);
 
-      const result = startMap(currentState.currencies, mapDef, craftedMap, costReduction, speedBonus, deviceEffects);
+      // Pay loadout cost first, then map run cost
+      let currencies = payLoadoutCost(currentState.currencies, deviceLoadout);
+      const result = startMap(currencies, mapDef, craftedMap, costReduction, speedBonus, deviceEffects);
       if (!result) return currentState;
 
       return {
@@ -197,23 +192,25 @@ export function useGameEngine() {
         currencies: result.currencies,
         activeMap: result.activeMap,
         lastMapResult: null,
+        queuedMap: null,
       };
     });
   }
 
-  function performDeviceAction(action: DeviceAction) {
+  function queueMapAction(baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) {
     setGameState((currentState) => {
-      if (!canAffordDeviceAction(currentState.currencies, action)) return currentState;
+      const mapDef = baseMapMap[baseMapId];
+      if (!mapDef) return currentState;
+      if (!currentState.activeMap) return currentState; // use startMap directly if nothing running
+      if (!isMapUnlocked(mapDef, currentState.currencies)) return currentState;
 
-      const newDevice = applyDeviceAction(currentState.mapDevice, action);
-      const newCurrencies = payDeviceActionCost(currentState.currencies, action);
-
-      return {
-        ...currentState,
-        currencies: newCurrencies,
-        mapDevice: newDevice,
-      };
+      const setup: QueuedMapSetup = { baseMapId, craftedMap, deviceLoadout };
+      return { ...currentState, queuedMap: setup };
     });
+  }
+
+  function cancelQueueAction() {
+    setGameState((currentState) => ({ ...currentState, queuedMap: null }));
   }
 
   function prestigeAction() {
@@ -238,6 +235,8 @@ export function useGameEngine() {
         activeMap: result.activeMap,
         prestige: result.prestige,
         mapDevice: result.mapDevice,
+        queuedMap: null,
+        mapNotification: null,
       });
     });
   }
@@ -276,7 +275,8 @@ export function useGameEngine() {
       buyGenerator,
       craftMap,
       startMap: startMapAction,
-      deviceAction: performDeviceAction,
+      queueMap: queueMapAction,
+      cancelQueue: cancelQueueAction,
       prestige: prestigeAction,
       purchaseTalent,
       resetSave,

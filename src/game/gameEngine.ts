@@ -24,10 +24,13 @@ import {
 import {
   type ActiveMapState,
   type MapCompletionResult,
+  type QueuedMapSetup,
+  type MapNotification,
   isMapComplete,
   baseMapMap,
   completeMap,
   applyMapRewards,
+  startMap,
 } from "./maps";
 import {
   initialPrestigeState,
@@ -38,10 +41,13 @@ import {
   getClickPowerBonus,
   getBreakpointBonus,
   getMapRewardBonus,
+  getMapCostReduction,
+  getMapSpeedBonus,
   type TalentPurchasedState,
 } from "./talents";
 import {
   initialMapDeviceState,
+  resolveLoadoutEffects,
   type MapDeviceState,
 } from "./mapDevice";
 
@@ -65,10 +71,14 @@ export type GameState = {
   talentsPurchased: TalentPurchasedState;
   lastMapResult: MapCompletionResult | null;
   mapDevice: MapDeviceState;
+  queuedMap: QueuedMapSetup | null;
+  mapNotification: MapNotification | null;
 };
 
 export const GAME_VERSION = "1.0.0";
 export const TICK_RATE_MS = 100;
+
+const NOTIFICATION_TTL_MS = 8000;
 
 export function calculateCurrencyProduction(
   generatorsOwned: GeneratorOwnedState,
@@ -123,6 +133,8 @@ export function createInitialGameState(): GameState {
     talentsPurchased: { ...initialTalentsPurchased },
     lastMapResult: null,
     mapDevice: { ...initialMapDeviceState },
+    queuedMap: null,
+    mapNotification: null,
   });
 }
 
@@ -161,15 +173,26 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     };
   }
 
+  const now = Date.now();
   let activeMap = state.activeMap;
   let lastMapResult = state.lastMapResult;
-  if (activeMap && isMapComplete(activeMap, Date.now())) {
+  let queuedMap = state.queuedMap;
+  let mapNotification = state.mapNotification;
+
+  // Clear stale notification
+  if (mapNotification && now - mapNotification.timestamp > NOTIFICATION_TTL_MS) {
+    mapNotification = null;
+  }
+
+  if (activeMap && isMapComplete(activeMap, now)) {
     const mapDef = baseMapMap[activeMap.craftedMap.baseMapId];
     if (mapDef) {
       const rewardBonus = getMapRewardBonus(state.talentsPurchased, prestige.lastMapFamilyStreak);
       const result = completeMap(mapDef, activeMap.craftedMap, rewardBonus, activeMap.deviceEffects);
       currencies = applyMapRewards(currencies, result);
       lastMapResult = result;
+
+      mapNotification = { result, mapName: mapDef.name, timestamp: now };
 
       const isSameFamily = prestige.lastMapFamily === mapDef.family;
       prestige = {
@@ -182,6 +205,22 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
       };
     }
     activeMap = null;
+
+    // Auto-start queued map if one is ready
+    if (queuedMap) {
+      const queuedMapDef = baseMapMap[queuedMap.baseMapId];
+      if (queuedMapDef) {
+        const costReduction = getMapCostReduction(state.talentsPurchased);
+        const speedBonus = getMapSpeedBonus(state.talentsPurchased);
+        const deviceEffects = resolveLoadoutEffects(queuedMap.deviceLoadout);
+        const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects);
+        if (startResult) {
+          currencies = startResult.currencies;
+          activeMap = startResult.activeMap;
+        }
+      }
+      queuedMap = null;
+    }
   }
 
   return {
@@ -190,6 +229,8 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     activeMap,
     prestige,
     lastMapResult,
+    queuedMap,
+    mapNotification,
     unlockedCurrencies: unlockCurrencies(state.unlockedCurrencies, state.currencyProduction),
   };
 }

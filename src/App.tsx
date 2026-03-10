@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { ActiveMapBanner } from "./components/ActiveMapBanner";
 import ClickPanel from "./components/ClickPanel";
 import CurrencyPanel from "./components/CurrencyPanel";
 import GameLayout from "./components/GameLayout";
 import ManualConversionRow from "./components/ManualConversionRow";
 import MapPanel from "./components/MapPanel";
+import { MapToast } from "./components/MapToast";
 import MysteryRow from "./components/MysteryRow";
 import OtherUpgradesBar from "./components/OtherUpgradesBar";
 import PrestigePanel from "./components/PrestigePanel";
@@ -68,6 +70,14 @@ function App() {
               onResetSave={actions.resetSave}
             />
           </header>
+
+          {/* Global active map indicator — visible on all pages when maps are unlocked */}
+          {hasTier4 && (
+            <ActiveMapBanner
+              activeMap={gameState.activeMap}
+              queuedMap={gameState.queuedMap}
+            />
+          )}
 
           {activePage === "currency" && (
             <>
@@ -134,10 +144,11 @@ function App() {
                 lastMapResult={gameState.lastMapResult}
                 prestige={gameState.prestige}
                 talentsPurchased={gameState.talentsPurchased}
-                mapDevice={gameState.mapDevice}
+                queuedMap={gameState.queuedMap}
                 onCraftMap={actions.craftMap}
                 onStartMap={actions.startMap}
-                onDeviceAction={actions.deviceAction}
+                onQueueMap={actions.queueMap}
+                onCancelQueue={actions.cancelQueue}
               />
             </div>
           )}
@@ -168,6 +179,9 @@ function App() {
             <span>v{gameState.settings.version}</span>
           </footer>
         </GameLayout>
+
+        {/* Map completion toast — fixed position, outside layout flow */}
+        <MapToast notification={gameState.mapNotification} />
       </main>
     </div>
   );

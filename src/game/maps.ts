@@ -8,7 +8,7 @@ import {
   affixMap,
   type ResolvedAffixStats,
 } from "./mapAffixes";
-import type { ResolvedDeviceEffects } from "./mapDevice";
+import type { ResolvedDeviceEffects, DeviceLoadout } from "./mapDevice";
 
 // ── Map Types ──
 
@@ -53,6 +53,18 @@ export type MapCompletionResult = {
   shardAmount: number;
   shardChance: number;
   bonusRewardTriggered: boolean;
+};
+
+export type QueuedMapSetup = {
+  baseMapId: string;
+  craftedMap: CraftedMap;
+  deviceLoadout: DeviceLoadout;
+};
+
+export type MapNotification = {
+  result: MapCompletionResult;
+  mapName: string;
+  timestamp: number;
 };
 
 // ── Balance Constants ──

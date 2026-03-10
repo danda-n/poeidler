@@ -1,76 +1,63 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
 
-## Build & Dev Commands
+## Build & Dev
 
-- `npm run dev` — Start Vite dev server (usually port 5173)
-- `npm run build` — TypeScript check (`tsc -b`) then Vite production build to `./dist`
-- `npm run preview` — Serve production build locally
+- `npm run dev` — start Vite dev server
+- `npm run build` — type-check and production build
+- `npm run preview` — serve production build locally
 
-No test framework is configured. No linter is configured.
-
-Run `npm run build` before every commit to catch TypeScript errors early.
+No test framework is configured.
+No linter is configured.
 
 ## Deployment
 
-Pushes to `master` auto-deploy to GitHub Pages via `.github/workflows/deploy-pages.yml`. The site is served at `/poeidler/` (configured in `vite.config.ts` base path).
+Pushes to `master` auto-deploy to GitHub Pages via `.github/workflows/deploy-pages.yml`.
+
+- Base path: `/poeidler/`
+- Check `vite.config.ts` before changing paths or asset URLs
 
 ## Architecture
 
-React 18 + TypeScript 5.6 + Vite 5.4 idle/incremental game themed around Path of Exile currency.
+Stack:
+- React 18
+- TypeScript
+- Vite
 
-### Game Logic (`src/game/`) — Pure TypeScript, zero React dependencies
+Project type:
+- Idle / incremental game themed around Path of Exile currency
 
-- **gameEngine.ts** — Core loop: `runGameTick()` runs every 100ms via `setInterval`, calls `synchronizeGameState()` to derive computed state (multipliers, production rates, unlocks) from core state, then applies passive generation. `GameState` type and `createInitialGameState()` live here.
-- **currencies.ts** — 10-tier currency definitions (`as const` tuples → derived types), conversion ratios (must be integers via `getConversionRatio`), unlock thresholds, formatting (`formatCurrencyValue` with K/M/B/T suffixes).
-- **generators.ts** — Generator definitions with exponential cost scaling (`baseCost * costMultiplier^owned`). Tiers 1-3 cost fragments, tiers 4-10 cost previous tier's currency. `generatorByCurrency` provides O(1) lookup.
-- **upgradeEngine.ts** — Upgrade system with three effect types: `percentProduction`, `percentClickPower`, `unlockFeature`. Breakpoint bonuses (x2 every 25 levels). `getClickPower()` scales click value with production rate (0.3 coefficient).
-- **conversionEngine.ts** — Currency conversion logic. `convertCurrency` used by manual conversion.
-- **saveSystem.ts** — LocalStorage persistence with offline progress (max 8 hours). Auto-saves on interval + beforeunload. Uses spread-merge for forward-compatible saves.
-- **maps.ts** — Base map definitions (`BaseMapDefinition`), craftable map model (`CraftedMap`), rarity system (`MapRarity`: normal/magic/rare), 7 crafting actions (transmute/augment/alter/regal/chaos/alchemy/exalt), proc-based shard drops. `baseMapMap` is the O(1) lookup.
-- **mapAffixes.ts** — Affix pool (11 affixes, prefix/suffix, normal/premium tiers). Rolling functions + `resolveAffixStats()` aggregate stats from an affix list into `ResolvedAffixStats`.
-- **prestige.ts** — Prestige formula (`calculatePrestigeShards`), `performPrestige()` resets run state while preserving meta-progression. All tuning lives in `PRESTIGE_BALANCE`.
-- **talents.ts** — 10 talents across 3 branches (Cartography, Economy, Reflection). Effect getters (`getMapSpeedBonus`, `getMapRewardBonus`, `getMapCostReduction`, etc.) consumed by gameEngine and maps.
+Code structure:
+- `src/game/` — pure game logic, no React imports
+- `src/components/` — React UI
+- `src/hooks/useGameEngine.ts` — connects UI and game engine
+- `src/game/saveSystem.ts` — persistence and offline progress
 
-### State Pattern
+State rules:
+- `GameState` is the single source of truth
+- Keep state updates predictable and reducer-like
+- Recompute derived values after mutations instead of storing duplicated truth
+- Keep game logic in `src/game/`, not inside React components
 
-Immutable state with reducer-style updates. `GameState` is the single source of truth. `synchronizeGameState()` re-derives all computed fields (production rates, multipliers, unlocks) from core state — call it after any mutation.
-
-### UI Layer (`src/components/`) — React components
-
-- **App.tsx** — Progressive disclosure orchestrator. Computes visibility flags (`showCurrencyList`, `showTeasers`, `showConversions`, `showUpgrades`) from game state. Sections appear as the player progresses.
-- **ClickPanel.tsx** — Central click button + fragment counter (always visible).
-- **CurrencyPanel.tsx / CurrencyRow.tsx** — Unlocked currencies with integrated generator buy buttons.
-- **MysteryRow.tsx** — Locked currency teasers with scrambled names and progress bars.
-- **UpgradePanel.tsx** — All upgrades in one panel with category pill tabs.
-- **ConversionPanel.tsx** — Manual conversion buttons (visible after autoConversion unlocked).
-- **SettingsPanel.tsx** — Gear icon dropdown with version and reset.
-- **useGameEngine.ts** — Central hook managing state, tick loop, save/load, and all player actions.
-
-### Key Design Decisions
-
-- All game logic is testable without React — `src/game/` has no React imports.
-- Currency IDs and generator IDs are derived from `as const` tuple definitions, providing type safety without manual union types.
-- Progressive disclosure: UI sections appear based on game state milestones, with mystery teasers for next 2 locked currencies.
-- Single centered column layout (max 720px) with minimalistic dark theme.
-
-### Extending GameState
-
-When adding a new field to `GameState`, touch these files in order:
-1. **`gameEngine.ts`** — add to `GameState` type + `createInitialGameState()`
-2. **`saveSystem.ts`** — add to `SavePayload`, load with spread-merge default in `loadGameState()`:
-   `{ ...initialXxxState, ...savePayload.xxx }` so old saves get safe defaults
-3. **`synchronizeGameState()`** — only if the field is derived/computed from other state
-
-Transient display state (e.g. `lastMapResult`) belongs in `GameState` but can be omitted from `SavePayload`.
+Design rules:
+- Prefer extending existing systems over adding one-off logic
+- Keep currency, generator, upgrade, and conversion systems scalable
+- Preserve progressive disclosure in the UI
+- Keep the layout simple and readable in a single main column unless there is a strong reason to change it
+- When starting a task, read only files relevant to the task and avoid scanning the full repository unless needed
 
 ## Git
-Follow trunk-based development — branches are short-lived and merged back to main frequently.
-Avoid long-running feature branches.
-**Branch naming:** `<type>/<ticket-id-optional>-<short-description>`
-Examples: `feat/ABC-123-user-auth`, `fix/ABC-456-login-redirect`, `chore/update-deps`
-**Commit format:** Conventional Commits — `<type>(ticket-id-optional): <short description>`
+
+Use short-lived branches and merge back frequently.
+
+Branch naming:
+- `<type>/<short-description>`
+- optional ticket id if available
+
+Commit format:
+- Conventional Commits
+- `<type>(ticket-id-optional): <short description>`
 Types:
 - feat — new feature
 - fix — bug fix
@@ -79,26 +66,33 @@ Types:
 - docs — documentation only
 - test — adding or updating tests
 - ci — CI/CD configuration changes
-Examples:
-- `feat(ABC-123): add OAuth2 login flow`
-- `fix(ABC-456): prevent double submit on slow connections`
-- `chore: upgrade TanStack Query to v5`
 
-**Rules:**
-- Co-locate tests next to source: `component.tsx` → `component.test.tsx`
-- Use `userEvent.setup()` for interactions — not `fireEvent`
-- Use `getByRole` first, then `getByLabelText`, then `getByText` — `getByTestId` is last resort
-- Wrap state changes in `act()`, async assertions in `waitFor()`
-- Test behaviour, not implementation. Test what the user sees, not internal state or method calls.
-- Do not test third-party library internals. Test that your form shows the right error, not that Zod validates.
-- Do not write tests for React Server Components — use Playwright E2E instead.
+## Project State Handoff
 
-## Do not
-- Do not write JavaScript — TypeScript only
+Maintain `docs/current-state.md` as a compact handoff document.
+
+Update it only when a meaningful implementation step changes the current project state, known issues, priorities, or key files.
+
+Structure:
+- Current systems
+- Known issues
+- Next 3 priorities
+- Files that matter most
+
+Rules:
+- Use short bullet points only
+- Keep current truth only
+- Replace stale content instead of appending history
+- Do not duplicate stable rules already covered in `CLAUDE.md`
+- Keep the file compact and easy to scan
+- Keep `Files that matter most` limited to the few files most relevant to current work
+
+## Do Not
+
+- Do not write JavaScript, use TypeScript only
 - Do not use default exports for components or hooks
-- Use relative imports within `src/`. Keep depth shallow — avoid going up more than one level where co-location allows. The `@/*` alias is **not configured** in this project; do not use it.
-- Do not add eslint-disable without a comment explaining why
-- Do not bypass pre-commit hooks without good reason
-- Do not leave console.log in committed code
+- Do not use relative `../../` imports, use `@/*`
+- Do not add `eslint-disable` without explaining why
+- Do not leave `console.log` in committed code
 - Do not hardcode env-specific values
-- Do not install a package without first checking if something already in the project covers the use case
+- Do not install a package before checking if the project already covers the need
