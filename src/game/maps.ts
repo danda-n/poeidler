@@ -398,3 +398,17 @@ export function getAffixDisplayName(affixId: string): string {
 export function getAffixDescription(affixId: string): string {
   return affixMap[affixId]?.description ?? "";
 }
+
+// ── Crafting Action Dispatcher ──
+
+export function applyCraftingAction(map: CraftedMap, action: CraftingAction): CraftedMap | null {
+  switch (action) {
+    case "transmute": return transmuteCraftedMap(map);
+    case "augment": return augmentCraftedMap(map);
+    case "alter": return alterCraftedMap(map);
+    case "regal": return regalCraftedMap(map);
+    case "chaos": return chaosCraftedMap(map);
+    case "alchemy": return alchemyCraftedMap(map);
+    case "exalt": return exaltCraftedMap(map);
+  }
+}

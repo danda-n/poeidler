@@ -131,8 +131,10 @@ function App() {
               <MapPanel
                 currencies={gameState.currencies}
                 activeMap={gameState.activeMap}
+                lastMapResult={gameState.lastMapResult}
                 prestige={gameState.prestige}
                 talentsPurchased={gameState.talentsPurchased}
+                onCraftMap={actions.craftMap}
                 onStartMap={actions.startMap}
               />
             </div>

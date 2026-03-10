@@ -62,7 +62,7 @@ export type GameState = {
   lastMapResult: MapCompletionResult | null;
 };
 
-export const GAME_VERSION = "0.8.0";
+export const GAME_VERSION = "0.9.0";
 export const TICK_RATE_MS = 100;
 
 export function calculateCurrencyProduction(

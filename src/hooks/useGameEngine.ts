@@ -5,7 +5,16 @@ import { generatorMap, getMaxAffordableGeneratorPurchases, type GeneratorId } fr
 import { createInitialGameState, startGameEngine, synchronizeGameState, type GameState } from "../game/gameEngine";
 import { AUTOSAVE_INTERVAL_MS, clearSavedGame, loadGameState, saveGameState } from "../game/saveSystem";
 import { getClickPower, purchaseGenerator, purchaseUpgrade, type UpgradeId } from "../game/upgradeEngine";
-import { mapMap, startMap, isMapUnlocked } from "../game/maps";
+import {
+  baseMapMap,
+  startMap,
+  isMapUnlocked,
+  canAffordCraft,
+  payCraftCost,
+  applyCraftingAction,
+  type CraftedMap,
+  type CraftingAction,
+} from "../game/maps";
 import { performPrestige, canPrestige } from "../game/prestige";
 import { purchaseTalent as purchaseTalentFn, getMapSpeedBonus, getMapCostReduction, getConversionBonus, getGeneratorCostReduction } from "../game/talents";
 import { getGeneratorCost } from "../game/generators";
@@ -58,7 +67,6 @@ export function useGameEngine() {
       const conversionBonus = getConversionBonus(currentState.talentsPurchased);
       const converted = convertCurrency(currentState.currencies, fromCurrencyId, toCurrencyId);
 
-      // Apply conversion bonus: extra output
       if (conversionBonus > 0 && converted !== currentState.currencies) {
         const bonusAmount = conversionBonus;
         return {
@@ -87,7 +95,6 @@ export function useGameEngine() {
       const costReduction = getGeneratorCostReduction(currentState.talentsPurchased);
 
       if (currentState.unlockedFeatures.buyMax) {
-        // Buy max with cost reduction
         let quantity = 0;
         let runningCost = 0;
         const available = Math.floor(currentState.currencies[generator.costCurrency]);
@@ -116,7 +123,6 @@ export function useGameEngine() {
         });
       }
 
-      // Single buy with cost reduction
       if (costReduction > 0) {
         const owned = currentState.generatorsOwned[generatorId];
         const rawCost = getGeneratorCost(generatorId, owned, 1);
@@ -148,9 +154,22 @@ export function useGameEngine() {
     });
   }
 
-  function startMapAction(mapId: string) {
+  /** Apply a crafting action to a CraftedMap, deducting currency cost.
+   *  Returns the updated CraftedMap, or null if invalid/unaffordable. */
+  function craftMap(craftedMap: CraftedMap, action: CraftingAction): CraftedMap | null {
+    const currentState = gameStateRef.current;
+    if (!canAffordCraft(currentState.currencies, action)) return null;
+
+    const newMap = applyCraftingAction(craftedMap, action);
+    if (!newMap) return null;
+
+    setGameState((s) => ({ ...s, currencies: payCraftCost(s.currencies, action) }));
+    return newMap;
+  }
+
+  function startMapAction(baseMapId: string, craftedMap: CraftedMap) {
     setGameState((currentState) => {
-      const mapDef = mapMap[mapId];
+      const mapDef = baseMapMap[baseMapId];
       if (!mapDef) return currentState;
       if (currentState.activeMap) return currentState;
       if (!isMapUnlocked(mapDef, currentState.currencies)) return currentState;
@@ -158,13 +177,14 @@ export function useGameEngine() {
       const costReduction = getMapCostReduction(currentState.talentsPurchased);
       const speedBonus = getMapSpeedBonus(currentState.talentsPurchased);
 
-      const result = startMap(currentState.currencies, mapDef, costReduction, speedBonus);
+      const result = startMap(currentState.currencies, mapDef, craftedMap, costReduction, speedBonus);
       if (!result) return currentState;
 
       return {
         ...currentState,
         currencies: result.currencies,
         activeMap: result.activeMap,
+        lastMapResult: null,
       };
     });
   }
@@ -225,6 +245,7 @@ export function useGameEngine() {
       manualConvert,
       buyUpgrade,
       buyGenerator,
+      craftMap,
       startMap: startMapAction,
       prestige: prestigeAction,
       purchaseTalent,
