@@ -15,6 +15,13 @@ import {
   type CraftedMap,
   type CraftingAction,
 } from "../game/maps";
+import {
+  resolveDeviceEffects,
+  canAffordDeviceAction,
+  payDeviceActionCost,
+  applyDeviceAction,
+  type DeviceAction,
+} from "../game/mapDevice";
 import { performPrestige, canPrestige } from "../game/prestige";
 import { purchaseTalent as purchaseTalentFn, getMapSpeedBonus, getMapCostReduction, getConversionBonus, getGeneratorCostReduction } from "../game/talents";
 import { getGeneratorCost } from "../game/generators";
@@ -154,8 +161,6 @@ export function useGameEngine() {
     });
   }
 
-  /** Apply a crafting action to a CraftedMap, deducting currency cost.
-   *  Returns the updated CraftedMap, or null if invalid/unaffordable. */
   function craftMap(craftedMap: CraftedMap, action: CraftingAction): CraftedMap | null {
     const currentState = gameStateRef.current;
     if (!canAffordCraft(currentState.currencies, action)) return null;
@@ -163,7 +168,13 @@ export function useGameEngine() {
     const newMap = applyCraftingAction(craftedMap, action);
     if (!newMap) return null;
 
-    setGameState((s) => ({ ...s, currencies: payCraftCost(s.currencies, action) }));
+    // Check device craft refund chance
+    const deviceEffects = resolveDeviceEffects(currentState.mapDevice);
+    const refund = deviceEffects.craftRefundChance > 0 && Math.random() < deviceEffects.craftRefundChance;
+
+    if (!refund) {
+      setGameState((s) => ({ ...s, currencies: payCraftCost(s.currencies, action) }));
+    }
     return newMap;
   }
 
@@ -176,8 +187,9 @@ export function useGameEngine() {
 
       const costReduction = getMapCostReduction(currentState.talentsPurchased);
       const speedBonus = getMapSpeedBonus(currentState.talentsPurchased);
+      const deviceEffects = resolveDeviceEffects(currentState.mapDevice);
 
-      const result = startMap(currentState.currencies, mapDef, craftedMap, costReduction, speedBonus);
+      const result = startMap(currentState.currencies, mapDef, craftedMap, costReduction, speedBonus, deviceEffects);
       if (!result) return currentState;
 
       return {
@@ -185,6 +197,21 @@ export function useGameEngine() {
         currencies: result.currencies,
         activeMap: result.activeMap,
         lastMapResult: null,
+      };
+    });
+  }
+
+  function performDeviceAction(action: DeviceAction) {
+    setGameState((currentState) => {
+      if (!canAffordDeviceAction(currentState.currencies, action)) return currentState;
+
+      const newDevice = applyDeviceAction(currentState.mapDevice, action);
+      const newCurrencies = payDeviceActionCost(currentState.currencies, action);
+
+      return {
+        ...currentState,
+        currencies: newCurrencies,
+        mapDevice: newDevice,
       };
     });
   }
@@ -198,6 +225,7 @@ export function useGameEngine() {
         currentState.unlockedCurrencies,
         currentState.prestige,
         currentState.talentsPurchased,
+        currentState.mapDevice,
       );
       if (!result) return currentState;
 
@@ -209,6 +237,7 @@ export function useGameEngine() {
         unlockedCurrencies: result.unlockedCurrencies,
         activeMap: result.activeMap,
         prestige: result.prestige,
+        mapDevice: result.mapDevice,
       });
     });
   }
@@ -247,6 +276,7 @@ export function useGameEngine() {
       buyGenerator,
       craftMap,
       startMap: startMapAction,
+      deviceAction: performDeviceAction,
       prestige: prestigeAction,
       purchaseTalent,
       resetSave,

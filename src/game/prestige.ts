@@ -10,6 +10,7 @@ import { initialGeneratorsOwned, type GeneratorOwnedState } from "./generators";
 import { initialPurchasedUpgrades, type PurchasedUpgradeState } from "./upgradeEngine";
 import type { ActiveMapState } from "./maps";
 import type { TalentPurchasedState } from "./talents";
+import { resetDeviceModifiers, type MapDeviceState } from "./mapDevice";
 
 // ── Balance Constants ──
 
@@ -107,6 +108,7 @@ export type PrestigeResult = {
   unlockedCurrencies: UnlockedCurrencyState;
   activeMap: ActiveMapState;
   prestige: PrestigeState;
+  mapDevice: MapDeviceState;
 };
 
 export function performPrestige(
@@ -114,6 +116,7 @@ export function performPrestige(
   unlockedCurrencies: UnlockedCurrencyState,
   prestige: PrestigeState,
   talentsPurchased: TalentPurchasedState,
+  mapDevice: MapDeviceState,
 ): PrestigeResult | null {
   const crackedMirrorRank = talentsPurchased.crackedMirror ?? 0;
   const lingeringWealthRank = talentsPurchased.lingeringWealth ?? 0;
@@ -153,5 +156,6 @@ export function performPrestige(
       lastMapFamilyStreak: 0,
       lifetimeFragmentsProduced: prestige.lifetimeFragmentsProduced,
     },
+    mapDevice: resetDeviceModifiers(mapDevice),
   };
 }

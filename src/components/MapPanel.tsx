@@ -24,6 +24,20 @@ import {
   type CraftingAction,
   type MapCompletionResult,
 } from "../game/maps";
+import {
+  resolveDeviceEffects,
+  canAffordDeviceAction,
+  getAvailableDeviceActions,
+  deviceActionCosts,
+  deviceActionLabels,
+  deviceActionDescriptions,
+  deviceModMap,
+  getModTierColor,
+  getModTierLabel,
+  formatQuality,
+  type MapDeviceState,
+  type DeviceAction,
+} from "../game/mapDevice";
 import { formatCurrencyValue, currencyMap, type CurrencyState } from "../game/currencies";
 import { getMapCostReduction, getMapSpeedBonus, type TalentPurchasedState } from "../game/talents";
 import type { PrestigeState } from "../game/prestige";
@@ -34,8 +48,10 @@ type MapPanelProps = {
   lastMapResult: MapCompletionResult | null;
   prestige: PrestigeState;
   talentsPurchased: TalentPurchasedState;
+  mapDevice: MapDeviceState;
   onCraftMap: (craftedMap: CraftedMap, action: CraftingAction) => CraftedMap | null;
   onStartMap: (baseMapId: string, craftedMap: CraftedMap) => void;
+  onDeviceAction: (action: DeviceAction) => void;
 };
 
 function formatMs(ms: number): string {
@@ -60,8 +76,10 @@ export function MapPanel({
   lastMapResult,
   prestige,
   talentsPurchased,
+  mapDevice,
   onCraftMap,
   onStartMap,
+  onDeviceAction,
 }: MapPanelProps) {
   const [selectedBaseMapId, setSelectedBaseMapId] = useState<string | null>(null);
   const [craftedMap, setCraftedMap] = useState<CraftedMap | null>(null);
@@ -69,6 +87,7 @@ export function MapPanel({
 
   const costReduction = getMapCostReduction(talentsPurchased);
   const speedBonus = getMapSpeedBonus(talentsPurchased);
+  const deviceEffects = resolveDeviceEffects(mapDevice);
 
   useEffect(() => {
     if (!activeMap) return;
@@ -90,25 +109,25 @@ export function MapPanel({
   function handleRun() {
     if (!selectedBaseMapId || !craftedMap) return;
     onStartMap(selectedBaseMapId, craftedMap);
-    // Keep selection for easy re-run, reset to normal for next crafting cycle
     setCraftedMap(createNormalMap(selectedBaseMapId));
   }
 
   const mapDef = selectedBaseMapId ? baseMapMap[selectedBaseMapId] : null;
-  const resolvedCost = mapDef && craftedMap ? getResolvedMapCost(mapDef, craftedMap, costReduction) : null;
-  const resolvedDuration = mapDef && craftedMap ? getResolvedMapDuration(mapDef, craftedMap, speedBonus) : null;
+  const resolvedCost = mapDef && craftedMap ? getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects) : null;
+  const resolvedDuration = mapDef && craftedMap ? getResolvedMapDuration(mapDef, craftedMap, speedBonus, deviceEffects) : null;
   const shardChance = mapDef && craftedMap
-    ? Math.min(MAP_BALANCE.maxShardChance, mapDef.baseShardChance + craftedMap.resolvedStats.shardChanceBonus)
+    ? Math.min(MAP_BALANCE.maxShardChance, mapDef.baseShardChance + craftedMap.resolvedStats.shardChanceBonus + deviceEffects.shardChanceBonus)
     : 0;
-  const rewardMult = craftedMap ? 1 + craftedMap.resolvedStats.rewardMultiplier : 1;
-  const focusedRewardMult = craftedMap ? 1 + craftedMap.resolvedStats.focusedRewardMultiplier : 1;
+  const rewardMult = craftedMap ? 1 + craftedMap.resolvedStats.rewardMultiplier + deviceEffects.rewardMultiplier : 1;
+  const focusedRewardMult = craftedMap ? 1 + craftedMap.resolvedStats.focusedRewardMultiplier + deviceEffects.focusedRewardMultiplier : 1;
 
   const availableActions = craftedMap ? getAvailableCraftingActions(craftedMap) : [];
   const canRun = !activeMap && mapDef && craftedMap
-    ? canAffordMap(mapDef, craftedMap, currencies, costReduction)
+    ? canAffordMap(mapDef, craftedMap, currencies, costReduction, deviceEffects)
     : false;
 
   const activeMapDef = activeMap ? baseMapMap[activeMap.craftedMap.baseMapId] : null;
+  const availableDeviceActions = getAvailableDeviceActions(mapDevice);
 
   return (
     <div className="map-panel">
@@ -154,7 +173,10 @@ export function MapPanel({
             <span className="map-result-title">
               Map Complete
               {lastMapResult.shardDropped && (
-                <span className="map-result-shard-badge"> ✦ Mirror Shard!</span>
+                <span className="map-result-shard-badge"> Mirror Shard!</span>
+              )}
+              {lastMapResult.bonusRewardTriggered && (
+                <span className="map-result-bonus-badge"> Bonus!</span>
               )}
             </span>
           </div>
@@ -174,6 +196,88 @@ export function MapPanel({
           </div>
         </div>
       )}
+
+      {/* Map Device */}
+      <div className="device-panel">
+        <div className="device-header">
+          <span className="device-title">Map Device</span>
+          <span className="device-meta">
+            {mapDevice.sockets} socket{mapDevice.sockets !== 1 ? "s" : ""}{mapDevice.links > 0 ? ` / ${mapDevice.links} link${mapDevice.links !== 1 ? "s" : ""}` : ""}
+          </span>
+        </div>
+
+        <div className="device-slots">
+          {Array.from({ length: 3 }).map((_, i) => {
+            const isActive = i < mapDevice.sockets;
+            const mod = mapDevice.modifiers[i];
+            const def = mod ? deviceModMap[mod.modId] : null;
+            const isLinkedLeft = i > 0 && mapDevice.links >= i;
+            const isLinkedRight = i < mapDevice.sockets - 1 && mapDevice.links >= i + 1;
+
+            return (
+              <div key={i} className={`device-slot${isActive ? "" : " device-slot-inactive"}${isLinkedLeft ? " device-slot-linked-left" : ""}${isLinkedRight ? " device-slot-linked-right" : ""}`}>
+                {isActive && def ? (
+                  <>
+                    <span className="device-mod-name" style={{ color: getModTierColor(def.tier) }}>
+                      {def.name}
+                    </span>
+                    <span className="device-mod-tier">{getModTierLabel(def.tier)}</span>
+                    <span className="device-mod-quality">Q: {formatQuality(mod!.quality)}</span>
+                    <span className="device-mod-desc">{def.description}</span>
+                  </>
+                ) : isActive ? (
+                  <span className="device-slot-empty">Empty</span>
+                ) : (
+                  <span className="device-slot-locked">Locked</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Device resolved effects summary */}
+        {(deviceEffects.rewardMultiplier !== 0 || deviceEffects.durationMultiplier !== 0 || deviceEffects.shardChanceBonus !== 0 || deviceEffects.craftRefundChance !== 0 || deviceEffects.bonusRewardChance !== 0) && (
+          <div className="device-effects">
+            {deviceEffects.rewardMultiplier !== 0 && <span>{formatSignedPercent(deviceEffects.rewardMultiplier)} rewards</span>}
+            {deviceEffects.focusedRewardMultiplier !== 0 && <span>{formatSignedPercent(deviceEffects.focusedRewardMultiplier)} focused</span>}
+            {deviceEffects.durationMultiplier !== 0 && <span>{formatSignedPercent(deviceEffects.durationMultiplier)} duration</span>}
+            {deviceEffects.costMultiplier !== 0 && <span>{formatSignedPercent(deviceEffects.costMultiplier)} cost</span>}
+            {deviceEffects.shardChanceBonus !== 0 && <span>{formatPercent(deviceEffects.shardChanceBonus)} shard</span>}
+            {deviceEffects.craftRefundChance > 0 && <span>{formatPercent(deviceEffects.craftRefundChance)} refund</span>}
+            {deviceEffects.bonusRewardChance > 0 && <span>{formatPercent(deviceEffects.bonusRewardChance)} bonus</span>}
+          </div>
+        )}
+
+        {/* Device action buttons */}
+        <div className="device-actions">
+          {(["jeweller", "fusing", "chaos", "alchemy", "regal", "exalt", "divine"] as DeviceAction[]).map((action) => {
+            const isAvailable = availableDeviceActions.includes(action);
+            const affordable = canAffordDeviceAction(currencies, action);
+            const canUse = isAvailable && affordable;
+            const cost = deviceActionCosts[action];
+
+            return (
+              <button
+                key={action}
+                type="button"
+                className={`btn btn-device${canUse ? "" : " btn-device-disabled"}`}
+                disabled={!canUse}
+                onClick={() => onDeviceAction(action)}
+                title={deviceActionDescriptions[action]}
+              >
+                <span className="btn-device-label">{deviceActionLabels[action]}</span>
+                <span className="btn-device-cost">
+                  {Object.entries(cost).map(([cid, amount]) => (
+                    <span key={cid}>
+                      {amount} {currencyMap[cid as keyof typeof currencyMap]?.shortLabel ?? cid}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Base map selection */}
       <div className="map-base-list">
@@ -208,7 +312,6 @@ export function MapPanel({
       {/* Crafting interface */}
       {mapDef && craftedMap && !activeMap && (
         <div className="map-craft-panel">
-          {/* Map rarity header */}
           <div className="map-craft-header">
             <span
               className="map-craft-rarity"
@@ -218,7 +321,6 @@ export function MapPanel({
             </span>
           </div>
 
-          {/* Affixes */}
           {craftedMap.affixIds.length > 0 ? (
             <div className="map-affix-list">
               {craftedMap.affixIds.map((id) => (
@@ -232,7 +334,6 @@ export function MapPanel({
             <p className="map-affix-empty">No affixes — transmute or alch to add modifiers.</p>
           )}
 
-          {/* Crafting buttons */}
           <div className="map-craft-actions">
             {(["transmute", "augment", "alter", "regal", "chaos", "alchemy", "exalt"] as CraftingAction[]).map((action) => {
               const isAvailable = availableActions.includes(action);
@@ -263,7 +364,6 @@ export function MapPanel({
             })}
           </div>
 
-          {/* Stats preview */}
           <div className="map-craft-preview">
             <div className="map-preview-row">
               <span className="map-preview-label">Cost</span>
@@ -281,13 +381,13 @@ export function MapPanel({
                         </span>
                       );
                     })
-                  : "—"}
+                  : "\u2014"}
               </span>
             </div>
             <div className="map-preview-row">
               <span className="map-preview-label">Duration</span>
               <span className="map-preview-value">
-                {resolvedDuration ? formatMs(resolvedDuration) : "—"}
+                {resolvedDuration ? formatMs(resolvedDuration) : "\u2014"}
               </span>
             </div>
             <div className="map-preview-row">
@@ -336,7 +436,7 @@ export function MapPanel({
             disabled={!canRun}
             onClick={handleRun}
           >
-            {!canRun && mapDef && craftedMap && !canAffordMap(mapDef, craftedMap, currencies, costReduction)
+            {!canRun && mapDef && craftedMap && !canAffordMap(mapDef, craftedMap, currencies, costReduction, deviceEffects)
               ? "Can't Afford"
               : "Run Map"}
           </button>

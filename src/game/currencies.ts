@@ -8,6 +8,7 @@ import alchemyIcon from "../assets/icons/alchemy.png";
 import chaosIcon from "../assets/icons/chaos.png";
 import regalIcon from "../assets/icons/regal.png";
 import exaltedIcon from "../assets/icons/exalted.png";
+import divineIcon from "../assets/icons/divine.png";
 
 export type CurrencyId =
   | "fragmentOfWisdom"
@@ -19,7 +20,8 @@ export type CurrencyId =
   | "alchemyOrb"
   | "chaosOrb"
   | "regalOrb"
-  | "exaltedOrb";
+  | "exaltedOrb"
+  | "divineOrb";
 
 export type UnlockRequirement = {
   currencyId: CurrencyId;
@@ -51,7 +53,8 @@ export const currencies: CurrencyDefinition[] = [
   { id: "alchemyOrb", label: "Alchemy Orb", shortLabel: "Alchemy", tier: 7, baseValue: 256, icon: alchemyIcon, unlockRequirement: { currencyId: "fusingOrb", productionPerSecond: 0.25 } },
   { id: "chaosOrb", label: "Chaos Orb", shortLabel: "Chaos", tier: 8, baseValue: 512, icon: chaosIcon, unlockRequirement: { currencyId: "alchemyOrb", productionPerSecond: 0.3 } },
   { id: "regalOrb", label: "Regal Orb", shortLabel: "Regal", tier: 9, baseValue: 1024, icon: regalIcon, unlockRequirement: { currencyId: "chaosOrb", productionPerSecond: 0.2 } },
-  { id: "exaltedOrb", label: "Exalted Orb", shortLabel: "Exalted", tier: 10, baseValue: 2048, icon: exaltedIcon, unlockRequirement: { currencyId: "regalOrb", productionPerSecond: 0.12 } }
+  { id: "exaltedOrb", label: "Exalted Orb", shortLabel: "Exalted", tier: 10, baseValue: 2048, icon: exaltedIcon, unlockRequirement: { currencyId: "regalOrb", productionPerSecond: 0.12 } },
+  { id: "divineOrb", label: "Divine Orb", shortLabel: "Divine", tier: 11, baseValue: 4096, icon: divineIcon, unlockRequirement: { currencyId: "exaltedOrb", productionPerSecond: 0.08 } },
 ];
 
 export const currencyIds = currencies.map((currency) => currency.id) as CurrencyId[];

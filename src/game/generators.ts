@@ -8,7 +8,8 @@ export const generators = [
   { id: "alchemyLab", currency: "alchemyOrb", label: "Alchemy Lab", baseRate: 0.06, baseCost: 12, costMultiplier: 1.22, costCurrency: "jewellersOrb" },
   { id: "chaosHarvester", currency: "chaosOrb", label: "Chaos Harvester", baseRate: 0.05, baseCost: 10, costMultiplier: 1.23, costCurrency: "fusingOrb" },
   { id: "regalRefinery", currency: "regalOrb", label: "Regal Refinery", baseRate: 0.04, baseCost: 8, costMultiplier: 1.24, costCurrency: "alchemyOrb" },
-  { id: "exaltedForge", currency: "exaltedOrb", label: "Exalted Forge", baseRate: 0.03, baseCost: 6, costMultiplier: 1.25, costCurrency: "chaosOrb" }
+  { id: "exaltedForge", currency: "exaltedOrb", label: "Exalted Forge", baseRate: 0.03, baseCost: 6, costMultiplier: 1.25, costCurrency: "chaosOrb" },
+  { id: "divineAnchor", currency: "divineOrb", label: "Divine Anchor", baseRate: 0.02, baseCost: 5, costMultiplier: 1.26, costCurrency: "regalOrb" },
 ] as const;
 
 export type GeneratorDefinition = (typeof generators)[number];

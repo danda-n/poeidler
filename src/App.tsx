@@ -134,8 +134,10 @@ function App() {
                 lastMapResult={gameState.lastMapResult}
                 prestige={gameState.prestige}
                 talentsPurchased={gameState.talentsPurchased}
+                mapDevice={gameState.mapDevice}
                 onCraftMap={actions.craftMap}
                 onStartMap={actions.startMap}
+                onDeviceAction={actions.deviceAction}
               />
             </div>
           )}

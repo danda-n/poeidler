@@ -858,6 +858,168 @@ img {
   color: #888;
 }
 
+/* ── Map Device ── */
+
+.device-panel {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 136, 68, 0.04);
+  border: 1px solid rgba(255, 136, 68, 0.12);
+  display: grid;
+  gap: 10px;
+}
+
+.device-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.device-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #ff8844;
+}
+
+.device-meta {
+  font-size: 0.72rem;
+  color: #888;
+}
+
+.device-slots {
+  display: flex;
+  gap: 6px;
+}
+
+.device-slot {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 60px;
+}
+
+.device-slot-inactive {
+  opacity: 0.25;
+}
+
+.device-slot-linked-left {
+  border-left: 2px solid rgba(80, 250, 123, 0.4);
+}
+
+.device-slot-linked-right {
+  border-right: 2px solid rgba(80, 250, 123, 0.4);
+}
+
+.device-mod-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.device-mod-tier {
+  font-size: 0.62rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.device-mod-quality {
+  font-size: 0.65rem;
+  color: #aaa;
+}
+
+.device-mod-desc {
+  font-size: 0.68rem;
+  color: #999;
+}
+
+.device-slot-empty {
+  font-size: 0.72rem;
+  color: #555;
+  font-style: italic;
+  align-self: center;
+  margin: auto 0;
+}
+
+.device-slot-locked {
+  font-size: 0.72rem;
+  color: #444;
+  font-style: italic;
+  align-self: center;
+  margin: auto 0;
+}
+
+.device-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #aaa;
+  padding: 4px 0;
+}
+
+.device-effects span {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 136, 68, 0.08);
+  border: 1px solid rgba(255, 136, 68, 0.15);
+  white-space: nowrap;
+}
+
+.device-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.btn-device {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 136, 68, 0.18);
+  background: rgba(255, 136, 68, 0.06);
+  cursor: pointer;
+  color: #e0e0e0;
+  transition: background 120ms, border-color 120ms;
+  min-width: 62px;
+}
+
+.btn-device:hover:not(:disabled) {
+  background: rgba(255, 136, 68, 0.12);
+  border-color: rgba(255, 136, 68, 0.3);
+}
+
+.btn-device-disabled,
+.btn-device:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.btn-device-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.btn-device-cost {
+  font-size: 0.62rem;
+  color: #888;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.map-result-bonus-badge {
+  color: #50fa7b;
+  font-weight: 700;
+}
+
 /* ── Map Active Affixes ── */
 
 .map-active-affixes {

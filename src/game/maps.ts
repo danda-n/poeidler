@@ -8,6 +8,7 @@ import {
   affixMap,
   type ResolvedAffixStats,
 } from "./mapAffixes";
+import type { ResolvedDeviceEffects } from "./mapDevice";
 
 // ── Map Types ──
 
@@ -41,6 +42,7 @@ export type ActiveMapState = {
   craftedMap: CraftedMap;
   startedAt: number;
   durationMs: number;
+  deviceEffects: ResolvedDeviceEffects;
 } | null;
 
 export type MapCompletionResult = {
@@ -50,6 +52,7 @@ export type MapCompletionResult = {
   shardDropped: boolean;
   shardAmount: number;
   shardChance: number;
+  bonusRewardTriggered: boolean;
 };
 
 // ── Balance Constants ──
@@ -286,11 +289,12 @@ export function getResolvedMapCost(
   mapDef: BaseMapDefinition,
   craftedMap: CraftedMap,
   costReduction: number,
+  deviceEffects?: ResolvedDeviceEffects,
 ): MapCost {
-  const costMult = 1 + craftedMap.resolvedStats.costMultiplier;
+  const costMult = 1 + craftedMap.resolvedStats.costMultiplier + (deviceEffects?.costMultiplier ?? 0);
   const resolved: MapCost = {};
   Object.entries(mapDef.cost).forEach(([cid, amount]) => {
-    const adjusted = Math.ceil((amount ?? 0) * costMult * Math.max(0, 1 - costReduction));
+    const adjusted = Math.ceil((amount ?? 0) * Math.max(0.1, costMult) * Math.max(0, 1 - costReduction));
     resolved[cid as CurrencyId] = adjusted;
   });
   return resolved;
@@ -301,8 +305,9 @@ export function canAffordMap(
   craftedMap: CraftedMap,
   currencies: CurrencyState,
   costReduction: number,
+  deviceEffects?: ResolvedDeviceEffects,
 ): boolean {
-  const resolved = getResolvedMapCost(mapDef, craftedMap, costReduction);
+  const resolved = getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects);
   return Object.entries(resolved).every(([cid, amount]) =>
     Math.floor(currencies[cid as CurrencyId]) >= (amount ?? 0),
   );
@@ -312,9 +317,10 @@ export function getResolvedMapDuration(
   mapDef: BaseMapDefinition,
   craftedMap: CraftedMap,
   speedBonus: number,
+  deviceEffects?: ResolvedDeviceEffects,
 ): number {
-  const durationMult = 1 + craftedMap.resolvedStats.durationMultiplier;
-  return Math.max(5000, Math.round(mapDef.durationMs * durationMult * Math.max(0, 1 - speedBonus)));
+  const durationMult = 1 + craftedMap.resolvedStats.durationMultiplier + (deviceEffects?.durationMultiplier ?? 0);
+  return Math.max(5000, Math.round(mapDef.durationMs * Math.max(0.2, durationMult) * Math.max(0, 1 - speedBonus)));
 }
 
 export function startMap(
@@ -323,22 +329,24 @@ export function startMap(
   craftedMap: CraftedMap,
   costReduction: number,
   speedBonus: number,
+  deviceEffects: ResolvedDeviceEffects,
 ): { currencies: CurrencyState; activeMap: ActiveMapState } | null {
-  if (!canAffordMap(mapDef, craftedMap, currencies, costReduction)) return null;
+  if (!canAffordMap(mapDef, craftedMap, currencies, costReduction, deviceEffects)) return null;
 
-  const cost = getResolvedMapCost(mapDef, craftedMap, costReduction);
+  const cost = getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects);
   const next = { ...currencies };
   Object.entries(cost).forEach(([cid, amount]) => {
     next[cid as CurrencyId] -= amount ?? 0;
   });
 
-  const adjustedDuration = getResolvedMapDuration(mapDef, craftedMap, speedBonus);
+  const adjustedDuration = getResolvedMapDuration(mapDef, craftedMap, speedBonus, deviceEffects);
   return {
     currencies: next,
     activeMap: {
       craftedMap,
       startedAt: Date.now(),
       durationMs: adjustedDuration,
+      deviceEffects,
     },
   };
 }
@@ -358,10 +366,12 @@ export function completeMap(
   mapDef: BaseMapDefinition,
   craftedMap: CraftedMap,
   rewardBonus: number,
+  deviceEffects?: ResolvedDeviceEffects,
 ): MapCompletionResult {
   const stats = craftedMap.resolvedStats;
-  const rewardMult = 1 + stats.rewardMultiplier + rewardBonus;
-  const focusedRewardMult = 1 + stats.focusedRewardMultiplier + rewardBonus;
+  const de = deviceEffects;
+  const rewardMult = 1 + stats.rewardMultiplier + (de?.rewardMultiplier ?? 0) + rewardBonus;
+  const focusedRewardMult = 1 + stats.focusedRewardMultiplier + (de?.focusedRewardMultiplier ?? 0) + rewardBonus;
 
   const rewards: MapReward = {};
   Object.entries(mapDef.rewards).forEach(([cid, amount]) => {
@@ -371,11 +381,22 @@ export function completeMap(
     rewards[cid as CurrencyId] = (rewards[cid as CurrencyId] ?? 0) + Math.floor((amount ?? 0) * focusedRewardMult);
   });
 
-  const shardChance = Math.min(MAP_BALANCE.maxShardChance, mapDef.baseShardChance + stats.shardChanceBonus);
+  // Bonus reward from device
+  const bonusRewardChance = de?.bonusRewardChance ?? 0;
+  const bonusRewardTriggered = bonusRewardChance > 0 && Math.random() < bonusRewardChance;
+  if (bonusRewardTriggered) {
+    const rewardKeys = Object.keys(rewards) as CurrencyId[];
+    if (rewardKeys.length > 0) {
+      const bonusCid = rewardKeys[Math.floor(Math.random() * rewardKeys.length)];
+      rewards[bonusCid] = Math.floor((rewards[bonusCid] ?? 0) * 1.5);
+    }
+  }
+
+  const shardChance = Math.min(MAP_BALANCE.maxShardChance, mapDef.baseShardChance + stats.shardChanceBonus + (de?.shardChanceBonus ?? 0));
   const shardDropped = Math.random() < shardChance;
   const shardAmount = shardDropped ? 1 : 0;
 
-  return { baseMapId: mapDef.id, rarity: craftedMap.rarity, rewards, shardDropped, shardAmount, shardChance };
+  return { baseMapId: mapDef.id, rarity: craftedMap.rarity, rewards, shardDropped, shardAmount, shardChance, bonusRewardTriggered };
 }
 
 export function applyMapRewards(currencies: CurrencyState, result: MapCompletionResult): CurrencyState {

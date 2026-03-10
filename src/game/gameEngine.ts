@@ -40,6 +40,10 @@ import {
   getMapRewardBonus,
   type TalentPurchasedState,
 } from "./talents";
+import {
+  initialMapDeviceState,
+  type MapDeviceState,
+} from "./mapDevice";
 
 export type GameSettings = {
   version: string;
@@ -60,9 +64,10 @@ export type GameState = {
   prestige: PrestigeState;
   talentsPurchased: TalentPurchasedState;
   lastMapResult: MapCompletionResult | null;
+  mapDevice: MapDeviceState;
 };
 
-export const GAME_VERSION = "0.9.0";
+export const GAME_VERSION = "1.0.0";
 export const TICK_RATE_MS = 100;
 
 export function calculateCurrencyProduction(
@@ -85,7 +90,6 @@ export function synchronizeGameState(gameState: GameState) {
     getBreakpointBonus(gameState.talentsPurchased),
   );
 
-  // Apply talent click power bonus
   const talentClickBonus = getClickPowerBonus(gameState.talentsPurchased);
   const adjustedClickMultiplier = clickMultiplier * (1 + talentClickBonus);
 
@@ -118,6 +122,7 @@ export function createInitialGameState(): GameState {
     prestige: { ...initialPrestigeState },
     talentsPurchased: { ...initialTalentsPurchased },
     lastMapResult: null,
+    mapDevice: { ...initialMapDeviceState },
   });
 }
 
@@ -147,7 +152,6 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     deltaTimeSeconds,
   );
 
-  // Track lifetime fragment production
   const fragmentProduced = state.currencyProduction.fragmentOfWisdom * deltaTimeSeconds;
   let prestige = state.prestige;
   if (fragmentProduced > 0) {
@@ -157,14 +161,13 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     };
   }
 
-  // Check map completion
   let activeMap = state.activeMap;
   let lastMapResult = state.lastMapResult;
   if (activeMap && isMapComplete(activeMap, Date.now())) {
     const mapDef = baseMapMap[activeMap.craftedMap.baseMapId];
     if (mapDef) {
       const rewardBonus = getMapRewardBonus(state.talentsPurchased, prestige.lastMapFamilyStreak);
-      const result = completeMap(mapDef, activeMap.craftedMap, rewardBonus);
+      const result = completeMap(mapDef, activeMap.craftedMap, rewardBonus, activeMap.deviceEffects);
       currencies = applyMapRewards(currencies, result);
       lastMapResult = result;
 

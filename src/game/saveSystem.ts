@@ -2,6 +2,7 @@ import { applyPassiveGeneration, createInitialGameState, GAME_VERSION, synchroni
 import { isMapComplete, baseMapMap, completeMap, applyMapRewards } from "./maps";
 import { initialPrestigeState } from "./prestige";
 import { initialTalentsPurchased, getMapRewardBonus } from "./talents";
+import { initialMapDeviceState, type MapDeviceState } from "./mapDevice";
 
 export const SAVE_KEY = "poe-idle-save";
 export const AUTOSAVE_INTERVAL_MS = 5000;
@@ -17,6 +18,7 @@ type SavePayload = {
   activeMap?: GameState["activeMap"];
   prestige?: GameState["prestige"];
   talentsPurchased?: GameState["talentsPurchased"];
+  mapDevice?: MapDeviceState;
 };
 
 function isSavePayload(payload: unknown): payload is SavePayload {
@@ -44,11 +46,23 @@ export function saveGameState(gameState: GameState, timestamp = Date.now()) {
     activeMap: gameState.activeMap,
     prestige: gameState.prestige,
     talentsPurchased: gameState.talentsPurchased,
+    mapDevice: gameState.mapDevice,
   };
 
   window.localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
   return timestamp;
 }
+
+// Default device effects for old saves that don't have them on active maps
+const emptyDeviceEffects = {
+  rewardMultiplier: 0,
+  focusedRewardMultiplier: 0,
+  durationMultiplier: 0,
+  costMultiplier: 0,
+  craftRefundChance: 0,
+  bonusRewardChance: 0,
+  shardChanceBonus: 0,
+};
 
 export function loadGameState() {
   const initialState = createInitialGameState();
@@ -70,7 +84,6 @@ export function loadGameState() {
     const elapsedMilliseconds = Math.max(0, Math.min(now - savePayload.lastSaveTime, MAX_OFFLINE_PROGRESS_MS));
     const elapsedSeconds = elapsedMilliseconds / 1000;
 
-    // Migrate prestige and talents with safe defaults
     const savedPrestige = savePayload.prestige
       ? { ...initialPrestigeState, ...savePayload.prestige }
       : { ...initialPrestigeState };
@@ -78,10 +91,22 @@ export function loadGameState() {
       ? { ...initialTalentsPurchased, ...savePayload.talentsPurchased }
       : { ...initialTalentsPurchased };
 
-    // Migrate activeMap: old saves may have mapId instead of craftedMap — discard them safely
+    // Migrate map device
+    const savedDevice: MapDeviceState = savePayload.mapDevice
+      ? {
+          sockets: savePayload.mapDevice.sockets ?? 1,
+          links: savePayload.mapDevice.links ?? 0,
+          modifiers: savePayload.mapDevice.modifiers ?? [null, null, null],
+        }
+      : { ...initialMapDeviceState };
+
+    // Migrate activeMap: old saves may lack craftedMap or deviceEffects
     let savedActiveMap = savePayload.activeMap ?? null;
     if (savedActiveMap && !savedActiveMap.craftedMap) {
       savedActiveMap = null;
+    }
+    if (savedActiveMap && !savedActiveMap.deviceEffects) {
+      savedActiveMap = { ...savedActiveMap, deviceEffects: emptyDeviceEffects };
     }
 
     let nextState = synchronizeGameState({
@@ -109,6 +134,7 @@ export function loadGameState() {
       activeMap: savedActiveMap,
       prestige: savedPrestige,
       talentsPurchased: savedTalents,
+      mapDevice: savedDevice,
     });
 
     // Handle offline map completion
@@ -116,7 +142,7 @@ export function loadGameState() {
       const mapDef = baseMapMap[nextState.activeMap.craftedMap.baseMapId];
       if (mapDef) {
         const rewardBonus = getMapRewardBonus(nextState.talentsPurchased, nextState.prestige.lastMapFamilyStreak);
-        const result = completeMap(mapDef, nextState.activeMap.craftedMap, rewardBonus);
+        const result = completeMap(mapDef, nextState.activeMap.craftedMap, rewardBonus, nextState.activeMap.deviceEffects);
         nextState.currencies = applyMapRewards(nextState.currencies, result);
 
         const isSameFamily = nextState.prestige.lastMapFamily === mapDef.family;
