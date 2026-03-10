@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 No test framework is configured. No linter is configured.
 
+Run `npm run build` before every commit to catch TypeScript errors early.
+
 ## Deployment
 
 Pushes to `master` auto-deploy to GitHub Pages via `.github/workflows/deploy-pages.yml`. The site is served at `/poeidler/` (configured in `vite.config.ts` base path).
@@ -20,12 +22,16 @@ React 18 + TypeScript 5.6 + Vite 5.4 idle/incremental game themed around Path of
 
 ### Game Logic (`src/game/`) — Pure TypeScript, zero React dependencies
 
-- **gameEngine.ts** — Core loop: `runGameTick()` runs every 100ms via `setInterval`, calls `synchronizeGameState()` to derive computed state (multipliers, production rates, unlocks) from core state, then applies passive generation and auto-conversion.
+- **gameEngine.ts** — Core loop: `runGameTick()` runs every 100ms via `setInterval`, calls `synchronizeGameState()` to derive computed state (multipliers, production rates, unlocks) from core state, then applies passive generation. `GameState` type and `createInitialGameState()` live here.
 - **currencies.ts** — 10-tier currency definitions (`as const` tuples → derived types), conversion ratios (must be integers via `getConversionRatio`), unlock thresholds, formatting (`formatCurrencyValue` with K/M/B/T suffixes).
 - **generators.ts** — Generator definitions with exponential cost scaling (`baseCost * costMultiplier^owned`). Tiers 1-3 cost fragments, tiers 4-10 cost previous tier's currency. `generatorByCurrency` provides O(1) lookup.
 - **upgradeEngine.ts** — Upgrade system with three effect types: `percentProduction`, `percentClickPower`, `unlockFeature`. Breakpoint bonuses (x2 every 25 levels). `getClickPower()` scales click value with production rate (0.3 coefficient).
-- **conversionEngine.ts** — Currency conversion and auto-conversion logic.
-- **saveSystem.ts** — LocalStorage persistence with offline progress (max 8 hours). Auto-saves on interval + beforeunload.
+- **conversionEngine.ts** — Currency conversion logic. `convertCurrency` used by manual conversion.
+- **saveSystem.ts** — LocalStorage persistence with offline progress (max 8 hours). Auto-saves on interval + beforeunload. Uses spread-merge for forward-compatible saves.
+- **maps.ts** — Base map definitions (`BaseMapDefinition`), craftable map model (`CraftedMap`), rarity system (`MapRarity`: normal/magic/rare), 7 crafting actions (transmute/augment/alter/regal/chaos/alchemy/exalt), proc-based shard drops. `baseMapMap` is the O(1) lookup.
+- **mapAffixes.ts** — Affix pool (11 affixes, prefix/suffix, normal/premium tiers). Rolling functions + `resolveAffixStats()` aggregate stats from an affix list into `ResolvedAffixStats`.
+- **prestige.ts** — Prestige formula (`calculatePrestigeShards`), `performPrestige()` resets run state while preserving meta-progression. All tuning lives in `PRESTIGE_BALANCE`.
+- **talents.ts** — 10 talents across 3 branches (Cartography, Economy, Reflection). Effect getters (`getMapSpeedBonus`, `getMapRewardBonus`, `getMapCostReduction`, etc.) consumed by gameEngine and maps.
 
 ### State Pattern
 
@@ -48,6 +54,16 @@ Immutable state with reducer-style updates. `GameState` is the single source of 
 - Currency IDs and generator IDs are derived from `as const` tuple definitions, providing type safety without manual union types.
 - Progressive disclosure: UI sections appear based on game state milestones, with mystery teasers for next 2 locked currencies.
 - Single centered column layout (max 720px) with minimalistic dark theme.
+
+### Extending GameState
+
+When adding a new field to `GameState`, touch these files in order:
+1. **`gameEngine.ts`** — add to `GameState` type + `createInitialGameState()`
+2. **`saveSystem.ts`** — add to `SavePayload`, load with spread-merge default in `loadGameState()`:
+   `{ ...initialXxxState, ...savePayload.xxx }` so old saves get safe defaults
+3. **`synchronizeGameState()`** — only if the field is derived/computed from other state
+
+Transient display state (e.g. `lastMapResult`) belongs in `GameState` but can be omitted from `SavePayload`.
 
 ## Git
 Follow trunk-based development — branches are short-lived and merged back to main frequently.
@@ -80,7 +96,7 @@ Examples:
 ## Do not
 - Do not write JavaScript — TypeScript only
 - Do not use default exports for components or hooks
-- Do not use relative ../../ imports — use @/* alias
+- Use relative imports within `src/`. Keep depth shallow — avoid going up more than one level where co-location allows. The `@/*` alias is **not configured** in this project; do not use it.
 - Do not add eslint-disable without a comment explaining why
 - Do not bypass pre-commit hooks without good reason
 - Do not leave console.log in committed code
