@@ -17,13 +17,13 @@ export const PRESTIGE_BALANCE = {
   /** Minimum total equivalent fragment value to prestige */
   minimumValueForPrestige: 5000,
   /** Base formula: shards = floor(sqrt(totalValue / divisor)) */
-  valueDivisor: 1000,
+  valueDivisor: 800,
   /** Bonus shards per highest unlocked tier above tier 3 */
-  tierBonusPerTier: 1,
+  tierBonusPerTier: 2,
   /** Minimum tier to get tier bonus */
   tierBonusMinTier: 4,
   /** Bonus shards per map completed this run */
-  mapsCompletedBonus: 0.5,
+  mapsCompletedBonus: 0.75,
   /** Cracked Mirror talent: +15% shards per rank */
   crackedMirrorPerRank: 0.15,
   /** Lingering Wealth talent: 2% currencies kept per rank */

@@ -23,8 +23,9 @@ import {
 } from "./upgradeEngine";
 import {
   type ActiveMapState,
+  type MapCompletionResult,
   isMapComplete,
-  mapMap,
+  baseMapMap,
   completeMap,
   applyMapRewards,
 } from "./maps";
@@ -58,6 +59,7 @@ export type GameState = {
   activeMap: ActiveMapState;
   prestige: PrestigeState;
   talentsPurchased: TalentPurchasedState;
+  lastMapResult: MapCompletionResult | null;
 };
 
 export const GAME_VERSION = "0.8.0";
@@ -115,6 +117,7 @@ export function createInitialGameState(): GameState {
     activeMap: null,
     prestige: { ...initialPrestigeState },
     talentsPurchased: { ...initialTalentsPurchased },
+    lastMapResult: null,
   });
 }
 
@@ -156,19 +159,20 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
 
   // Check map completion
   let activeMap = state.activeMap;
+  let lastMapResult = state.lastMapResult;
   if (activeMap && isMapComplete(activeMap, Date.now())) {
-    const mapDef = mapMap[activeMap.mapId];
+    const mapDef = baseMapMap[activeMap.craftedMap.baseMapId];
     if (mapDef) {
       const rewardBonus = getMapRewardBonus(state.talentsPurchased, prestige.lastMapFamilyStreak);
-      const shardMultiplier = 1;
-      const result = completeMap(mapDef, rewardBonus, shardMultiplier);
+      const result = completeMap(mapDef, activeMap.craftedMap, rewardBonus);
       currencies = applyMapRewards(currencies, result);
+      lastMapResult = result;
 
       const isSameFamily = prestige.lastMapFamily === mapDef.family;
       prestige = {
         ...prestige,
-        mirrorShards: prestige.mirrorShards + result.shardReward,
-        totalMirrorShards: prestige.totalMirrorShards + result.shardReward,
+        mirrorShards: prestige.mirrorShards + result.shardAmount,
+        totalMirrorShards: prestige.totalMirrorShards + result.shardAmount,
         mapsCompleted: prestige.mapsCompleted + 1,
         lastMapFamily: mapDef.family,
         lastMapFamilyStreak: isSameFamily ? prestige.lastMapFamilyStreak + 1 : 1,
@@ -182,6 +186,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     currencies,
     activeMap,
     prestige,
+    lastMapResult,
     unlockedCurrencies: unlockCurrencies(state.unlockedCurrencies, state.currencyProduction),
   };
 }
