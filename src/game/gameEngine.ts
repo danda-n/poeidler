@@ -16,6 +16,8 @@ import {
 } from "./generators";
 import {
   applyUpgradeEffects,
+  getMapRewardUpgradeBonus,
+  getMapShardChanceUpgradeBonus,
   initialPurchasedUpgrades,
   initialUnlockedFeatures,
   type FeatureState,
@@ -30,6 +32,7 @@ import {
   baseMapMap,
   completeMap,
   applyMapRewards,
+  getMapIncomeSnapshot,
   startMap,
 } from "./maps";
 import {
@@ -146,10 +149,7 @@ export function applyPassiveGeneration(
   const nextCurrencies = { ...currenciesState };
 
   Object.entries(currencyProduction).forEach(([currencyId, rate]) => {
-    if (rate <= 0) {
-      return;
-    }
-
+    if (rate <= 0) return;
     nextCurrencies[currencyId as keyof CurrencyState] += rate * deltaTimeSeconds;
   });
 
@@ -158,11 +158,7 @@ export function applyPassiveGeneration(
 
 export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
   let state = synchronizeGameState(gameState);
-  let currencies = applyPassiveGeneration(
-    state.currencies,
-    state.currencyProduction,
-    deltaTimeSeconds,
-  );
+  let currencies = applyPassiveGeneration(state.currencies, state.currencyProduction, deltaTimeSeconds);
 
   const fragmentProduced = state.currencyProduction.fragmentOfWisdom * deltaTimeSeconds;
   let prestige = state.prestige;
@@ -179,7 +175,6 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
   let queuedMap = state.queuedMap;
   let mapNotification = state.mapNotification;
 
-  // Clear stale notification
   if (mapNotification && now - mapNotification.timestamp > NOTIFICATION_TTL_MS) {
     mapNotification = null;
   }
@@ -187,11 +182,11 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
   if (activeMap && isMapComplete(activeMap, now)) {
     const mapDef = baseMapMap[activeMap.craftedMap.baseMapId];
     if (mapDef) {
-      const rewardBonus = getMapRewardBonus(state.talentsPurchased, prestige.lastMapFamilyStreak);
-      const result = completeMap(mapDef, activeMap.craftedMap, rewardBonus, activeMap.deviceEffects);
+      const rewardBonus = getMapRewardBonus(state.talentsPurchased, prestige.lastMapFamilyStreak) + getMapRewardUpgradeBonus(state.purchasedUpgrades);
+      const shardChanceBonus = getMapShardChanceUpgradeBonus(state.purchasedUpgrades);
+      const result = completeMap(mapDef, activeMap, rewardBonus, shardChanceBonus);
       currencies = applyMapRewards(currencies, result);
       lastMapResult = result;
-
       mapNotification = { result, mapName: mapDef.name, timestamp: now };
 
       const isSameFamily = prestige.lastMapFamily === mapDef.family;
@@ -206,14 +201,14 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     }
     activeMap = null;
 
-    // Auto-start queued map if one is ready
     if (queuedMap) {
       const queuedMapDef = baseMapMap[queuedMap.baseMapId];
       if (queuedMapDef) {
         const costReduction = getMapCostReduction(state.talentsPurchased);
         const speedBonus = getMapSpeedBonus(state.talentsPurchased);
         const deviceEffects = resolveLoadoutEffects(queuedMap.deviceLoadout);
-        const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects);
+        const incomePerSecond = getMapIncomeSnapshot(state.currencyProduction);
+        const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects, incomePerSecond);
         if (startResult) {
           currencies = startResult.currencies;
           activeMap = startResult.activeMap;

@@ -10,10 +10,6 @@ type CurrencyRowProps = {
   generatorDisabled?: boolean;
   generatorTooltip?: string;
   onBuyGenerator?: () => void;
-  upgradeLabel?: string;
-  upgradeDisabled?: boolean;
-  upgradeTooltip?: string;
-  onBuyUpgrade?: () => void;
 };
 
 function CurrencyRow({
@@ -25,16 +21,7 @@ function CurrencyRow({
   generatorDisabled = false,
   generatorTooltip,
   onBuyGenerator,
-  upgradeLabel,
-  upgradeDisabled = false,
-  upgradeTooltip,
-  onBuyUpgrade,
 }: CurrencyRowProps) {
-  const tooltipParts: string[] = [];
-  if (generatorTooltip) tooltipParts.push(generatorTooltip);
-  if (upgradeTooltip) tooltipParts.push(upgradeTooltip);
-  const combinedTooltip = tooltipParts.join("\n\n");
-
   return (
     <div className="currency-row">
       <div className="currency-row-main">
@@ -52,12 +39,7 @@ function CurrencyRow({
               {generatorLabel}
             </button>
           )}
-          {upgradeLabel && (
-            <button className="btn btn-sm btn-upgrade" type="button" onClick={onBuyUpgrade} disabled={upgradeDisabled}>
-              {upgradeLabel}
-            </button>
-          )}
-          {combinedTooltip && <InfoIcon tooltip={combinedTooltip} />}
+          {generatorTooltip && <InfoIcon tooltip={generatorTooltip} />}
         </div>
       </div>
     </div>

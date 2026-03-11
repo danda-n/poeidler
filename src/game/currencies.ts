@@ -60,29 +60,29 @@ export const currencies: CurrencyDefinition[] = [
 export const currencyIds = currencies.map((currency) => currency.id) as CurrencyId[];
 export const fragmentCurrencyId: CurrencyId = "fragmentOfWisdom";
 
-export const currencyMap: Record<CurrencyId, CurrencyDefinition> = currencies.reduce((accumulator, currency) => {
-  accumulator[currency.id] = currency;
-  return accumulator;
+export const currencyMap: Record<CurrencyId, CurrencyDefinition> = currencies.reduce((acc, currency) => {
+  acc[currency.id] = currency;
+  return acc;
 }, {} as Record<CurrencyId, CurrencyDefinition>);
 
-export const initialCurrencies: CurrencyState = currencyIds.reduce((accumulator, currencyId) => {
-  accumulator[currencyId] = 0;
-  return accumulator;
+export const initialCurrencies: CurrencyState = currencyIds.reduce((acc, currencyId) => {
+  acc[currencyId] = 0;
+  return acc;
 }, {} as CurrencyState);
 
-export const initialCurrencyProduction: CurrencyProduction = currencyIds.reduce((accumulator, currencyId) => {
-  accumulator[currencyId] = 0;
-  return accumulator;
+export const initialCurrencyProduction: CurrencyProduction = currencyIds.reduce((acc, currencyId) => {
+  acc[currencyId] = 0;
+  return acc;
 }, {} as CurrencyProduction);
 
-export const initialCurrencyMultipliers: CurrencyMultipliers = currencyIds.reduce((accumulator, currencyId) => {
-  accumulator[currencyId] = 1;
-  return accumulator;
+export const initialCurrencyMultipliers: CurrencyMultipliers = currencyIds.reduce((acc, currencyId) => {
+  acc[currencyId] = 1;
+  return acc;
 }, {} as CurrencyMultipliers);
 
-export const initialUnlockedCurrencies: UnlockedCurrencyState = currencyIds.reduce((accumulator, currencyId) => {
-  accumulator[currencyId] = currencyId === fragmentCurrencyId;
-  return accumulator;
+export const initialUnlockedCurrencies: UnlockedCurrencyState = currencyIds.reduce((acc, currencyId) => {
+  acc[currencyId] = currencyId === fragmentCurrencyId;
+  return acc;
 }, {} as UnlockedCurrencyState);
 
 export const orderedCurrencies = [...currencies].sort((left, right) => left.tier - right.tier);
@@ -106,6 +106,14 @@ export function unlockCurrencies(unlockedCurrencies: UnlockedCurrencyState, curr
   });
 
   return nextUnlockedCurrencies;
+}
+
+export function getCurrencyValue(currencyId: CurrencyId, amount: number) {
+  return amount * currencyMap[currencyId].baseValue;
+}
+
+export function getTotalProductionValuePerSecond(currencyProduction: CurrencyProduction) {
+  return currencyIds.reduce((total, currencyId) => total + getCurrencyValue(currencyId, currencyProduction[currencyId]), 0);
 }
 
 export function getNextCurrencyUnlock(unlockedCurrencies: UnlockedCurrencyState) {
@@ -132,7 +140,6 @@ export function formatCurrencyValue(value: number) {
 
   let tier = 0;
   let scaled = value;
-
   while (scaled >= 1000 && tier < SUFFIXES.length - 1) {
     scaled /= 1000;
     tier += 1;
@@ -149,10 +156,7 @@ export function getSpendableAmount(currenciesState: CurrencyState, currencyId: C
 export function getConversionRatio(fromCurrencyId: CurrencyId, toCurrencyId: CurrencyId) {
   const fromCurrency = currencyMap[fromCurrencyId];
   const toCurrency = currencyMap[toCurrencyId];
-
-  if (toCurrency.baseValue <= fromCurrency.baseValue) {
-    return null;
-  }
+  if (toCurrency.baseValue <= fromCurrency.baseValue) return null;
 
   const ratio = toCurrency.baseValue / fromCurrency.baseValue;
   return Number.isInteger(ratio) ? ratio : null;
@@ -164,7 +168,7 @@ export function getNextLockedCurrencies(unlockedCurrencies: UnlockedCurrencyStat
     .slice(0, count);
 }
 
-export function scrambleName(name: string): string {
+export function scrambleName(name: string) {
   return name
     .split("")
     .map((char, index) => (index === 0 || char === " " ? char : "\u2588"))

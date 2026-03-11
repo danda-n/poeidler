@@ -36,12 +36,8 @@ function App() {
   const showConversions = hasNonFragmentUnlocked;
   const showUpgrades = hasAnyGenerator;
 
-  // Unlock conditions for sidebar pages
-  // Maps: unlock when player has alteration orbs unlocked (tier 4+)
   const hasTier4 = gameState.unlockedCurrencies.alterationOrb;
-  // Prestige: unlock when maps are unlocked and player has some progression
   const hasPrestige = hasTier4 && (gameState.prestige.prestigeCount > 0 || gameState.prestige.mapsCompleted >= 1 || gameState.currencies.jewellersOrb >= 1);
-  // Talents: unlock after first prestige or having any shards
   const hasTalents = gameState.prestige.totalMirrorShards > 0;
 
   const unlockedPages: Record<string, boolean> = {
@@ -59,9 +55,7 @@ function App() {
             <div className="header-left">
               <h1 className="game-title">PoE Idle</h1>
               <span className="save-status">
-                {gameState.lastSaveTime
-                  ? `Saved ${new Date(gameState.lastSaveTime).toLocaleTimeString()}`
-                  : ""}
+                {gameState.lastSaveTime ? `Saved ${new Date(gameState.lastSaveTime).toLocaleTimeString()}` : ""}
               </span>
             </div>
             <SettingsPanel
@@ -71,13 +65,7 @@ function App() {
             />
           </header>
 
-          {/* Global active map indicator — visible on all pages when maps are unlocked */}
-          {hasTier4 && (
-            <ActiveMapBanner
-              activeMap={gameState.activeMap}
-              queuedMap={gameState.queuedMap}
-            />
-          )}
+          {hasTier4 && <ActiveMapBanner activeMap={gameState.activeMap} queuedMap={gameState.queuedMap} />}
 
           {activePage === "currency" && (
             <>
@@ -96,18 +84,12 @@ function App() {
                     generatorsOwned={gameState.generatorsOwned}
                     unlockedCurrencies={gameState.unlockedCurrencies}
                     buyMaxEnabled={gameState.unlockedFeatures.buyMax}
-                    purchasedUpgrades={gameState.purchasedUpgrades}
                     onBuyGenerator={actions.buyGenerator}
-                    onBuyUpgrade={actions.buyUpgrade}
                   />
                   {showTeasers && (
                     <div style={{ marginTop: 4 }}>
                       {nextLocked.map((currency) => (
-                        <MysteryRow
-                          key={currency.id}
-                          currency={currency}
-                          currencyProduction={gameState.currencyProduction}
-                        />
+                        <MysteryRow key={currency.id} currency={currency} currencyProduction={gameState.currencyProduction} />
                       ))}
                     </div>
                   )}
@@ -140,10 +122,12 @@ function App() {
             <div className="section-enter">
               <MapPanel
                 currencies={gameState.currencies}
+                currencyProduction={gameState.currencyProduction}
                 activeMap={gameState.activeMap}
                 lastMapResult={gameState.lastMapResult}
                 prestige={gameState.prestige}
                 talentsPurchased={gameState.talentsPurchased}
+                purchasedUpgrades={gameState.purchasedUpgrades}
                 queuedMap={gameState.queuedMap}
                 onCraftMap={actions.craftMap}
                 onStartMap={actions.startMap}
@@ -180,7 +164,6 @@ function App() {
           </footer>
         </GameLayout>
 
-        {/* Map completion toast — fixed position, outside layout flow */}
         <MapToast notification={gameState.mapNotification} />
       </main>
     </div>

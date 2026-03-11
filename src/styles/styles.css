@@ -1869,3 +1869,92 @@ img {
   font-size: 0.68rem;
   padding: 3px 7px;
 }
+
+/* First-pass upgrade rework */
+.upgrade-panel-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.upgrade-category-copy {
+  font-size: 0.74rem;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.upgrade-category-list {
+  display: grid;
+  gap: 6px;
+}
+
+.upgrade-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.upgrade-card-complete {
+  border-color: rgba(80, 250, 123, 0.2);
+  background: rgba(80, 250, 123, 0.04);
+}
+
+.upgrade-card-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.upgrade-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.upgrade-card-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f0f0f0;
+}
+
+.upgrade-card-level {
+  font-size: 0.68rem;
+  color: #888;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upgrade-card-desc {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #a0a0a0;
+}
+
+.upgrade-card-meta,
+.upgrade-card-cost,
+.upgrade-placeholder,
+.map-base-card-subcopy,
+.map-result-total,
+.map-toast-summary,
+.map-craft-tier {
+  font-size: 0.7rem;
+  color: #888;
+}
+
+.upgrade-card-maxed {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #50fa7b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.map-preview-rewards {
+  gap: 6px;
+}

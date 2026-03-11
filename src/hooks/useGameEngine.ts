@@ -12,6 +12,7 @@ import {
   canAffordCraft,
   payCraftCost,
   applyCraftingAction,
+  getMapIncomeSnapshot,
   type CraftedMap,
   type CraftingAction,
   type QueuedMapSetup,
@@ -74,12 +75,11 @@ export function useGameEngine() {
       const converted = convertCurrency(currentState.currencies, fromCurrencyId, toCurrencyId);
 
       if (conversionBonus > 0 && converted !== currentState.currencies) {
-        const bonusAmount = conversionBonus;
         return {
           ...currentState,
           currencies: {
             ...converted,
-            [toCurrencyId]: converted[toCurrencyId] + bonusAmount,
+            [toCurrencyId]: converted[toCurrencyId] + conversionBonus,
           },
         };
       }
@@ -181,10 +181,10 @@ export function useGameEngine() {
       const costReduction = getMapCostReduction(currentState.talentsPurchased);
       const speedBonus = getMapSpeedBonus(currentState.talentsPurchased);
       const deviceEffects = resolveLoadoutEffects(deviceLoadout);
+      const incomePerSecond = getMapIncomeSnapshot(currentState.currencyProduction);
 
-      // Pay loadout cost first, then map run cost
-      let currencies = payLoadoutCost(currentState.currencies, deviceLoadout);
-      const result = startMap(currencies, mapDef, craftedMap, costReduction, speedBonus, deviceEffects);
+      const currencies = payLoadoutCost(currentState.currencies, deviceLoadout);
+      const result = startMap(currencies, mapDef, craftedMap, costReduction, speedBonus, deviceEffects, incomePerSecond);
       if (!result) return currentState;
 
       return {
@@ -201,7 +201,7 @@ export function useGameEngine() {
     setGameState((currentState) => {
       const mapDef = baseMapMap[baseMapId];
       if (!mapDef) return currentState;
-      if (!currentState.activeMap) return currentState; // use startMap directly if nothing running
+      if (!currentState.activeMap) return currentState;
       if (!isMapUnlocked(mapDef, currentState.currencies)) return currentState;
 
       const setup: QueuedMapSetup = { baseMapId, craftedMap, deviceLoadout };

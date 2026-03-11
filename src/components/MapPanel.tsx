@@ -19,6 +19,8 @@ import {
   craftingActionLabels,
   craftingActionDescriptions,
   MAP_BALANCE,
+  getMapRewardPreview,
+  getMapIncomeSnapshot,
   type ActiveMapState,
   type CraftedMap,
   type CraftingAction,
@@ -39,16 +41,19 @@ import {
   LOADOUT_MAX_SLOTS,
   type DeviceLoadout,
 } from "../game/mapDevice";
-import { formatCurrencyValue, currencyMap, type CurrencyState } from "../game/currencies";
-import { getMapCostReduction, getMapSpeedBonus, type TalentPurchasedState } from "../game/talents";
+import { formatCurrencyValue, currencyMap, type CurrencyProduction, type CurrencyState } from "../game/currencies";
+import { getMapCostReduction, getMapRewardBonus, getMapSpeedBonus, type TalentPurchasedState } from "../game/talents";
+import { getMapRewardUpgradeBonus, type PurchasedUpgradeState } from "../game/upgradeEngine";
 import type { PrestigeState } from "../game/prestige";
 
 type MapPanelProps = {
   currencies: CurrencyState;
+  currencyProduction: CurrencyProduction;
   activeMap: ActiveMapState;
   lastMapResult: MapCompletionResult | null;
   prestige: PrestigeState;
   talentsPurchased: TalentPurchasedState;
+  purchasedUpgrades: PurchasedUpgradeState;
   queuedMap: QueuedMapSetup | null;
   onCraftMap: (craftedMap: CraftedMap, action: CraftingAction) => CraftedMap | null;
   onStartMap: (baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) => void;
@@ -74,10 +79,12 @@ function formatSignedPercent(n: number): string {
 
 export function MapPanel({
   currencies,
+  currencyProduction,
   activeMap,
   lastMapResult,
   prestige,
   talentsPurchased,
+  purchasedUpgrades,
   queuedMap,
   onCraftMap,
   onStartMap,
@@ -126,7 +133,6 @@ export function MapPanel({
     } else {
       onStartMap(selectedBaseMapId, craftedMap, preparingLoadout);
     }
-    // Reset prep state
     setSelectedBaseMapId(null);
     setCraftedMap(null);
     setPreparingLoadout({ modIds: [] });
@@ -142,11 +148,8 @@ export function MapPanel({
   const focusedRewardMult = craftedMap ? 1 + craftedMap.resolvedStats.focusedRewardMultiplier + deviceEffects.focusedRewardMultiplier : 1;
 
   const availableActions = craftedMap ? getAvailableCraftingActions(craftedMap) : [];
-
-  // Combined affordability: check loadout cost + map cost together
   const loadoutCost = getLoadoutTotalCost(preparingLoadout);
   const loadoutAffordable = canAffordLoadout(currencies, preparingLoadout);
-  // Simulate post-loadout currencies for map cost check
   const currenciesPostLoadout: CurrencyState = loadoutAffordable && mapDef && craftedMap
     ? (() => {
         const c = { ...currencies };
@@ -159,9 +162,18 @@ export function MapPanel({
   const mapCostAffordable = !!(mapDef && craftedMap && canAffordMap(mapDef, craftedMap, currenciesPostLoadout, costReduction, deviceEffects));
   const canCommit = !queuedMap && loadoutAffordable && mapCostAffordable;
 
+  const previewRewardBonus = mapDef
+    ? getMapRewardBonus(
+        talentsPurchased,
+        prestige.lastMapFamily === mapDef.family ? prestige.lastMapFamilyStreak : 0,
+      ) + getMapRewardUpgradeBonus(purchasedUpgrades)
+    : 0;
+  const rewardPreview = mapDef && craftedMap
+    ? getMapRewardPreview(mapDef, craftedMap, getMapIncomeSnapshot(currencyProduction), previewRewardBonus, deviceEffects)
+    : null;
+
   const activeMapDef = activeMap ? baseMapMap[activeMap.craftedMap.baseMapId] : null;
   const queuedMapDef = queuedMap ? baseMapMap[queuedMap.baseMapId] : null;
-
   const showPrepArea = !queuedMap || !activeMap;
 
   return (
@@ -173,7 +185,6 @@ export function MapPanel({
         </span>
       </div>
 
-      {/* Active map progress */}
       {activeMap && activeMapDef && (
         <div className="map-active">
           <div className="map-active-info">
@@ -193,15 +204,11 @@ export function MapPanel({
             </div>
           )}
           <div className="map-progress-track">
-            <div
-              className="map-progress-fill"
-              style={{ width: `${Math.min(100, getMapProgress(activeMap, now) * 100)}%` }}
-            />
+            <div className="map-progress-fill" style={{ width: `${Math.min(100, getMapProgress(activeMap, now) * 100)}%` }} />
           </div>
         </div>
       )}
 
-      {/* Queued map info */}
       {queuedMap && queuedMapDef && (
         <div className="map-queued">
           <div className="map-queued-info">
@@ -217,30 +224,22 @@ export function MapPanel({
                 </span>
               )}
             </span>
-            <button
-              type="button"
-              className="btn btn-sm btn-danger"
-              onClick={onCancelQueue}
-            >
+            <button type="button" className="btn btn-sm btn-danger" onClick={onCancelQueue}>
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      {/* Last result (shown when nothing is running) */}
       {lastMapResult && !activeMap && (
         <div className="map-result">
           <div className="map-result-header">
             <span className="map-result-title">
               Last run
-              {lastMapResult.shardDropped && (
-                <span className="map-result-shard-badge"> ✦ Mirror Shard!</span>
-              )}
-              {lastMapResult.bonusRewardTriggered && (
-                <span className="map-result-bonus-badge"> Bonus!</span>
-              )}
+              {lastMapResult.shardDropped && <span className="map-result-shard-badge"> Shard!</span>}
+              {lastMapResult.bonusRewardTriggered && <span className="map-result-bonus-badge"> Bonus!</span>}
             </span>
+            <span className="map-result-total">~{formatCurrencyValue(lastMapResult.totalRewardValue)} value</span>
           </div>
           <div className="map-result-rewards">
             {Object.entries(lastMapResult.rewards).map(([cid, amount]) => {
@@ -252,17 +251,13 @@ export function MapPanel({
                 </span>
               );
             })}
-            {lastMapResult.shardDropped && (
-              <span className="map-result-item map-result-shard">+1 Mirror Shard</span>
-            )}
+            {lastMapResult.shardDropped && <span className="map-result-item map-result-shard">+1 Mirror Shard</span>}
           </div>
         </div>
       )}
 
-      {/* Map preparation area */}
       {showPrepArea && (
         <>
-          {/* Base map selection */}
           <div className="map-base-list">
             {baseMaps.map((def) => {
               const unlocked = isMapUnlocked(def, currencies);
@@ -278,13 +273,13 @@ export function MapPanel({
                 >
                   <div className="map-base-card-header">
                     <span className="map-base-card-name">{unlocked ? def.name : "???"}</span>
-                    <span className="map-base-card-family">{def.family}</span>
+                    <span className="map-base-card-family">Tier {def.tier}</span>
                   </div>
                   {unlocked && <p className="map-base-card-desc">{def.description}</p>}
+                  {unlocked && <p className="map-base-card-subcopy">Targets ~{def.baseRewardSeconds}s of current production</p>}
                   {!unlocked && (
                     <p className="map-card-lock-hint">
-                      Requires {formatCurrencyValue(def.unlockRequirement.amount)}{" "}
-                      {currencyMap[def.unlockRequirement.currencyId]?.shortLabel}
+                      Requires {formatCurrencyValue(def.unlockRequirement.amount)} {currencyMap[def.unlockRequirement.currencyId]?.shortLabel}
                     </p>
                   )}
                 </button>
@@ -292,19 +287,15 @@ export function MapPanel({
             })}
           </div>
 
-          {/* Crafting + device setup */}
           {mapDef && craftedMap && (
             <div className="map-craft-panel">
               <div className="map-craft-header">
-                <span
-                  className="map-craft-rarity"
-                  style={{ color: getRarityColor(craftedMap.rarity) }}
-                >
+                <span className="map-craft-rarity" style={{ color: getRarityColor(craftedMap.rarity) }}>
                   {getRarityLabel(craftedMap.rarity)} {mapDef.name}
                 </span>
+                <span className="map-craft-tier">Tier {craftedMap.tier}</span>
               </div>
 
-              {/* Affix list */}
               {craftedMap.affixIds.length > 0 ? (
                 <div className="map-affix-list">
                   {craftedMap.affixIds.map((id) => (
@@ -315,17 +306,15 @@ export function MapPanel({
                   ))}
                 </div>
               ) : (
-                <p className="map-affix-empty">No affixes — transmute or alch to add modifiers.</p>
+                <p className="map-affix-empty">No affixes yet. This first pass keeps quality and content tags in the data model for future crafting.</p>
               )}
 
-              {/* Crafting buttons */}
               <div className="map-craft-actions">
                 {(["transmute", "augment", "alter", "regal", "chaos", "alchemy", "exalt"] as CraftingAction[]).map((action) => {
                   const isAvailable = availableActions.includes(action);
                   const cost = craftingCosts[action];
                   const affordable = canAffordCraft(currencies, action);
                   const canUse = isAvailable && affordable;
-                  const costEntries = Object.entries(cost);
 
                   return (
                     <button
@@ -338,10 +327,8 @@ export function MapPanel({
                     >
                       <span className="btn-craft-label">{craftingActionLabels[action]}</span>
                       <span className="btn-craft-cost">
-                        {costEntries.map(([cid, amount]) => (
-                          <span key={cid}>
-                            {amount} {currencyMap[cid as keyof typeof currencyMap]?.shortLabel ?? cid}
-                          </span>
+                        {Object.entries(cost).map(([cid, amount]) => (
+                          <span key={cid}>{amount} {currencyMap[cid as keyof typeof currencyMap]?.shortLabel ?? cid}</span>
                         ))}
                       </span>
                     </button>
@@ -349,16 +336,12 @@ export function MapPanel({
                 })}
               </div>
 
-              {/* Device loadout */}
               <div className="device-loadout">
                 <div className="device-loadout-header">
                   <span className="device-loadout-title">Device Mods</span>
-                  <span className="device-loadout-count">
-                    {preparingLoadout.modIds.length}/{LOADOUT_MAX_SLOTS} slots
-                  </span>
+                  <span className="device-loadout-count">{preparingLoadout.modIds.length}/{LOADOUT_MAX_SLOTS} slots</span>
                 </div>
 
-                {/* Selected mods */}
                 {preparingLoadout.modIds.length > 0 && (
                   <div className="device-loadout-selected">
                     {preparingLoadout.modIds.map((modId) => {
@@ -366,20 +349,12 @@ export function MapPanel({
                       if (!def) return null;
                       return (
                         <div key={modId} className="device-loadout-chip">
-                          <span
-                            className="device-loadout-chip-name"
-                            style={{ color: getModTierColor(def.tier) }}
-                          >
+                          <span className="device-loadout-chip-name" style={{ color: getModTierColor(def.tier) }}>
                             {def.name}
                           </span>
                           <span className="device-loadout-chip-desc">{def.description}</span>
-                          <button
-                            type="button"
-                            className="device-loadout-chip-remove"
-                            onClick={() => handleRemoveMod(modId)}
-                            title="Remove"
-                          >
-                            ×
+                          <button type="button" className="device-loadout-chip-remove" onClick={() => handleRemoveMod(modId)} title="Remove">
+                            x
                           </button>
                         </div>
                       );
@@ -387,34 +362,20 @@ export function MapPanel({
                   </div>
                 )}
 
-                {/* Available mods to add */}
                 {preparingLoadout.modIds.length < LOADOUT_MAX_SLOTS && (
                   <div className="device-loadout-pool">
                     {deviceModPool.map((def) => {
                       const alreadyAdded = preparingLoadout.modIds.includes(def.id);
                       const canAdd = canAddModToLoadout(preparingLoadout, def.id);
                       return (
-                        <div
-                          key={def.id}
-                          className={`device-pool-row${alreadyAdded ? " device-pool-row-added" : ""}`}
-                        >
+                        <div key={def.id} className={`device-pool-row${alreadyAdded ? " device-pool-row-added" : ""}`}>
                           <div className="device-pool-row-info">
-                            <span
-                              className="device-pool-row-name"
-                              style={{ color: getModTierColor(def.tier) }}
-                            >
-                              {def.name}
-                            </span>
+                            <span className="device-pool-row-name" style={{ color: getModTierColor(def.tier) }}>{def.name}</span>
                             <span className="device-pool-row-tier">{getModTierLabel(def.tier)}</span>
                             <span className="device-pool-row-desc">{def.description}</span>
                           </div>
                           {!alreadyAdded && (
-                            <button
-                              type="button"
-                              className="btn btn-sm device-pool-add-btn"
-                              disabled={!canAdd}
-                              onClick={() => handleAddMod(def.id)}
-                            >
+                            <button type="button" className="btn btn-sm device-pool-add-btn" disabled={!canAdd} onClick={() => handleAddMod(def.id)}>
                               Add
                             </button>
                           )}
@@ -425,7 +386,6 @@ export function MapPanel({
                 )}
               </div>
 
-              {/* Combined summary */}
               <div className="map-craft-preview">
                 <div className="map-preview-row">
                   <span className="map-preview-label">Map cost</span>
@@ -435,15 +395,12 @@ export function MapPanel({
                           const def = currencyMap[cid as keyof typeof currencyMap];
                           const hasEnough = Math.floor(currencies[cid as keyof CurrencyState]) >= (amount ?? 0);
                           return (
-                            <span
-                              key={cid}
-                              style={{ color: hasEnough ? undefined : "#e05050", marginRight: 6 }}
-                            >
+                            <span key={cid} style={{ color: hasEnough ? undefined : "#e05050", marginRight: 6 }}>
                               {formatCurrencyValue(amount ?? 0)} {def?.shortLabel ?? cid}
                             </span>
                           );
                         })
-                      : "—"}
+                      : "-"}
                   </span>
                 </div>
                 {preparingLoadout.modIds.length > 0 && (
@@ -454,10 +411,7 @@ export function MapPanel({
                         const def = currencyMap[cid as keyof typeof currencyMap];
                         const hasEnough = Math.floor(currencies[cid as keyof CurrencyState]) >= (amount ?? 0);
                         return (
-                          <span
-                            key={cid}
-                            style={{ color: hasEnough ? undefined : "#e05050", marginRight: 6 }}
-                          >
+                          <span key={cid} style={{ color: hasEnough ? undefined : "#e05050", marginRight: 6 }}>
                             {formatCurrencyValue(amount ?? 0)} {def?.shortLabel ?? cid}
                           </span>
                         );
@@ -467,17 +421,13 @@ export function MapPanel({
                 )}
                 <div className="map-preview-row">
                   <span className="map-preview-label">Duration</span>
-                  <span className="map-preview-value">
-                    {resolvedDuration ? formatMs(resolvedDuration) : "—"}
-                  </span>
+                  <span className="map-preview-value">{resolvedDuration ? formatMs(resolvedDuration) : "-"}</span>
                 </div>
                 <div className="map-preview-row">
-                  <span className="map-preview-label">Rewards</span>
+                  <span className="map-preview-label">Reward mods</span>
                   <span className="map-preview-value">
                     {formatSignedPercent(rewardMult - 1)} base
-                    {Object.keys(mapDef.focusedRewards).length > 0 && (
-                      <>, {formatSignedPercent(focusedRewardMult - 1)} focused</>
-                    )}
+                    {Object.keys(mapDef.focusedRewardWeights).length > 0 && <>, {formatSignedPercent(focusedRewardMult - 1)} focused</>}
                   </span>
                 </div>
                 <div className="map-preview-row">
@@ -486,50 +436,33 @@ export function MapPanel({
                     {formatPercent(shardChance)}
                   </span>
                 </div>
-                <div className="map-preview-row map-preview-base-rewards">
-                  <span className="map-preview-label">Expected</span>
+                <div className="map-preview-row">
+                  <span className="map-preview-label">Projected</span>
+                  <span className="map-preview-value map-preview-rewards">
+                    {rewardPreview
+                      ? Object.entries(rewardPreview.rewards).map(([cid, amount]) => {
+                          const def = currencyMap[cid as keyof typeof currencyMap];
+                          return <span key={cid}>{formatCurrencyValue(amount ?? 0)} {def?.shortLabel ?? cid}</span>;
+                        })
+                      : "-"}
+                  </span>
+                </div>
+                <div className="map-preview-row">
+                  <span className="map-preview-label">Value</span>
                   <span className="map-preview-value">
-                    {Object.entries(mapDef.rewards).map(([cid, baseAmount]) => {
-                      const amt = Math.floor((baseAmount ?? 0) * rewardMult);
-                      const def = currencyMap[cid as keyof typeof currencyMap];
-                      return (
-                        <span key={cid} style={{ marginRight: 6 }}>
-                          {formatCurrencyValue(amt)} {def?.shortLabel ?? cid}
-                        </span>
-                      );
-                    })}
-                    {Object.entries(mapDef.focusedRewards).map(([cid, baseAmount]) => {
-                      const amt = Math.floor((baseAmount ?? 0) * focusedRewardMult);
-                      const def = currencyMap[cid as keyof typeof currencyMap];
-                      return (
-                        <span key={`f-${cid}`} style={{ marginRight: 6, color: "#a0c8ff" }}>
-                          +{formatCurrencyValue(amt)} {def?.shortLabel ?? cid}
-                        </span>
-                      );
-                    })}
+                    {rewardPreview ? `~${formatCurrencyValue(rewardPreview.totalRewardValue)} total value` : "-"}
                   </span>
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="btn btn-primary btn-full"
-                disabled={!canCommit}
-                onClick={handleRunOrQueue}
-              >
-                {activeMap
-                  ? (queuedMap ? "Queue full" : "Queue for Next Run")
-                  : (!canCommit ? "Can't Afford" : "Run Map")}
+              <button type="button" className="btn btn-primary btn-full" disabled={!canCommit} onClick={handleRunOrQueue}>
+                {activeMap ? (queuedMap ? "Queue full" : "Queue for Next Run") : (!canCommit ? "Can't Afford" : "Run Map")}
               </button>
             </div>
           )}
 
-          {!selectedBaseMapId && !activeMap && (
-            <p className="map-select-hint">Select a map above to craft and run it.</p>
-          )}
-          {!selectedBaseMapId && activeMap && !queuedMap && (
-            <p className="map-select-hint">Select a map above to queue it for after the current run.</p>
-          )}
+          {!selectedBaseMapId && !activeMap && <p className="map-select-hint">Select a map above to craft and run it.</p>}
+          {!selectedBaseMapId && activeMap && !queuedMap && <p className="map-select-hint">Select a map above to queue it for after the current run.</p>}
         </>
       )}
     </div>

@@ -1,7 +1,8 @@
 import { applyPassiveGeneration, createInitialGameState, GAME_VERSION, synchronizeGameState, type GameState } from "./gameEngine";
-import { isMapComplete, baseMapMap, completeMap, applyMapRewards, startMap, type QueuedMapSetup } from "./maps";
+import { isMapComplete, baseMapMap, completeMap, applyMapRewards, startMap, hydrateCraftedMap, getMapIncomeSnapshot, type QueuedMapSetup } from "./maps";
 import { initialPrestigeState } from "./prestige";
 import { initialTalentsPurchased, getMapRewardBonus, getMapCostReduction, getMapSpeedBonus } from "./talents";
+import { getMapRewardUpgradeBonus, getMapShardChanceUpgradeBonus } from "./upgradeEngine";
 import { initialMapDeviceState, type MapDeviceState, resolveLoadoutEffects, emptyDeviceLoadout } from "./mapDevice";
 
 export const SAVE_KEY = "poe-idle-save";
@@ -23,10 +24,7 @@ type SavePayload = {
 };
 
 function isSavePayload(payload: unknown): payload is SavePayload {
-  if (!payload || typeof payload !== "object") {
-    return false;
-  }
-
+  if (!payload || typeof payload !== "object") return false;
   const candidate = payload as Record<string, unknown>;
   return (
     typeof candidate.currencies === "object" && candidate.currencies !== null &&
@@ -55,7 +53,6 @@ export function saveGameState(gameState: GameState, timestamp = Date.now()) {
   return timestamp;
 }
 
-// Default device effects for old saves that don't have them on active maps
 const emptyDeviceEffects = {
   rewardMultiplier: 0,
   focusedRewardMultiplier: 0,
@@ -65,7 +62,7 @@ const emptyDeviceEffects = {
   shardChanceBonus: 0,
 };
 
-function resolveMapCompletionAndUpdate(
+function resolveLoadStateMapCompletion(
   nextState: ReturnType<typeof synchronizeGameState>,
   now: number,
 ): typeof nextState {
@@ -74,8 +71,9 @@ function resolveMapCompletionAndUpdate(
   const mapDef = baseMapMap[nextState.activeMap.craftedMap.baseMapId];
   if (!mapDef) return { ...nextState, activeMap: null };
 
-  const rewardBonus = getMapRewardBonus(nextState.talentsPurchased, nextState.prestige.lastMapFamilyStreak);
-  const result = completeMap(mapDef, nextState.activeMap.craftedMap, rewardBonus, nextState.activeMap.deviceEffects);
+  const rewardBonus = getMapRewardBonus(nextState.talentsPurchased, nextState.prestige.lastMapFamilyStreak) + getMapRewardUpgradeBonus(nextState.purchasedUpgrades);
+  const shardChanceBonus = getMapShardChanceUpgradeBonus(nextState.purchasedUpgrades);
+  const result = completeMap(mapDef, nextState.activeMap, rewardBonus, shardChanceBonus);
   let currencies = applyMapRewards(nextState.currencies, result);
 
   const isSameFamily = nextState.prestige.lastMapFamily === mapDef.family;
@@ -91,24 +89,24 @@ function resolveMapCompletionAndUpdate(
   let activeMap = null;
   let queuedMap = nextState.queuedMap;
 
-  // Try to start queued map
   if (queuedMap) {
     const queuedMapDef = baseMapMap[queuedMap.baseMapId];
     if (queuedMapDef) {
       const costReduction = getMapCostReduction(nextState.talentsPurchased);
       const speedBonus = getMapSpeedBonus(nextState.talentsPurchased);
       const deviceEffects = resolveLoadoutEffects(queuedMap.deviceLoadout);
-      const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects);
+      const incomePerSecond = getMapIncomeSnapshot(nextState.currencyProduction);
+      const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects, incomePerSecond);
       if (startResult) {
         currencies = startResult.currencies;
         activeMap = startResult.activeMap;
 
-        // Check if queued map also completed offline
         if (activeMap && isMapComplete(activeMap, now)) {
           const queuedDef = baseMapMap[activeMap.craftedMap.baseMapId];
           if (queuedDef) {
-            const qRewardBonus = getMapRewardBonus(nextState.talentsPurchased, updatedPrestige.lastMapFamilyStreak);
-            const qResult = completeMap(queuedDef, activeMap.craftedMap, qRewardBonus, activeMap.deviceEffects);
+            const qRewardBonus = getMapRewardBonus(nextState.talentsPurchased, updatedPrestige.lastMapFamilyStreak) + getMapRewardUpgradeBonus(nextState.purchasedUpgrades);
+            const qShardChanceBonus = getMapShardChanceUpgradeBonus(nextState.purchasedUpgrades);
+            const qResult = completeMap(queuedDef, activeMap, qRewardBonus, qShardChanceBonus);
             currencies = applyMapRewards(currencies, qResult);
             const isSameFamilyQ = updatedPrestige.lastMapFamily === queuedDef.family;
             updatedPrestige.mirrorShards += qResult.shardAmount;
@@ -138,16 +136,11 @@ export function loadGameState() {
   const initialState = createInitialGameState();
   const rawSave = window.localStorage.getItem(SAVE_KEY);
 
-  if (!rawSave) {
-    return initialState;
-  }
+  if (!rawSave) return initialState;
 
   try {
     const parsedSave = JSON.parse(rawSave) as unknown;
-
-    if (!isSavePayload(parsedSave)) {
-      return initialState;
-    }
+    if (!isSavePayload(parsedSave)) return initialState;
 
     const savePayload = parsedSave as SavePayload;
     const now = Date.now();
@@ -161,25 +154,35 @@ export function loadGameState() {
       ? { ...initialTalentsPurchased, ...savePayload.talentsPurchased }
       : { ...initialTalentsPurchased };
 
-    // mapDevice is now a no-op persistent state; ignore old socket/link/modifier data
     const savedDevice: MapDeviceState = initialMapDeviceState;
 
-    // Migrate activeMap: old saves may lack craftedMap or deviceEffects
     let savedActiveMap = savePayload.activeMap ?? null;
-    if (savedActiveMap && !savedActiveMap.craftedMap) {
-      savedActiveMap = null;
-    }
-    if (savedActiveMap && !savedActiveMap.deviceEffects) {
-      savedActiveMap = { ...savedActiveMap, deviceEffects: emptyDeviceEffects };
+    if (savedActiveMap) {
+      const craftedMap = hydrateCraftedMap(savedActiveMap.craftedMap);
+      if (!craftedMap) {
+        savedActiveMap = null;
+      } else {
+        savedActiveMap = {
+          ...savedActiveMap,
+          craftedMap,
+          deviceEffects: savedActiveMap.deviceEffects ?? emptyDeviceEffects,
+          incomePerSecond: typeof savedActiveMap.incomePerSecond === "number" ? savedActiveMap.incomePerSecond : 0,
+        };
+      }
     }
 
-    // Migrate queuedMap: ensure deviceLoadout is present
     let savedQueuedMap: QueuedMapSetup | null = savePayload.queuedMap ?? null;
-    if (savedQueuedMap && (!savedQueuedMap.baseMapId || !savedQueuedMap.craftedMap)) {
-      savedQueuedMap = null;
-    }
-    if (savedQueuedMap && !savedQueuedMap.deviceLoadout) {
-      savedQueuedMap = { ...savedQueuedMap, deviceLoadout: emptyDeviceLoadout };
+    if (savedQueuedMap) {
+      const craftedMap = hydrateCraftedMap(savedQueuedMap.craftedMap);
+      if (!savedQueuedMap.baseMapId || !craftedMap) {
+        savedQueuedMap = null;
+      } else {
+        savedQueuedMap = {
+          ...savedQueuedMap,
+          craftedMap,
+          deviceLoadout: savedQueuedMap.deviceLoadout ?? emptyDeviceLoadout,
+        };
+      }
     }
 
     let nextState = synchronizeGameState({
@@ -212,9 +215,17 @@ export function loadGameState() {
       mapNotification: null,
     });
 
-    // Resolve offline map completion (handles active + queued map chaining)
-    nextState = resolveMapCompletionAndUpdate(nextState, now);
+    if (nextState.activeMap && nextState.activeMap.incomePerSecond <= 0) {
+      nextState = {
+        ...nextState,
+        activeMap: {
+          ...nextState.activeMap,
+          incomePerSecond: getMapIncomeSnapshot(nextState.currencyProduction),
+        },
+      };
+    }
 
+    nextState = resolveLoadStateMapCompletion(nextState, now);
     nextState.currencies = applyPassiveGeneration(nextState.currencies, nextState.currencyProduction, elapsedSeconds);
     return synchronizeGameState(nextState);
   } catch {
