@@ -7,11 +7,11 @@ import ManualConversionRow from "./components/ManualConversionRow";
 import MapPanel from "./components/MapPanel";
 import { MapToast } from "./components/MapToast";
 import MysteryRow from "./components/MysteryRow";
-import OtherUpgradesBar from "./components/OtherUpgradesBar";
 import PrestigePanel from "./components/PrestigePanel";
 import SettingsPanel from "./components/SettingsPanel";
 import Sidebar, { type PageId } from "./components/Sidebar";
 import TalentPanel from "./components/TalentPanel";
+import UpgradePanel from "./components/UpgradePanel";
 import { fragmentCurrencyId, getNextLockedCurrencies } from "./game/currencies";
 import { generatorIds } from "./game/generators";
 import { useGameEngine } from "./hooks/useGameEngine";
@@ -34,13 +34,13 @@ function App() {
   const showTeasers = hasNonFragmentUnlocked && nextLocked.length > 0;
 
   const showConversions = hasNonFragmentUnlocked;
-  const showUpgrades = hasAnyGenerator;
-
+  const hasUpgrades = hasAnyGenerator;
   const hasTier4 = gameState.unlockedCurrencies.alterationOrb;
   const hasPrestige = hasTier4 && (gameState.prestige.prestigeCount > 0 || gameState.prestige.mapsCompleted >= 1 || gameState.currencies.jewellersOrb >= 1);
   const hasTalents = gameState.prestige.totalMirrorShards > 0;
 
   const unlockedPages: Record<string, boolean> = {
+    upgrades: hasUpgrades,
     maps: hasTier4,
     prestige: hasPrestige,
     talents: hasTalents,
@@ -96,16 +96,6 @@ function App() {
                 </div>
               )}
 
-              {showUpgrades && (
-                <div className="section-enter">
-                  <OtherUpgradesBar
-                    currenciesState={gameState.currencies}
-                    purchasedUpgrades={gameState.purchasedUpgrades}
-                    onBuyUpgrade={actions.buyUpgrade}
-                  />
-                </div>
-              )}
-
               {showConversions && (
                 <div className="section-enter">
                   <ManualConversionRow
@@ -116,6 +106,16 @@ function App() {
                 </div>
               )}
             </>
+          )}
+
+          {activePage === "upgrades" && hasUpgrades && (
+            <div className="section-enter">
+              <UpgradePanel
+                currenciesState={gameState.currencies}
+                purchasedUpgrades={gameState.purchasedUpgrades}
+                onBuyUpgrade={actions.buyUpgrade}
+              />
+            </div>
           )}
 
           {activePage === "maps" && (

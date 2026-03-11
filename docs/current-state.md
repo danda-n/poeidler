@@ -1,12 +1,12 @@
 # Current State
 
 ## Current systems
-- Single-page React/Vite idle game with sidebar-gated Currency, Maps, Prestige, and Talents views
+- Single-page React/Vite idle game with sidebar-gated Currency, Upgrades, Maps, Prestige, and Talents views
 - Core loop runs in `src/game/gameEngine.ts` with 100 ms ticks, derived-state resync, autosave every 5 s, and offline progress capped at 8 h
-- Currency progression includes click generation, generators, grouped upgrade categories, buy-max flow, manual conversion, and teaser rows for upcoming currencies
+- Currency screen stays focused on the active loop: click generation, currencies/generators, manual conversion, teaser rows, and global map status
+- Upgrades live in their own top-level screen using grouped foldable categories and the existing upgrade progression rules
 - Maps now scale from current production value per second, snapshot reward power at run start, support affix/device modifiers, queue the next run, and surface global active/completion status
 - Crafted map data now carries tier, rarity, quality, affixes, and content tags to prepare for future map expansion
-- Save/load migrates older crafted maps and active map payloads onto the richer first-pass map model
 
 ## Known issues
 - Repo rules say not to use default exports, but `src/App.tsx` and many components still export default
@@ -19,8 +19,8 @@
 - Balance the new production-scaled map formulas against late-game generator growth and prestige pacing
 
 ## Files that matter most
+- `src/App.tsx`
+- `src/components/Sidebar.tsx`
+- `src/components/UpgradePanel.tsx`
 - `src/game/maps.ts`
 - `src/game/upgradeEngine.ts`
-- `src/game/gameEngine.ts`
-- `src/game/saveSystem.ts`
-- `src/components/MapPanel.tsx`

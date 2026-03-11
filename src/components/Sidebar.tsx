@@ -1,4 +1,4 @@
-export type PageId = "currency" | "maps" | "prestige" | "talents";
+export type PageId = "currency" | "upgrades" | "maps" | "prestige" | "talents";
 
 type NavItem = {
   id: PageId;
@@ -9,6 +9,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { id: "currency", label: "Currency", icon: "\u2692" },
+  { id: "upgrades", label: "Upgrades", icon: "\u25B2", unlockKey: "upgrades" },
   { id: "maps", label: "Maps", icon: "\uD83D\uDDFA\uFE0F", unlockKey: "maps" },
   { id: "prestige", label: "Prestige", icon: "\uD83D\uDD2E", unlockKey: "prestige" },
   { id: "talents", label: "Talents", icon: "\u2B50", unlockKey: "talents" },
