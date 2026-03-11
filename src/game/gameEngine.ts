@@ -32,6 +32,7 @@ import {
   getMapIncomeSnapshot,
   startMap,
   getEncounterAdjustedStreak,
+  getEncounterChain,
   getEncounterRewardTags,
   hasMapEncounter,
 } from "./maps";
@@ -95,14 +96,24 @@ export function getRunStartMapBonuses(
   purchasedUpgrades: PurchasedUpgradeState,
 ) {
   const mapDef = baseMapMap[craftedMap.baseMapId];
-  if (!mapDef) return { rewardBonus: 0, shardChanceBonus: 0, speedBonus: 0 };
+  if (!mapDef) return { rewardBonus: 0, shardChanceBonus: 0, speedBonus: 0, encounterChain: 0 };
 
   const streakAtStart = prestige.lastMapFamily === mapDef.family ? prestige.lastMapFamilyStreak : 0;
   const adjustedStreak = getEncounterAdjustedStreak(craftedMap, streakAtStart);
   const hasEncounter = hasMapEncounter(craftedMap);
+  const encounterChain = getEncounterChain(craftedMap, {
+    mapsCompleted: prestige.mapsCompleted,
+    totalMirrorShards: prestige.totalMirrorShards,
+    prestigeCount: prestige.prestigeCount,
+    lastEncounterId: prestige.lastEncounterId,
+    lastEncounterStreak: prestige.lastEncounterStreak,
+  });
+  const expeditionChainRewardBonus = craftedMap.encounterId === "expedition" ? encounterChain * 0.06 : 0;
+  const expeditionChainShardBonus = craftedMap.encounterId === "expedition" ? encounterChain * 0.0015 : 0;
   const rewardBonus =
     getMapRewardBonus(talentsPurchased, adjustedStreak)
     + getEncounterRewardBonus(talentsPurchased, hasEncounter)
+    + expeditionChainRewardBonus
     + getBaseMapRewardUpgradeBonus(purchasedUpgrades, {
       tier: mapDef.tier,
       streak: adjustedStreak,
@@ -110,10 +121,10 @@ export function getRunStartMapBonuses(
       encounterTags: getEncounterRewardTags(craftedMap),
       hasEncounter,
     });
-  const shardChanceBonus = getMapShardChanceUpgradeBonus(purchasedUpgrades, prestige.totalMirrorShards, hasEncounter);
+  const shardChanceBonus = getMapShardChanceUpgradeBonus(purchasedUpgrades, prestige.totalMirrorShards, hasEncounter) + expeditionChainShardBonus;
   const speedBonus = getMapSpeedBonus(talentsPurchased) + getEncounterSpeedBonus(talentsPurchased, hasEncounter);
 
-  return { rewardBonus, shardChanceBonus, speedBonus };
+  return { rewardBonus, shardChanceBonus, speedBonus, encounterChain };
 }
 
 export function synchronizeGameState(gameState: GameState) {
@@ -202,6 +213,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
       mapNotification = { result, mapName: mapDef.name, timestamp: now };
 
       const isSameFamily = prestige.lastMapFamily === mapDef.family;
+      const isSameEncounter = result.encounterId !== null && prestige.lastEncounterId === result.encounterId;
       prestige = {
         ...prestige,
         mirrorShards: prestige.mirrorShards + result.shardAmount,
@@ -210,6 +222,8 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
         encounterMapsCompleted: prestige.encounterMapsCompleted + (result.encounterId ? 1 : 0),
         lastMapFamily: mapDef.family,
         lastMapFamilyStreak: isSameFamily ? prestige.lastMapFamilyStreak + 1 : 1,
+        lastEncounterId: result.encounterId,
+        lastEncounterStreak: result.encounterId ? (isSameEncounter ? prestige.lastEncounterStreak + 1 : 1) : 0,
       };
     }
     activeMap = null;
@@ -218,7 +232,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
       const queuedMapDef = baseMapMap[queuedMap.baseMapId];
       if (queuedMapDef) {
         const costReduction = getMapCostReduction(state.talentsPurchased);
-        const { rewardBonus, shardChanceBonus, speedBonus } = getRunStartMapBonuses(
+        const { rewardBonus, shardChanceBonus, speedBonus, encounterChain } = getRunStartMapBonuses(
           queuedMap.craftedMap,
           prestige,
           state.talentsPurchased,
@@ -240,6 +254,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
           incomePerSecond,
           rewardBonus,
           shardChanceBonus,
+          encounterChain,
         );
         if (startResult) {
           currencies = startResult.currencies;
@@ -275,4 +290,3 @@ export function startGameEngine(updateState: (updater: (currentState: GameState)
 
   return () => window.clearInterval(intervalId);
 }
-

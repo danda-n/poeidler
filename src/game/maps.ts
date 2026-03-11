@@ -63,6 +63,7 @@ export type ActiveMapState = {
   incomePerSecond: number;
   rewardBonus: number;
   shardChanceBonus: number;
+  encounterChain: number;
 } | null;
 
 export type MapCompletionResult = {
@@ -70,6 +71,7 @@ export type MapCompletionResult = {
   rarity: MapRarity;
   encounterId: MapEncounterId | null;
   encounterName: string | null;
+  encounterChain: number;
   rewards: MapReward;
   shardDropped: boolean;
   shardAmount: number;
@@ -93,6 +95,8 @@ export type MapNotification = {
 export type MapRewardPreview = {
   totalRewardValue: number;
   rewards: MapReward;
+  encounterNotes: string[];
+  encounterChain: number;
 };
 
 export type MapEncounterUnlockRequirement =
@@ -104,6 +108,8 @@ export type MapEncounterProgression = {
   mapsCompleted: number;
   totalMirrorShards: number;
   prestigeCount: number;
+  lastEncounterId: MapEncounterId | null;
+  lastEncounterStreak: number;
 };
 
 export type MapEncounterDefinition = {
@@ -120,6 +126,15 @@ export type MapEncounterDefinition = {
   unlockRequirement: MapEncounterUnlockRequirement;
 };
 
+export type MapEncounterSpecialization = {
+  rewardMultiplier: number;
+  focusedRewardMultiplier: number;
+  durationMultiplier: number;
+  costMultiplier: number;
+  shardChanceBonus: number;
+  notes: string[];
+};
+
 export const MAP_BALANCE = {
   baseShardChance: 0.01,
   maxShardChance: 0.05,
@@ -128,6 +143,7 @@ export const MAP_BALANCE = {
   maxPrefixes: 2,
   maxSuffixes: 2,
   minDurationMs: 5000,
+  maxEncounterChain: 4,
 } as const;
 
 const mapContentValueMultiplier: Record<MapContentTag, number> = {
@@ -272,6 +288,14 @@ function getDefaultCraftedMap(baseMapId: string): CraftedMap {
     encounterId: null,
     resolvedStats: resolveAffixStats([]),
   };
+}
+
+function getEncounterRarityRank(rarity: MapRarity): number {
+  switch (rarity) {
+    case "normal": return 0;
+    case "magic": return 1;
+    case "rare": return 2;
+  }
 }
 
 export function createNormalMap(baseMapId: string): CraftedMap {
@@ -460,9 +484,82 @@ export function getEncounterRewardTags(craftedMap: CraftedMap): MapEncounterTag[
   return getMapEncounter(craftedMap.encounterId)?.tags ?? [];
 }
 
+export function getEncounterChain(craftedMap: CraftedMap, progression: MapEncounterProgression): number {
+  if (!craftedMap.encounterId) return 0;
+  if (progression.lastEncounterId !== craftedMap.encounterId) return 0;
+  return Math.min(progression.lastEncounterStreak, MAP_BALANCE.maxEncounterChain);
+}
+
 export function getEncounterAdjustedStreak(craftedMap: CraftedMap, streak: number): number {
   const encounter = getMapEncounter(craftedMap.encounterId);
   return streak * (encounter?.streakRewardMultiplier ?? 1);
+}
+
+export function getEncounterSpecialization(craftedMap: CraftedMap): MapEncounterSpecialization {
+  const encounter = getMapEncounter(craftedMap.encounterId);
+  if (!encounter) {
+    return {
+      rewardMultiplier: 0,
+      focusedRewardMultiplier: 0,
+      durationMultiplier: 0,
+      costMultiplier: 0,
+      shardChanceBonus: 0,
+      notes: [],
+    };
+  }
+
+  const affixCount = craftedMap.affixIds.length;
+  const rarityRank = getEncounterRarityRank(craftedMap.rarity);
+  const extraTags = Math.max(0, craftedMap.contentTags.length - 1);
+
+  switch (encounter.id) {
+    case "expedition": {
+      const rewardMultiplier = rarityRank * 0.08 + extraTags * 0.05;
+      const shardChanceBonus = rarityRank * 0.003 + extraTags * 0.0015;
+      return {
+        rewardMultiplier,
+        focusedRewardMultiplier: 0,
+        durationMultiplier: 0,
+        costMultiplier: 0,
+        shardChanceBonus,
+        notes: [
+          rarityRank > 0 ? `Rarity adds +${Math.round(rewardMultiplier * 100)}% reward` : "Rare maps improve the route haul",
+          `Extra content tags add +${(extraTags * 0.15).toFixed(1)}% shard chance`,
+        ],
+      };
+    }
+    case "ritual": {
+      const focusedRewardMultiplier = affixCount * 0.12 + (craftedMap.contentTags.includes("focused") ? 0.25 : 0);
+      const costMultiplier = affixCount * 0.03;
+      return {
+        rewardMultiplier: 0,
+        focusedRewardMultiplier,
+        durationMultiplier: 0,
+        costMultiplier,
+        shardChanceBonus: 0,
+        notes: [
+          affixCount > 0 ? `${affixCount} affix${affixCount === 1 ? "" : "es"} feed ritual focus` : "Craft affixes to intensify focused rewards",
+          craftedMap.contentTags.includes("focused") ? "Focused maps get an extra ritual spike" : "Focused-tag maps ritualize better",
+        ],
+      };
+    }
+    case "delirium": {
+      const rewardMultiplier = affixCount * 0.1 + rarityRank * 0.08;
+      const durationMultiplier = affixCount * 0.08;
+      const shardChanceBonus = rarityRank * 0.0025;
+      return {
+        rewardMultiplier,
+        focusedRewardMultiplier: 0,
+        durationMultiplier,
+        costMultiplier: 0,
+        shardChanceBonus,
+        notes: [
+          affixCount > 0 ? `Each affix adds +10% reward and +8% time` : "Craft affixes to deepen delirium payout",
+          rarityRank > 0 ? `Rarity pushes delirium shard odds` : "Magic and rare maps amplify delirium pressure",
+        ],
+      };
+    }
+  }
 }
 
 function getMapTierMultiplier(tier: number): number {
@@ -479,22 +576,26 @@ function getContentMultiplier(tags: MapContentTag[]): number {
 
 function getEncounterRewardMultiplier(craftedMap: CraftedMap): number {
   const encounter = getMapEncounter(craftedMap.encounterId);
-  return encounter ? 1 + encounter.rewardMultiplier : 1;
+  const specialization = getEncounterSpecialization(craftedMap);
+  return encounter ? 1 + encounter.rewardMultiplier + specialization.rewardMultiplier : 1;
 }
 
 function getEncounterFocusedRewardMultiplier(craftedMap: CraftedMap): number {
   const encounter = getMapEncounter(craftedMap.encounterId);
-  return encounter ? 1 + encounter.focusedRewardMultiplier : 1;
+  const specialization = getEncounterSpecialization(craftedMap);
+  return encounter ? 1 + encounter.focusedRewardMultiplier + specialization.focusedRewardMultiplier : 1;
 }
 
 function getEncounterDurationMultiplier(craftedMap: CraftedMap): number {
   const encounter = getMapEncounter(craftedMap.encounterId);
-  return encounter ? 1 + encounter.durationMultiplier : 1;
+  const specialization = getEncounterSpecialization(craftedMap);
+  return encounter ? 1 + encounter.durationMultiplier + specialization.durationMultiplier : 1;
 }
 
 function getEncounterCostMultiplier(craftedMap: CraftedMap): number {
   const encounter = getMapEncounter(craftedMap.encounterId);
-  return encounter ? 1 + encounter.costMultiplier : 1;
+  const specialization = getEncounterSpecialization(craftedMap);
+  return encounter ? 1 + encounter.costMultiplier + specialization.costMultiplier : 1;
 }
 
 function getRewardValueMultiplier(
@@ -601,6 +702,7 @@ export function getMapRewardPreview(
   incomePerSecond: number,
   rewardBonus: number,
   deviceEffects?: ResolvedDeviceEffects,
+  encounterChain = 0,
 ): MapRewardPreview {
   const baseRewardValue = getBaseRewardValue(mapDef, craftedMap, incomePerSecond, rewardBonus, deviceEffects);
   const focusedValue = baseRewardValue * mapDef.focusedRewardShare * getFocusedValueMultiplier(craftedMap, deviceEffects);
@@ -612,6 +714,8 @@ export function getMapRewardPreview(
   return {
     totalRewardValue: baseRewardValue + focusedValue,
     rewards,
+    encounterNotes: getEncounterSpecialization(craftedMap).notes,
+    encounterChain,
   };
 }
 
@@ -625,6 +729,7 @@ export function startMap(
   incomePerSecond: number,
   rewardBonus: number,
   shardChanceBonus: number,
+  encounterChain: number,
 ): { currencies: CurrencyState; activeMap: ActiveMapState } | null {
   if (!canAffordMap(mapDef, craftedMap, currencies, costReduction, deviceEffects)) return null;
 
@@ -644,6 +749,7 @@ export function startMap(
       incomePerSecond,
       rewardBonus,
       shardChanceBonus,
+      encounterChain,
     },
   };
 }
@@ -663,12 +769,14 @@ export function completeMap(
   mapDef: BaseMapDefinition,
   activeMap: NonNullable<ActiveMapState>,
 ): MapCompletionResult {
+  const specialization = getEncounterSpecialization(activeMap.craftedMap);
   const preview = getMapRewardPreview(
     mapDef,
     activeMap.craftedMap,
     activeMap.incomePerSecond,
     activeMap.rewardBonus,
     activeMap.deviceEffects,
+    activeMap.encounterChain,
   );
 
   const bonusRewardChance = activeMap.deviceEffects.bonusRewardChance;
@@ -687,6 +795,7 @@ export function completeMap(
     mapDef.baseShardChance
       + activeMap.craftedMap.resolvedStats.shardChanceBonus
       + activeMap.deviceEffects.shardChanceBonus
+      + specialization.shardChanceBonus
       + (getMapEncounter(activeMap.craftedMap.encounterId)?.shardChanceBonus ?? 0)
       + activeMap.shardChanceBonus,
   );
@@ -698,6 +807,7 @@ export function completeMap(
     rarity: activeMap.craftedMap.rarity,
     encounterId: activeMap.craftedMap.encounterId,
     encounterName: getMapEncounter(activeMap.craftedMap.encounterId)?.name ?? null,
+    encounterChain: activeMap.encounterChain,
     rewards,
     shardDropped,
     shardAmount,

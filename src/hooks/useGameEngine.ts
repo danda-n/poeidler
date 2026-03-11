@@ -184,7 +184,7 @@ export function useGameEngine() {
       if (!isMapUnlocked(mapDef, currentState.currencies)) return currentState;
 
       const costReduction = getMapCostReduction(currentState.talentsPurchased);
-      const { rewardBonus, shardChanceBonus, speedBonus } = getRunStartMapBonuses(
+      const { rewardBonus, shardChanceBonus, speedBonus, encounterChain } = getRunStartMapBonuses(
         craftedMap,
         currentState.prestige,
         currentState.talentsPurchased,
@@ -208,6 +208,7 @@ export function useGameEngine() {
         incomePerSecond,
         rewardBonus,
         shardChanceBonus,
+        encounterChain,
       );
       if (!result) return currentState;
 
@@ -308,4 +309,3 @@ export function useGameEngine() {
     },
   };
 }
-

@@ -13,7 +13,7 @@ import {
   initialPurchasedUpgrades,
   type PurchasedUpgradeState,
 } from "./upgradeEngine";
-import type { ActiveMapState } from "./maps";
+import type { ActiveMapState, MapEncounterId } from "./maps";
 import { getEncounterPrestigeBonus, type TalentPurchasedState } from "./talents";
 import { resetDeviceModifiers, type MapDeviceState } from "./mapDevice";
 
@@ -36,6 +36,8 @@ export type PrestigeState = {
   encounterMapsCompleted: number;
   lastMapFamily: string | null;
   lastMapFamilyStreak: number;
+  lastEncounterId: MapEncounterId | null;
+  lastEncounterStreak: number;
   lifetimeFragmentsProduced: number;
 };
 
@@ -47,6 +49,8 @@ export const initialPrestigeState: PrestigeState = {
   encounterMapsCompleted: 0,
   lastMapFamily: null,
   lastMapFamilyStreak: 0,
+  lastEncounterId: null,
+  lastEncounterStreak: 0,
   lifetimeFragmentsProduced: 0,
 };
 
@@ -147,6 +151,8 @@ export function performPrestige(
       encounterMapsCompleted: 0,
       lastMapFamily: null,
       lastMapFamilyStreak: 0,
+      lastEncounterId: null,
+      lastEncounterStreak: 0,
       lifetimeFragmentsProduced: prestige.lifetimeFragmentsProduced,
     },
     mapDevice: resetDeviceModifiers(mapDevice),

@@ -25,6 +25,8 @@ import {
   getMapIncomeSnapshot,
   getMapEncounter,
   getMapEncounterUnlockText,
+  getEncounterSpecialization,
+  getEncounterChain,
   isMapEncounterUnlocked,
   hasMapEncounter,
   type ActiveMapState,
@@ -108,6 +110,8 @@ export function MapPanel({
     mapsCompleted: prestige.mapsCompleted,
     totalMirrorShards: prestige.totalMirrorShards,
     prestigeCount: prestige.prestigeCount,
+    lastEncounterId: prestige.lastEncounterId,
+    lastEncounterStreak: prestige.lastEncounterStreak,
   };
 
   useEffect(() => {
@@ -155,10 +159,11 @@ export function MapPanel({
   const mapDef = selectedBaseMapId ? baseMapMap[selectedBaseMapId] : null;
   const runBonuses = craftedMap
     ? getRunStartMapBonuses(craftedMap, prestige, talentsPurchased, purchasedUpgrades)
-    : { rewardBonus: 0, shardChanceBonus: 0, speedBonus: 0 };
+    : { rewardBonus: 0, shardChanceBonus: 0, speedBonus: 0, encounterChain: 0 };
   const resolvedCost = mapDef && craftedMap ? getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects) : null;
   const resolvedDuration = mapDef && craftedMap ? getResolvedMapDuration(mapDef, craftedMap, runBonuses.speedBonus, deviceEffects) : null;
   const encounter = craftedMap ? getMapEncounter(craftedMap.encounterId) : null;
+  const encounterSpecialization = craftedMap ? getEncounterSpecialization(craftedMap) : null;
   const shardChance = mapDef && craftedMap
     ? Math.min(
         MAP_BALANCE.maxShardChance,
@@ -166,6 +171,7 @@ export function MapPanel({
           + craftedMap.resolvedStats.shardChanceBonus
           + deviceEffects.shardChanceBonus
           + runBonuses.shardChanceBonus
+          + (encounterSpecialization?.shardChanceBonus ?? 0)
           + (encounter?.shardChanceBonus ?? 0),
       )
     : 0;
@@ -188,7 +194,7 @@ export function MapPanel({
   const canCommit = !queuedMap && loadoutAffordable && mapCostAffordable;
 
   const rewardPreview = mapDef && craftedMap
-    ? getMapRewardPreview(mapDef, craftedMap, getMapIncomeSnapshot(currencyProduction), runBonuses.rewardBonus, deviceEffects)
+    ? getMapRewardPreview(mapDef, craftedMap, getMapIncomeSnapshot(currencyProduction), runBonuses.rewardBonus, deviceEffects, runBonuses.encounterChain)
     : null;
 
   const activeMapDef = activeMap ? baseMapMap[activeMap.craftedMap.baseMapId] : null;
@@ -215,6 +221,7 @@ export function MapPanel({
               </span>{" "}
               {activeMapDef.name}
               {activeEncounter && <span className="map-encounter-inline">{activeEncounter.name}</span>}
+              {activeMap.encounterChain > 0 && <span className="map-chain-inline">Chain {activeMap.encounterChain}</span>}
             </span>
             <span className="map-active-time">{formatMs(getMapTimeRemaining(activeMap, now))}</span>
           </div>
@@ -241,6 +248,9 @@ export function MapPanel({
               </span>{" "}
               {queuedMapDef.name}
               {queuedEncounter && <span className="map-encounter-inline">{queuedEncounter.name}</span>}
+              {queuedEncounter && getEncounterChain(queuedMap.craftedMap, encounterProgression) > 0 && (
+                <span className="map-chain-inline">Chain {getEncounterChain(queuedMap.craftedMap, encounterProgression)}</span>
+              )}
               {queuedMap.deviceLoadout.modIds.length > 0 && (
                 <span className="map-queued-mods">
                   {" "}+ {queuedMap.deviceLoadout.modIds.length} mod{queuedMap.deviceLoadout.modIds.length !== 1 ? "s" : ""}
@@ -260,6 +270,7 @@ export function MapPanel({
             <span className="map-result-title">
               Last run
               {lastMapResult.encounterName && <span className="map-encounter-inline">{lastMapResult.encounterName}</span>}
+              {lastMapResult.encounterChain > 0 && <span className="map-chain-inline">Chain {lastMapResult.encounterChain}</span>}
               {lastMapResult.shardDropped && <span className="map-result-shard-badge"> Shard!</span>}
               {lastMapResult.bonusRewardTriggered && <span className="map-result-bonus-badge"> Bonus!</span>}
             </span>
@@ -368,7 +379,7 @@ export function MapPanel({
                   ))}
                 </div>
               ) : (
-                <p className="map-affix-empty">No affixes yet. This pass uses encounters to add route choice while quality and broader content tags stay open for later crafting depth.</p>
+                <p className="map-affix-empty">No affixes yet. Encounters now specialize off crafting state, so stronger map rolls matter more than before.</p>
               )}
 
               <div className="map-craft-actions">
@@ -456,6 +467,20 @@ export function MapPanel({
                     {encounter && <span className="map-preview-note">{encounter.description}</span>}
                   </span>
                 </div>
+                {encounter && (
+                  <div className="map-preview-row">
+                    <span className="map-preview-label">Specialty</span>
+                    <span className="map-preview-value map-preview-rewards">
+                      {rewardPreview?.encounterNotes.map((note) => <span key={note}>{note}</span>) ?? "-"}
+                    </span>
+                  </div>
+                )}
+                {runBonuses.encounterChain > 0 && (
+                  <div className="map-preview-row">
+                    <span className="map-preview-label">Chain</span>
+                    <span className="map-preview-value">Expedition chain {runBonuses.encounterChain}: +{Math.round(runBonuses.encounterChain * 6)}% reward, +{(runBonuses.encounterChain * 0.15).toFixed(2)}% shard chance</span>
+                  </div>
+                )}
                 <div className="map-preview-row">
                   <span className="map-preview-label">Map cost</span>
                   <span className="map-preview-value">
@@ -540,6 +565,4 @@ export function MapPanel({
 }
 
 export default MapPanel;
-
-
 

@@ -72,6 +72,7 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
   let currencies = applyMapRewards(nextState.currencies, result);
 
   const isSameFamily = nextState.prestige.lastMapFamily === mapDef.family;
+  const isSameEncounter = result.encounterId !== null && nextState.prestige.lastEncounterId === result.encounterId;
   const updatedPrestige = {
     ...nextState.prestige,
     mirrorShards: nextState.prestige.mirrorShards + result.shardAmount,
@@ -80,6 +81,8 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
     encounterMapsCompleted: nextState.prestige.encounterMapsCompleted + (result.encounterId ? 1 : 0),
     lastMapFamily: mapDef.family,
     lastMapFamilyStreak: isSameFamily ? nextState.prestige.lastMapFamilyStreak + 1 : 1,
+    lastEncounterId: result.encounterId,
+    lastEncounterStreak: result.encounterId ? (isSameEncounter ? nextState.prestige.lastEncounterStreak + 1 : 1) : 0,
   };
 
   let activeMap = null;
@@ -89,7 +92,7 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
     const queuedMapDef = baseMapMap[queuedMap.baseMapId];
     if (queuedMapDef) {
       const costReduction = getMapCostReduction(nextState.talentsPurchased);
-      const { rewardBonus, shardChanceBonus, speedBonus } = getRunStartMapBonuses(
+      const { rewardBonus, shardChanceBonus, speedBonus, encounterChain } = getRunStartMapBonuses(
         queuedMap.craftedMap,
         updatedPrestige,
         nextState.talentsPurchased,
@@ -111,6 +114,7 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
         incomePerSecond,
         rewardBonus,
         shardChanceBonus,
+        encounterChain,
       );
       if (startResult) {
         currencies = startResult.currencies;
@@ -122,12 +126,15 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
             const qResult = completeMap(queuedDef, activeMap);
             currencies = applyMapRewards(currencies, qResult);
             const isSameFamilyQ = updatedPrestige.lastMapFamily === queuedDef.family;
+            const isSameEncounterQ = qResult.encounterId !== null && updatedPrestige.lastEncounterId === qResult.encounterId;
             updatedPrestige.mirrorShards += qResult.shardAmount;
             updatedPrestige.totalMirrorShards += qResult.shardAmount;
             updatedPrestige.mapsCompleted += 1;
             updatedPrestige.encounterMapsCompleted += qResult.encounterId ? 1 : 0;
             updatedPrestige.lastMapFamily = queuedDef.family;
             updatedPrestige.lastMapFamilyStreak = isSameFamilyQ ? updatedPrestige.lastMapFamilyStreak + 1 : 1;
+            updatedPrestige.lastEncounterId = qResult.encounterId;
+            updatedPrestige.lastEncounterStreak = qResult.encounterId ? (isSameEncounterQ ? updatedPrestige.lastEncounterStreak + 1 : 1) : 0;
             activeMap = null;
           }
         }
@@ -181,6 +188,7 @@ export function loadGameState() {
           incomePerSecond: typeof savedActiveMap.incomePerSecond === "number" ? savedActiveMap.incomePerSecond : 0,
           rewardBonus: typeof savedActiveMap.rewardBonus === "number" ? savedActiveMap.rewardBonus : 0,
           shardChanceBonus: typeof savedActiveMap.shardChanceBonus === "number" ? savedActiveMap.shardChanceBonus : 0,
+          encounterChain: typeof savedActiveMap.encounterChain === "number" ? savedActiveMap.encounterChain : 0,
         };
       }
     }
