@@ -9,11 +9,13 @@ import { MapToast } from "./components/MapToast";
 import MysteryRow from "./components/MysteryRow";
 import PrestigePanel from "./components/PrestigePanel";
 import SettingsPanel from "./components/SettingsPanel";
-import Sidebar, { type PageId } from "./components/Sidebar";
+import Sidebar, { type PageId, type PageMeta } from "./components/Sidebar";
 import TalentPanel from "./components/TalentPanel";
 import UpgradePanel from "./components/UpgradePanel";
 import { fragmentCurrencyId, getNextLockedCurrencies } from "./game/currencies";
 import { generatorIds } from "./game/generators";
+import { canPrestige } from "./game/prestige";
+import { getAffordableUpgradeCount } from "./game/upgradeEngine";
 import { useGameEngine } from "./hooks/useGameEngine";
 
 function App() {
@@ -46,9 +48,22 @@ function App() {
     talents: hasTalents,
   };
 
+  const affordableUpgradeCount = getAffordableUpgradeCount({
+    currencies: gameState.currencies,
+    purchasedUpgrades: gameState.purchasedUpgrades,
+    unlockedCurrencies: gameState.unlockedCurrencies,
+    prestige: gameState.prestige,
+  });
+
+  const pageMeta: Partial<Record<PageId, PageMeta>> = {
+    upgrades: affordableUpgradeCount > 0 ? { badge: String(affordableUpgradeCount), tone: "ready" } : undefined,
+    maps: gameState.activeMap ? { badge: "LIVE", tone: "active" } : gameState.queuedMap ? { badge: "Q", tone: "active" } : undefined,
+    prestige: hasPrestige && canPrestige(gameState.currencies) ? { badge: "READY", tone: "alert" } : undefined,
+  };
+
   return (
     <div className="app-layout">
-      <Sidebar activePage={activePage} unlockedPages={unlockedPages} onNavigate={setActivePage} />
+      <Sidebar activePage={activePage} unlockedPages={unlockedPages} pageMeta={pageMeta} onNavigate={setActivePage} />
       <main className="app-main">
         <GameLayout>
           <header className="game-header">
@@ -113,6 +128,8 @@ function App() {
               <UpgradePanel
                 currenciesState={gameState.currencies}
                 purchasedUpgrades={gameState.purchasedUpgrades}
+                unlockedCurrencies={gameState.unlockedCurrencies}
+                prestige={gameState.prestige}
                 onBuyUpgrade={actions.buyUpgrade}
               />
             </div>

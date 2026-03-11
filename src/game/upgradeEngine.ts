@@ -1,68 +1,115 @@
-import {
-  initialCurrencyMultipliers,
-  type CurrencyId,
-  type CurrencyMultipliers,
-  type CurrencyState,
-} from "./currencies";
-import {
-  generators,
-  getGeneratorCost,
-  type GeneratorId,
-  type GeneratorOwnedState,
-} from "./generators";
+import { currencyMap, initialCurrencyMultipliers, type CurrencyId, type CurrencyMultipliers, type CurrencyState, type UnlockedCurrencyState } from "./currencies";
+import { generators, getGeneratorCost, type GeneratorId, type GeneratorOwnedState } from "./generators";
+import type { ResolvedDeviceEffects } from "./mapDevice";
 
 export const upgradeCategories = ["generators", "economy", "maps", "automation", "atlas", "relics"] as const;
 
 export type UpgradeCategory = (typeof upgradeCategories)[number];
+export type UpgradeGroup =
+  | "Foundations"
+  | "Crafting Lines"
+  | "High Currency"
+  | "Direct Power"
+  | "Trading"
+  | "Reward Engines"
+  | "Queue Control"
+  | "Atlas Memory"
+  | "Relic Echoes";
 export type FeatureId = "buyMax";
 export type UpgradeCost = Partial<Record<CurrencyId, number>>;
+
+type PrestigeSnapshot = {
+  prestigeCount: number;
+  totalMirrorShards: number;
+  mapsCompleted: number;
+};
+
+export type UpgradeRequirement =
+  | { type: "unlockedCurrency"; currencyId: CurrencyId }
+  | { type: "mapsCompleted"; amount: number }
+  | { type: "prestigeCount"; amount: number }
+  | { type: "totalMirrorShards"; amount: number }
+  | { type: "upgradeLevel"; upgradeId: string; amount: number };
 
 export type UpgradeEffect =
   | { type: "percentProduction"; currency: CurrencyId; value: number }
   | { type: "unlockFeature"; feature: FeatureId }
   | { type: "percentClickPower"; value: number }
+  | { type: "flatConversionOutput"; value: number }
   | { type: "percentMapReward"; value: number }
-  | { type: "flatMapShardChance"; value: number };
+  | { type: "percentFocusedMapReward"; value: number }
+  | { type: "percentMapRewardPerTier"; value: number }
+  | { type: "percentQueuedMapReward"; value: number }
+  | { type: "flatMapShardChance"; value: number }
+  | { type: "flatQueuedMapShardChance"; value: number }
+  | { type: "percentMapStreakReward"; value: number }
+  | { type: "percentPrestigeShards"; value: number }
+  | { type: "percentMapRewardFromShards"; value: number; shardStep: number; maxSteps?: number }
+  | { type: "flatMapShardChanceFromShards"; value: number; shardStep: number; maxSteps?: number };
 
 export type UpgradeDefinition = {
   id: string;
   category: UpgradeCategory;
+  group: UpgradeGroup;
   name: string;
   description: string;
   baseCost: UpgradeCost;
   costMultiplier?: number;
   maxLevel?: number;
+  prerequisite?: string;
+  requirements?: UpgradeRequirement[];
   effect: UpgradeEffect;
 };
 
 export const upgrades: UpgradeDefinition[] = [
-  { id: "fragmentEfficiency", category: "generators", name: "Fragment Efficiency", description: "+10% Fragment production", baseCost: { fragmentOfWisdom: 50 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "fragmentOfWisdom", value: 0.1 } },
-  { id: "transmutationEfficiency", category: "generators", name: "Transmutation Tuning", description: "+10% Transmutation production", baseCost: { transmutationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "transmutationOrb", value: 0.1 } },
-  { id: "augmentationEfficiency", category: "generators", name: "Augmentation Refinement", description: "+10% Augmentation production", baseCost: { augmentationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "augmentationOrb", value: 0.1 } },
-  { id: "alterationEfficiency", category: "generators", name: "Alteration Mastery", description: "+10% Alteration production", baseCost: { alterationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "alterationOrb", value: 0.1 } },
-  { id: "jewellerEfficiency", category: "generators", name: "Jeweller Precision", description: "+10% Jeweller production", baseCost: { jewellersOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "jewellersOrb", value: 0.1 } },
-  { id: "fusingEfficiency", category: "generators", name: "Fusing Synergy", description: "+10% Fusing production", baseCost: { fusingOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "fusingOrb", value: 0.1 } },
-  { id: "alchemyEfficiency", category: "generators", name: "Alchemy Potency", description: "+10% Alchemy production", baseCost: { alchemyOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "alchemyOrb", value: 0.1 } },
-  { id: "chaosAmplification", category: "generators", name: "Chaos Amplification", description: "+10% Chaos production", baseCost: { chaosOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "chaosOrb", value: 0.1 } },
-  { id: "regalEfficiency", category: "generators", name: "Regal Authority", description: "+10% Regal production", baseCost: { regalOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "regalOrb", value: 0.1 } },
-  { id: "exaltedEfficiency", category: "generators", name: "Exalted Brilliance", description: "+10% Exalted production", baseCost: { exaltedOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "exaltedOrb", value: 0.1 } },
-  { id: "divineEfficiency", category: "generators", name: "Divine Resonance", description: "+10% Divine production", baseCost: { divineOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "divineOrb", value: 0.1 } },
-  { id: "clickPower", category: "economy", name: "Click Power", description: "+25% click power", baseCost: { fragmentOfWisdom: 25 }, costMultiplier: 1.3, effect: { type: "percentClickPower", value: 0.25 } },
-  { id: "mapCalibration", category: "maps", name: "Map Calibration", description: "+12% map reward value", baseCost: { alterationOrb: 25, jewellersOrb: 2 }, costMultiplier: 1.35, effect: { type: "percentMapReward", value: 0.12 } },
-  { id: "buyMax", category: "automation", name: "Buy Max", description: "Buy the maximum affordable generators at once", baseCost: { alterationOrb: 1 }, maxLevel: 1, effect: { type: "unlockFeature", feature: "buyMax" } },
-  { id: "atlasSurveying", category: "atlas", name: "Atlas Surveying", description: "+0.4% map shard chance", baseCost: { chaosOrb: 2, regalOrb: 1 }, costMultiplier: 1.4, effect: { type: "flatMapShardChance", value: 0.004 } },
+  { id: "fragmentEfficiency", category: "generators", group: "Foundations", name: "Fragment Efficiency", description: "Scale fragment production for the opening loop.", baseCost: { fragmentOfWisdom: 50 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "fragmentOfWisdom", value: 0.1 } },
+  { id: "transmutationEfficiency", category: "generators", group: "Foundations", name: "Transmutation Tuning", description: "Increase transmutation output to accelerate the first unlock chain.", baseCost: { transmutationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "transmutationOrb", value: 0.1 } },
+  { id: "augmentationEfficiency", category: "generators", group: "Foundations", name: "Augmentation Refinement", description: "Keep early crafting lines moving faster.", baseCost: { augmentationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "augmentationOrb", value: 0.1 } },
+  { id: "alterationEfficiency", category: "generators", group: "Crafting Lines", name: "Alteration Mastery", description: "Push alteration production into maps sooner.", baseCost: { alterationOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "alterationOrb", value: 0.1 } },
+  { id: "jewellerEfficiency", category: "generators", group: "Crafting Lines", name: "Jeweller Precision", description: "Improve jeweller throughput for map-related upgrades.", baseCost: { jewellersOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "jewellersOrb", value: 0.1 } },
+  { id: "fusingEfficiency", category: "generators", group: "Crafting Lines", name: "Fusing Synergy", description: "Feed higher-value crafting and map chains.", baseCost: { fusingOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "fusingOrb", value: 0.1 } },
+  { id: "alchemyEfficiency", category: "generators", group: "Crafting Lines", name: "Alchemy Potency", description: "Lift mid-game currency throughput.", baseCost: { alchemyOrb: 3 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "alchemyOrb", value: 0.1 } },
+  { id: "chaosAmplification", category: "generators", group: "High Currency", name: "Chaos Amplification", description: "Grow chaos output for atlas and relic planning.", baseCost: { chaosOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "chaosOrb", value: 0.1 } },
+  { id: "regalEfficiency", category: "generators", group: "High Currency", name: "Regal Authority", description: "Strengthen rare crafting currency lines.", baseCost: { regalOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "regalOrb", value: 0.1 } },
+  { id: "exaltedEfficiency", category: "generators", group: "High Currency", name: "Exalted Brilliance", description: "Scale late-run premium crafting value.", baseCost: { exaltedOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "exaltedOrb", value: 0.1 } },
+  { id: "divineEfficiency", category: "generators", group: "High Currency", name: "Divine Resonance", description: "Anchor endgame generator scaling.", baseCost: { divineOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "divineOrb", value: 0.1 } },
+  { id: "clickPower", category: "economy", group: "Direct Power", name: "Click Power", description: "Raise manual click impact for short-term push moments.", baseCost: { fragmentOfWisdom: 25 }, costMultiplier: 1.3, effect: { type: "percentClickPower", value: 0.25 } },
+  { id: "exchangeFinesse", category: "economy", group: "Trading", name: "Exchange Finesse", description: "Manual conversions output extra currency, creating a stronger bridge between tiers.", baseCost: { augmentationOrb: 18, alterationOrb: 6 }, costMultiplier: 1.35, requirements: [{ type: "unlockedCurrency", currencyId: "augmentationOrb" }], effect: { type: "flatConversionOutput", value: 1 } },
+  { id: "mapCalibration", category: "maps", group: "Reward Engines", name: "Map Calibration", description: "Lift baseline map reward value.", baseCost: { alterationOrb: 25, jewellersOrb: 2 }, costMultiplier: 1.35, requirements: [{ type: "unlockedCurrency", currencyId: "alterationOrb" }], effect: { type: "percentMapReward", value: 0.12 } },
+  { id: "focusedSurvey", category: "maps", group: "Reward Engines", name: "Focused Survey", description: "Make specialized maps a stronger choice when you want targeted currencies.", baseCost: { jewellersOrb: 10, fusingOrb: 4 }, costMultiplier: 1.36, prerequisite: "mapCalibration", requirements: [{ type: "mapsCompleted", amount: 1 }], effect: { type: "percentFocusedMapReward", value: 0.18 } },
+  { id: "waystoneDrafting", category: "maps", group: "Reward Engines", name: "Waystone Drafting", description: "Higher-tier maps become a clearer step up instead of just a longer run.", baseCost: { fusingOrb: 14, chaosOrb: 3 }, costMultiplier: 1.38, prerequisite: "focusedSurvey", requirements: [{ type: "mapsCompleted", amount: 3 }], effect: { type: "percentMapRewardPerTier", value: 0.1 } },
+  { id: "buyMax", category: "automation", group: "Queue Control", name: "Buy Max", description: "Buy the maximum affordable generators at once.", baseCost: { alterationOrb: 1 }, maxLevel: 1, requirements: [{ type: "unlockedCurrency", currencyId: "alterationOrb" }], effect: { type: "unlockFeature", feature: "buyMax" } },
+  { id: "queuePriority", category: "automation", group: "Queue Control", name: "Queue Priority", description: "Queued maps gain extra reward value, making route planning matter.", baseCost: { jewellersOrb: 14, fusingOrb: 4 }, costMultiplier: 1.4, requirements: [{ type: "mapsCompleted", amount: 2 }], effect: { type: "percentQueuedMapReward", value: 0.2 } },
+  { id: "relayStability", category: "automation", group: "Queue Control", name: "Relay Stability", description: "Queued maps gain shard consistency so chaining runs feels better.", baseCost: { chaosOrb: 4, regalOrb: 1 }, costMultiplier: 1.42, prerequisite: "queuePriority", requirements: [{ type: "mapsCompleted", amount: 4 }], effect: { type: "flatQueuedMapShardChance", value: 0.0035 } },
+  { id: "atlasSurveying", category: "atlas", group: "Atlas Memory", name: "Atlas Surveying", description: "Increase baseline shard chance for all maps.", baseCost: { chaosOrb: 2, regalOrb: 1 }, costMultiplier: 1.4, requirements: [{ type: "mapsCompleted", amount: 3 }], effect: { type: "flatMapShardChance", value: 0.004 } },
+  { id: "atlasTrails", category: "atlas", group: "Atlas Memory", name: "Atlas Trails", description: "Family streaks matter more, rewarding committed routing.", baseCost: { chaosOrb: 8, regalOrb: 3 }, costMultiplier: 1.44, prerequisite: "atlasSurveying", requirements: [{ type: "totalMirrorShards", amount: 5 }], effect: { type: "percentMapStreakReward", value: 0.05 } },
+  { id: "routeCompass", category: "atlas", group: "Atlas Memory", name: "Route Compass", description: "Tier advantage grows as your atlas experience deepens.", baseCost: { regalOrb: 6, exaltedOrb: 1 }, costMultiplier: 1.48, prerequisite: "atlasTrails", requirements: [{ type: "totalMirrorShards", amount: 12 }], effect: { type: "percentMapRewardPerTier", value: 0.06 } },
+  { id: "relicLattice", category: "relics", group: "Relic Echoes", name: "Relic Lattice", description: "Prestige yields more shards, strengthening long-term resets.", baseCost: { chaosOrb: 12, regalOrb: 4 }, costMultiplier: 1.5, requirements: [{ type: "prestigeCount", amount: 1 }], effect: { type: "percentPrestigeShards", value: 0.12 } },
+  { id: "shardResonance", category: "relics", group: "Relic Echoes", name: "Shard Resonance", description: "Total shards feed back into map rewards, tying resets to active runs.", baseCost: { regalOrb: 8, exaltedOrb: 2 }, costMultiplier: 1.55, prerequisite: "relicLattice", requirements: [{ type: "totalMirrorShards", amount: 12 }], effect: { type: "percentMapRewardFromShards", value: 0.03, shardStep: 25, maxSteps: 8 } },
+  { id: "heirloomSpark", category: "relics", group: "Relic Echoes", name: "Heirloom Spark", description: "Shard stockpiles also steady future shard drops inside maps.", baseCost: { exaltedOrb: 4, divineOrb: 1 }, costMultiplier: 1.6, prerequisite: "shardResonance", requirements: [{ type: "totalMirrorShards", amount: 30 }], effect: { type: "flatMapShardChanceFromShards", value: 0.0015, shardStep: 25, maxSteps: 8 } },
 ];
 
 export type UpgradeId = (typeof upgrades)[number]["id"];
 export type PurchasedUpgradeState = Record<UpgradeId, number>;
 export type FeatureState = Record<FeatureId, boolean>;
 
-export type UpgradeEngineState = {
+export type UpgradeAvailabilityState = {
   currencies: CurrencyState;
-  generatorsOwned: GeneratorOwnedState;
   purchasedUpgrades: PurchasedUpgradeState;
+  unlockedCurrencies: UnlockedCurrencyState;
+  prestige: PrestigeSnapshot;
+};
+
+export type UpgradeEngineState = UpgradeAvailabilityState & {
+  generatorsOwned: GeneratorOwnedState;
   currencyMultipliers: CurrencyMultipliers;
   unlockedFeatures: FeatureState;
+};
+
+export type MapUpgradeContext = {
+  tier: number;
+  streak: number;
+  totalMirrorShards: number;
 };
 
 export const upgradeMap: Record<UpgradeId, UpgradeDefinition> = upgrades.reduce((acc, upgrade) => {
@@ -84,6 +131,57 @@ function scaleCost(baseCost: number, costMultiplier: number | undefined, level: 
   return Math.ceil(baseCost * costMultiplier ** level);
 }
 
+function getShardThresholdSteps(totalMirrorShards: number, shardStep: number, maxSteps?: number) {
+  const steps = Math.floor(totalMirrorShards / shardStep);
+  return maxSteps === undefined ? steps : Math.min(steps, maxSteps);
+}
+
+function getRequirementProgress(state: UpgradeAvailabilityState, requirement: UpgradeRequirement) {
+  switch (requirement.type) {
+    case "unlockedCurrency":
+      return state.unlockedCurrencies[requirement.currencyId] ? 1 : 0;
+    case "mapsCompleted":
+      return state.prestige.mapsCompleted;
+    case "prestigeCount":
+      return state.prestige.prestigeCount;
+    case "totalMirrorShards":
+      return state.prestige.totalMirrorShards;
+    case "upgradeLevel":
+      return state.purchasedUpgrades[requirement.upgradeId as UpgradeId] ?? 0;
+  }
+}
+
+function getRequirementTarget(requirement: UpgradeRequirement) {
+  switch (requirement.type) {
+    case "unlockedCurrency":
+      return 1;
+    case "mapsCompleted":
+    case "prestigeCount":
+    case "totalMirrorShards":
+    case "upgradeLevel":
+      return requirement.amount;
+  }
+}
+
+function isRequirementMet(state: UpgradeAvailabilityState, requirement: UpgradeRequirement) {
+  return getRequirementProgress(state, requirement) >= getRequirementTarget(requirement);
+}
+
+function formatRequirement(requirement: UpgradeRequirement) {
+  switch (requirement.type) {
+    case "unlockedCurrency":
+      return `Unlock ${currencyMap[requirement.currencyId].shortLabel}`;
+    case "mapsCompleted":
+      return `Complete ${requirement.amount} map${requirement.amount === 1 ? "" : "s"}`;
+    case "prestigeCount":
+      return `Prestige ${requirement.amount} time${requirement.amount === 1 ? "" : "s"}`;
+    case "totalMirrorShards":
+      return `Reach ${requirement.amount} total shards`;
+    case "upgradeLevel":
+      return `${upgradeMap[requirement.upgradeId as UpgradeId]?.name ?? requirement.upgradeId} Lv ${requirement.amount}`;
+  }
+}
+
 export function getUpgradeCost(upgradeId: UpgradeId, level: number) {
   const upgrade = upgradeMap[upgradeId];
   return Object.entries(upgrade.baseCost).reduce((acc, [currencyId, amount]) => {
@@ -98,6 +196,55 @@ export function canAffordCost(currenciesState: CurrencyState, cost: UpgradeCost)
 
 export function getUpgradeBreakpointMultiplier(level: number) {
   return 2 ** Math.floor(level / 25);
+}
+
+export function isUpgradeUnlocked(state: UpgradeAvailabilityState, upgradeId: UpgradeId) {
+  const upgrade = upgradeMap[upgradeId];
+
+  if (upgrade.prerequisite) {
+    const prereqLevel = state.purchasedUpgrades[upgrade.prerequisite as UpgradeId] ?? 0;
+    if (prereqLevel <= 0) return false;
+  }
+
+  return (upgrade.requirements ?? []).every((requirement) => isRequirementMet(state, requirement));
+}
+
+export function getUpgradeUnlockText(state: UpgradeAvailabilityState, upgradeId: UpgradeId) {
+  const upgrade = upgradeMap[upgradeId];
+
+  if (upgrade.prerequisite) {
+    const prereq = upgradeMap[upgrade.prerequisite as UpgradeId];
+    const prereqLevel = state.purchasedUpgrades[upgrade.prerequisite as UpgradeId] ?? 0;
+    if (prereqLevel <= 0) return `Requires ${prereq?.name ?? upgrade.prerequisite}`;
+  }
+
+  const unmetRequirement = (upgrade.requirements ?? []).find((requirement) => !isRequirementMet(state, requirement));
+  return unmetRequirement ? formatRequirement(unmetRequirement) : null;
+}
+
+export function canPurchaseUpgrade(state: UpgradeAvailabilityState, upgradeId: UpgradeId) {
+  const upgrade = upgradeMap[upgradeId];
+  const currentLevel = state.purchasedUpgrades[upgradeId];
+
+  if (upgrade.maxLevel !== undefined && currentLevel >= upgrade.maxLevel) return false;
+  if (!isUpgradeUnlocked(state, upgradeId)) return false;
+
+  return canAffordCost(state.currencies, getUpgradeCost(upgradeId, currentLevel));
+}
+
+export function getUpgradeCategoryStats(state: UpgradeAvailabilityState, category: UpgradeCategory) {
+  const categoryUpgrades = upgrades.filter((upgrade) => upgrade.category === category);
+  const unlocked = categoryUpgrades.filter((upgrade) => isUpgradeUnlocked(state, upgrade.id as UpgradeId)).length;
+  const affordable = categoryUpgrades.filter((upgrade) => canPurchaseUpgrade(state, upgrade.id as UpgradeId)).length;
+  return {
+    total: categoryUpgrades.length,
+    unlocked,
+    affordable,
+  };
+}
+
+export function getAffordableUpgradeCount(state: UpgradeAvailabilityState) {
+  return upgrades.filter((upgrade) => canPurchaseUpgrade(state, upgrade.id as UpgradeId)).length;
 }
 
 export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState, breakpointBonus = 0) {
@@ -130,18 +277,92 @@ export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState, br
   return { currencyMultipliers, unlockedFeatures, clickMultiplier };
 }
 
-export function getMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+export function getConversionOutputUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
-    if (upgrade.effect.type !== "percentMapReward") return bonus;
+    if (upgrade.effect.type !== "flatConversionOutput") return bonus;
     return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
   }, 0);
 }
 
-export function getMapShardChanceUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+export function getBaseMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState, context: MapUpgradeContext) {
   return upgrades.reduce((bonus, upgrade) => {
-    if (upgrade.effect.type !== "flatMapShardChance") return bonus;
+    const level = purchasedUpgrades[upgrade.id as UpgradeId];
+    if (level <= 0) return bonus;
+
+    switch (upgrade.effect.type) {
+      case "percentMapReward":
+        return bonus + level * upgrade.effect.value;
+      case "percentMapRewardPerTier":
+        return bonus + Math.max(0, context.tier - 1) * level * upgrade.effect.value;
+      case "percentMapStreakReward":
+        return bonus + Math.max(0, context.streak) * level * upgrade.effect.value;
+      case "percentMapRewardFromShards": {
+        const steps = getShardThresholdSteps(context.totalMirrorShards, upgrade.effect.shardStep, upgrade.effect.maxSteps);
+        return bonus + steps * level * upgrade.effect.value;
+      }
+      default:
+        return bonus;
+    }
+  }, 0);
+}
+
+export function getFocusedMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+  return upgrades.reduce((bonus, upgrade) => {
+    if (upgrade.effect.type !== "percentFocusedMapReward") return bonus;
     return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
   }, 0);
+}
+
+export function getQueuedMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+  return upgrades.reduce((bonus, upgrade) => {
+    if (upgrade.effect.type !== "percentQueuedMapReward") return bonus;
+    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+  }, 0);
+}
+
+export function getMapShardChanceUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState, totalMirrorShards: number) {
+  return upgrades.reduce((bonus, upgrade) => {
+    const level = purchasedUpgrades[upgrade.id as UpgradeId];
+    if (level <= 0) return bonus;
+
+    switch (upgrade.effect.type) {
+      case "flatMapShardChance":
+        return bonus + level * upgrade.effect.value;
+      case "flatMapShardChanceFromShards": {
+        const steps = getShardThresholdSteps(totalMirrorShards, upgrade.effect.shardStep, upgrade.effect.maxSteps);
+        return bonus + steps * level * upgrade.effect.value;
+      }
+      default:
+        return bonus;
+    }
+  }, 0);
+}
+
+export function getQueuedMapShardChanceUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+  return upgrades.reduce((bonus, upgrade) => {
+    if (upgrade.effect.type !== "flatQueuedMapShardChance") return bonus;
+    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+  }, 0);
+}
+
+export function getPrestigeShardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+  return upgrades.reduce((bonus, upgrade) => {
+    if (upgrade.effect.type !== "percentPrestigeShards") return bonus;
+    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+  }, 0);
+}
+
+export function augmentDeviceEffectsForUpgrades(
+  deviceEffects: ResolvedDeviceEffects,
+  purchasedUpgrades: PurchasedUpgradeState,
+  isQueuedMap = false,
+): ResolvedDeviceEffects {
+  return {
+    ...deviceEffects,
+    rewardMultiplier: deviceEffects.rewardMultiplier + (isQueuedMap ? getQueuedMapRewardUpgradeBonus(purchasedUpgrades) : 0),
+    focusedRewardMultiplier: deviceEffects.focusedRewardMultiplier + getFocusedMapRewardUpgradeBonus(purchasedUpgrades),
+    shardChanceBonus: deviceEffects.shardChanceBonus + (isQueuedMap ? getQueuedMapShardChanceUpgradeBonus(purchasedUpgrades) : 0),
+  };
 }
 
 export function getClickPower(fragmentProductionRate: number, clickMultiplier: number) {
@@ -158,13 +379,10 @@ function payCost(currenciesState: CurrencyState, cost: UpgradeCost) {
 }
 
 export function purchaseUpgrade<T extends UpgradeEngineState>(gameState: T, upgradeId: UpgradeId) {
-  const upgrade = upgradeMap[upgradeId];
+  if (!canPurchaseUpgrade(gameState, upgradeId)) return gameState;
+
   const currentLevel = gameState.purchasedUpgrades[upgradeId];
-
-  if (upgrade.maxLevel !== undefined && currentLevel >= upgrade.maxLevel) return gameState;
-
   const cost = getUpgradeCost(upgradeId, currentLevel);
-  if (!canAffordCost(gameState.currencies, cost)) return gameState;
 
   return {
     ...gameState,
@@ -216,11 +434,11 @@ export function getUpgradeCategoryLabel(category: UpgradeCategory) {
 
 export function getUpgradeCategoryDescription(category: UpgradeCategory) {
   switch (category) {
-    case "generators": return "Production scaling for each currency line.";
-    case "economy": return "General run power and click scaling.";
-    case "maps": return "Map reward and pacing improvements.";
-    case "automation": return "Quality-of-life unlocks and batching.";
-    case "atlas": return "Longer-term map progression hooks.";
-    case "relics": return "Reserved for future relic-based progression.";
+    case "generators": return "Immediate output boosts across currency lines.";
+    case "economy": return "Click and conversion tools for short-term pushes.";
+    case "maps": return "Active run value and map specialization.";
+    case "automation": return "Batching and queue-based leverage.";
+    case "atlas": return "Routing and map progression layers that build over time.";
+    case "relics": return "Prestige-fed bonuses that echo back into live runs.";
   }
 }

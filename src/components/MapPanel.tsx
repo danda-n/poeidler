@@ -43,7 +43,7 @@ import {
 } from "../game/mapDevice";
 import { formatCurrencyValue, currencyMap, type CurrencyProduction, type CurrencyState } from "../game/currencies";
 import { getMapCostReduction, getMapRewardBonus, getMapSpeedBonus, type TalentPurchasedState } from "../game/talents";
-import { getMapRewardUpgradeBonus, type PurchasedUpgradeState } from "../game/upgradeEngine";
+import { augmentDeviceEffectsForUpgrades, getBaseMapRewardUpgradeBonus, type PurchasedUpgradeState } from "../game/upgradeEngine";
 import type { PrestigeState } from "../game/prestige";
 
 type MapPanelProps = {
@@ -98,7 +98,7 @@ export function MapPanel({
 
   const costReduction = getMapCostReduction(talentsPurchased);
   const speedBonus = getMapSpeedBonus(talentsPurchased);
-  const deviceEffects = resolveLoadoutEffects(preparingLoadout);
+  const deviceEffects = augmentDeviceEffectsForUpgrades(resolveLoadoutEffects(preparingLoadout), purchasedUpgrades, !!activeMap && !queuedMap);
 
   useEffect(() => {
     if (!activeMap) return;
@@ -162,11 +162,13 @@ export function MapPanel({
   const mapCostAffordable = !!(mapDef && craftedMap && canAffordMap(mapDef, craftedMap, currenciesPostLoadout, costReduction, deviceEffects));
   const canCommit = !queuedMap && loadoutAffordable && mapCostAffordable;
 
+  const previewStreak = mapDef && prestige.lastMapFamily === mapDef.family ? prestige.lastMapFamilyStreak : 0;
   const previewRewardBonus = mapDef
-    ? getMapRewardBonus(
-        talentsPurchased,
-        prestige.lastMapFamily === mapDef.family ? prestige.lastMapFamilyStreak : 0,
-      ) + getMapRewardUpgradeBonus(purchasedUpgrades)
+    ? getMapRewardBonus(talentsPurchased, previewStreak) + getBaseMapRewardUpgradeBonus(purchasedUpgrades, {
+        tier: mapDef.tier,
+        streak: previewStreak,
+        totalMirrorShards: prestige.totalMirrorShards,
+      })
     : 0;
   const rewardPreview = mapDef && craftedMap
     ? getMapRewardPreview(mapDef, craftedMap, getMapIncomeSnapshot(currencyProduction), previewRewardBonus, deviceEffects)
@@ -470,3 +472,4 @@ export function MapPanel({
 }
 
 export default MapPanel;
+

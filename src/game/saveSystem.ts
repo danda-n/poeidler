@@ -2,7 +2,11 @@ import { applyPassiveGeneration, createInitialGameState, GAME_VERSION, synchroni
 import { isMapComplete, baseMapMap, completeMap, applyMapRewards, startMap, hydrateCraftedMap, getMapIncomeSnapshot, type QueuedMapSetup } from "./maps";
 import { initialPrestigeState } from "./prestige";
 import { initialTalentsPurchased, getMapRewardBonus, getMapCostReduction, getMapSpeedBonus } from "./talents";
-import { getMapRewardUpgradeBonus, getMapShardChanceUpgradeBonus } from "./upgradeEngine";
+import {
+  augmentDeviceEffectsForUpgrades,
+  getBaseMapRewardUpgradeBonus,
+  getMapShardChanceUpgradeBonus,
+} from "./upgradeEngine";
 import { initialMapDeviceState, type MapDeviceState, resolveLoadoutEffects, emptyDeviceLoadout } from "./mapDevice";
 
 export const SAVE_KEY = "poe-idle-save";
@@ -62,17 +66,19 @@ const emptyDeviceEffects = {
   shardChanceBonus: 0,
 };
 
-function resolveLoadStateMapCompletion(
-  nextState: ReturnType<typeof synchronizeGameState>,
-  now: number,
-): typeof nextState {
+function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeGameState>, now: number): typeof nextState {
   if (!nextState.activeMap || !isMapComplete(nextState.activeMap, now)) return nextState;
 
   const mapDef = baseMapMap[nextState.activeMap.craftedMap.baseMapId];
   if (!mapDef) return { ...nextState, activeMap: null };
 
-  const rewardBonus = getMapRewardBonus(nextState.talentsPurchased, nextState.prestige.lastMapFamilyStreak) + getMapRewardUpgradeBonus(nextState.purchasedUpgrades);
-  const shardChanceBonus = getMapShardChanceUpgradeBonus(nextState.purchasedUpgrades);
+  const currentStreak = nextState.prestige.lastMapFamily === mapDef.family ? nextState.prestige.lastMapFamilyStreak : 0;
+  const rewardBonus = getMapRewardBonus(nextState.talentsPurchased, currentStreak) + getBaseMapRewardUpgradeBonus(nextState.purchasedUpgrades, {
+    tier: mapDef.tier,
+    streak: currentStreak,
+    totalMirrorShards: nextState.prestige.totalMirrorShards,
+  });
+  const shardChanceBonus = getMapShardChanceUpgradeBonus(nextState.purchasedUpgrades, nextState.prestige.totalMirrorShards);
   const result = completeMap(mapDef, nextState.activeMap, rewardBonus, shardChanceBonus);
   let currencies = applyMapRewards(nextState.currencies, result);
 
@@ -94,7 +100,11 @@ function resolveLoadStateMapCompletion(
     if (queuedMapDef) {
       const costReduction = getMapCostReduction(nextState.talentsPurchased);
       const speedBonus = getMapSpeedBonus(nextState.talentsPurchased);
-      const deviceEffects = resolveLoadoutEffects(queuedMap.deviceLoadout);
+      const deviceEffects = augmentDeviceEffectsForUpgrades(
+        resolveLoadoutEffects(queuedMap.deviceLoadout),
+        nextState.purchasedUpgrades,
+        true,
+      );
       const incomePerSecond = getMapIncomeSnapshot(nextState.currencyProduction);
       const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects, incomePerSecond);
       if (startResult) {
@@ -104,8 +114,13 @@ function resolveLoadStateMapCompletion(
         if (activeMap && isMapComplete(activeMap, now)) {
           const queuedDef = baseMapMap[activeMap.craftedMap.baseMapId];
           if (queuedDef) {
-            const qRewardBonus = getMapRewardBonus(nextState.talentsPurchased, updatedPrestige.lastMapFamilyStreak) + getMapRewardUpgradeBonus(nextState.purchasedUpgrades);
-            const qShardChanceBonus = getMapShardChanceUpgradeBonus(nextState.purchasedUpgrades);
+            const queuedStreak = updatedPrestige.lastMapFamily === queuedDef.family ? updatedPrestige.lastMapFamilyStreak : 0;
+            const qRewardBonus = getMapRewardBonus(nextState.talentsPurchased, queuedStreak) + getBaseMapRewardUpgradeBonus(nextState.purchasedUpgrades, {
+              tier: queuedDef.tier,
+              streak: queuedStreak,
+              totalMirrorShards: updatedPrestige.totalMirrorShards,
+            });
+            const qShardChanceBonus = getMapShardChanceUpgradeBonus(nextState.purchasedUpgrades, updatedPrestige.totalMirrorShards);
             const qResult = completeMap(queuedDef, activeMap, qRewardBonus, qShardChanceBonus);
             currencies = applyMapRewards(currencies, qResult);
             const isSameFamilyQ = updatedPrestige.lastMapFamily === queuedDef.family;
@@ -147,9 +162,7 @@ export function loadGameState() {
     const elapsedMilliseconds = Math.max(0, Math.min(now - savePayload.lastSaveTime, MAX_OFFLINE_PROGRESS_MS));
     const elapsedSeconds = elapsedMilliseconds / 1000;
 
-    const savedPrestige = savePayload.prestige
-      ? { ...initialPrestigeState, ...savePayload.prestige }
-      : { ...initialPrestigeState };
+    const savedPrestige = savePayload.prestige ? { ...initialPrestigeState, ...savePayload.prestige } : { ...initialPrestigeState };
     const savedTalents = savePayload.talentsPurchased
       ? { ...initialTalentsPurchased, ...savePayload.talentsPurchased }
       : { ...initialTalentsPurchased };

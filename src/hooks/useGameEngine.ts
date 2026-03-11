@@ -4,7 +4,14 @@ import { fragmentCurrencyId, type CurrencyId } from "../game/currencies";
 import { generatorMap, getMaxAffordableGeneratorPurchases, type GeneratorId } from "../game/generators";
 import { createInitialGameState, startGameEngine, synchronizeGameState, type GameState } from "../game/gameEngine";
 import { AUTOSAVE_INTERVAL_MS, clearSavedGame, loadGameState, saveGameState } from "../game/saveSystem";
-import { getClickPower, purchaseGenerator, purchaseUpgrade, type UpgradeId } from "../game/upgradeEngine";
+import {
+  augmentDeviceEffectsForUpgrades,
+  getClickPower,
+  getConversionOutputUpgradeBonus,
+  purchaseGenerator,
+  purchaseUpgrade,
+  type UpgradeId,
+} from "../game/upgradeEngine";
 import {
   baseMapMap,
   startMap,
@@ -17,11 +24,7 @@ import {
   type CraftingAction,
   type QueuedMapSetup,
 } from "../game/maps";
-import {
-  resolveLoadoutEffects,
-  payLoadoutCost,
-  type DeviceLoadout,
-} from "../game/mapDevice";
+import { resolveLoadoutEffects, payLoadoutCost, type DeviceLoadout } from "../game/mapDevice";
 import { performPrestige, canPrestige } from "../game/prestige";
 import { purchaseTalent as purchaseTalentFn, getMapSpeedBonus, getMapCostReduction, getConversionBonus, getGeneratorCostReduction } from "../game/talents";
 import { getGeneratorCost } from "../game/generators";
@@ -71,15 +74,17 @@ export function useGameEngine() {
 
   function manualConvert(fromCurrencyId: CurrencyId, toCurrencyId: CurrencyId) {
     setGameState((currentState) => {
-      const conversionBonus = getConversionBonus(currentState.talentsPurchased);
+      const talentBonus = getConversionBonus(currentState.talentsPurchased);
+      const upgradeBonus = getConversionOutputUpgradeBonus(currentState.purchasedUpgrades);
       const converted = convertCurrency(currentState.currencies, fromCurrencyId, toCurrencyId);
+      const totalBonus = talentBonus + upgradeBonus;
 
-      if (conversionBonus > 0 && converted !== currentState.currencies) {
+      if (totalBonus > 0 && converted !== currentState.currencies) {
         return {
           ...currentState,
           currencies: {
             ...converted,
-            [toCurrencyId]: converted[toCurrencyId] + conversionBonus,
+            [toCurrencyId]: converted[toCurrencyId] + totalBonus,
           },
         };
       }
@@ -180,7 +185,11 @@ export function useGameEngine() {
 
       const costReduction = getMapCostReduction(currentState.talentsPurchased);
       const speedBonus = getMapSpeedBonus(currentState.talentsPurchased);
-      const deviceEffects = resolveLoadoutEffects(deviceLoadout);
+      const deviceEffects = augmentDeviceEffectsForUpgrades(
+        resolveLoadoutEffects(deviceLoadout),
+        currentState.purchasedUpgrades,
+        false,
+      );
       const incomePerSecond = getMapIncomeSnapshot(currentState.currencyProduction);
 
       const currencies = payLoadoutCost(currentState.currencies, deviceLoadout);
@@ -222,6 +231,7 @@ export function useGameEngine() {
         currentState.unlockedCurrencies,
         currentState.prestige,
         currentState.talentsPurchased,
+        currentState.purchasedUpgrades,
         currentState.mapDevice,
       );
       if (!result) return currentState;

@@ -9,14 +9,11 @@ import {
   type CurrencyState,
   type UnlockedCurrencyState,
 } from "./currencies";
-import {
-  generators,
-  initialGeneratorsOwned,
-  type GeneratorOwnedState,
-} from "./generators";
+import { generators, initialGeneratorsOwned, type GeneratorOwnedState } from "./generators";
 import {
   applyUpgradeEffects,
-  getMapRewardUpgradeBonus,
+  augmentDeviceEffectsForUpgrades,
+  getBaseMapRewardUpgradeBonus,
   getMapShardChanceUpgradeBonus,
   initialPurchasedUpgrades,
   initialUnlockedFeatures,
@@ -35,10 +32,7 @@ import {
   getMapIncomeSnapshot,
   startMap,
 } from "./maps";
-import {
-  initialPrestigeState,
-  type PrestigeState,
-} from "./prestige";
+import { initialPrestigeState, type PrestigeState } from "./prestige";
 import {
   initialTalentsPurchased,
   getClickPowerBonus,
@@ -48,11 +42,7 @@ import {
   getMapSpeedBonus,
   type TalentPurchasedState,
 } from "./talents";
-import {
-  initialMapDeviceState,
-  resolveLoadoutEffects,
-  type MapDeviceState,
-} from "./mapDevice";
+import { initialMapDeviceState, resolveLoadoutEffects, type MapDeviceState } from "./mapDevice";
 
 export type GameSettings = {
   version: string;
@@ -83,15 +73,11 @@ export const TICK_RATE_MS = 100;
 
 const NOTIFICATION_TTL_MS = 8000;
 
-export function calculateCurrencyProduction(
-  generatorsOwned: GeneratorOwnedState,
-  currencyMultipliers: CurrencyMultipliers,
-) {
+export function calculateCurrencyProduction(generatorsOwned: GeneratorOwnedState, currencyMultipliers: CurrencyMultipliers) {
   const currencyProduction = { ...initialCurrencyProduction };
 
   generators.forEach((generator) => {
-    currencyProduction[generator.currency] +=
-      generatorsOwned[generator.id] * generator.baseRate * currencyMultipliers[generator.currency];
+    currencyProduction[generator.currency] += generatorsOwned[generator.id] * generator.baseRate * currencyMultipliers[generator.currency];
   });
 
   return currencyProduction;
@@ -105,7 +91,6 @@ export function synchronizeGameState(gameState: GameState) {
 
   const talentClickBonus = getClickPowerBonus(gameState.talentsPurchased);
   const adjustedClickMultiplier = clickMultiplier * (1 + talentClickBonus);
-
   const currencyProduction = calculateCurrencyProduction(gameState.generatorsOwned, currencyMultipliers);
   const unlockedCurrencies = unlockCurrencies(gameState.unlockedCurrencies, currencyProduction);
 
@@ -141,11 +126,7 @@ export function createInitialGameState(): GameState {
   });
 }
 
-export function applyPassiveGeneration(
-  currenciesState: CurrencyState,
-  currencyProduction: CurrencyProduction,
-  deltaTimeSeconds: number,
-) {
+export function applyPassiveGeneration(currenciesState: CurrencyState, currencyProduction: CurrencyProduction, deltaTimeSeconds: number) {
   const nextCurrencies = { ...currenciesState };
 
   Object.entries(currencyProduction).forEach(([currencyId, rate]) => {
@@ -157,7 +138,7 @@ export function applyPassiveGeneration(
 }
 
 export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
-  let state = synchronizeGameState(gameState);
+  const state = synchronizeGameState(gameState);
   let currencies = applyPassiveGeneration(state.currencies, state.currencyProduction, deltaTimeSeconds);
 
   const fragmentProduced = state.currencyProduction.fragmentOfWisdom * deltaTimeSeconds;
@@ -182,8 +163,13 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
   if (activeMap && isMapComplete(activeMap, now)) {
     const mapDef = baseMapMap[activeMap.craftedMap.baseMapId];
     if (mapDef) {
-      const rewardBonus = getMapRewardBonus(state.talentsPurchased, prestige.lastMapFamilyStreak) + getMapRewardUpgradeBonus(state.purchasedUpgrades);
-      const shardChanceBonus = getMapShardChanceUpgradeBonus(state.purchasedUpgrades);
+      const currentStreak = prestige.lastMapFamily === mapDef.family ? prestige.lastMapFamilyStreak : 0;
+      const rewardBonus = getMapRewardBonus(state.talentsPurchased, currentStreak) + getBaseMapRewardUpgradeBonus(state.purchasedUpgrades, {
+        tier: mapDef.tier,
+        streak: currentStreak,
+        totalMirrorShards: prestige.totalMirrorShards,
+      });
+      const shardChanceBonus = getMapShardChanceUpgradeBonus(state.purchasedUpgrades, prestige.totalMirrorShards);
       const result = completeMap(mapDef, activeMap, rewardBonus, shardChanceBonus);
       currencies = applyMapRewards(currencies, result);
       lastMapResult = result;
@@ -206,7 +192,11 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
       if (queuedMapDef) {
         const costReduction = getMapCostReduction(state.talentsPurchased);
         const speedBonus = getMapSpeedBonus(state.talentsPurchased);
-        const deviceEffects = resolveLoadoutEffects(queuedMap.deviceLoadout);
+        const deviceEffects = augmentDeviceEffectsForUpgrades(
+          resolveLoadoutEffects(queuedMap.deviceLoadout),
+          state.purchasedUpgrades,
+          true,
+        );
         const incomePerSecond = getMapIncomeSnapshot(state.currencyProduction);
         const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects, incomePerSecond);
         if (startResult) {
