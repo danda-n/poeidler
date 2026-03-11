@@ -1,12 +1,8 @@
-import { applyPassiveGeneration, createInitialGameState, GAME_VERSION, synchronizeGameState, type GameState } from "./gameEngine";
+import { applyPassiveGeneration, createInitialGameState, GAME_VERSION, getRunStartMapBonuses, synchronizeGameState, type GameState } from "./gameEngine";
 import { isMapComplete, baseMapMap, completeMap, applyMapRewards, startMap, hydrateCraftedMap, getMapIncomeSnapshot, type QueuedMapSetup } from "./maps";
 import { initialPrestigeState } from "./prestige";
-import { initialTalentsPurchased, getMapRewardBonus, getMapCostReduction, getMapSpeedBonus } from "./talents";
-import {
-  augmentDeviceEffectsForUpgrades,
-  getBaseMapRewardUpgradeBonus,
-  getMapShardChanceUpgradeBonus,
-} from "./upgradeEngine";
+import { initialTalentsPurchased, getMapCostReduction } from "./talents";
+import { augmentDeviceEffectsForUpgrades } from "./upgradeEngine";
 import { initialMapDeviceState, type MapDeviceState, resolveLoadoutEffects, emptyDeviceLoadout } from "./mapDevice";
 
 export const SAVE_KEY = "poe-idle-save";
@@ -72,14 +68,7 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
   const mapDef = baseMapMap[nextState.activeMap.craftedMap.baseMapId];
   if (!mapDef) return { ...nextState, activeMap: null };
 
-  const currentStreak = nextState.prestige.lastMapFamily === mapDef.family ? nextState.prestige.lastMapFamilyStreak : 0;
-  const rewardBonus = getMapRewardBonus(nextState.talentsPurchased, currentStreak) + getBaseMapRewardUpgradeBonus(nextState.purchasedUpgrades, {
-    tier: mapDef.tier,
-    streak: currentStreak,
-    totalMirrorShards: nextState.prestige.totalMirrorShards,
-  });
-  const shardChanceBonus = getMapShardChanceUpgradeBonus(nextState.purchasedUpgrades, nextState.prestige.totalMirrorShards);
-  const result = completeMap(mapDef, nextState.activeMap, rewardBonus, shardChanceBonus);
+  const result = completeMap(mapDef, nextState.activeMap);
   let currencies = applyMapRewards(nextState.currencies, result);
 
   const isSameFamily = nextState.prestige.lastMapFamily === mapDef.family;
@@ -88,6 +77,7 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
     mirrorShards: nextState.prestige.mirrorShards + result.shardAmount,
     totalMirrorShards: nextState.prestige.totalMirrorShards + result.shardAmount,
     mapsCompleted: nextState.prestige.mapsCompleted + 1,
+    encounterMapsCompleted: nextState.prestige.encounterMapsCompleted + (result.encounterId ? 1 : 0),
     lastMapFamily: mapDef.family,
     lastMapFamilyStreak: isSameFamily ? nextState.prestige.lastMapFamilyStreak + 1 : 1,
   };
@@ -99,14 +89,29 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
     const queuedMapDef = baseMapMap[queuedMap.baseMapId];
     if (queuedMapDef) {
       const costReduction = getMapCostReduction(nextState.talentsPurchased);
-      const speedBonus = getMapSpeedBonus(nextState.talentsPurchased);
+      const { rewardBonus, shardChanceBonus, speedBonus } = getRunStartMapBonuses(
+        queuedMap.craftedMap,
+        updatedPrestige,
+        nextState.talentsPurchased,
+        nextState.purchasedUpgrades,
+      );
       const deviceEffects = augmentDeviceEffectsForUpgrades(
         resolveLoadoutEffects(queuedMap.deviceLoadout),
         nextState.purchasedUpgrades,
         true,
       );
       const incomePerSecond = getMapIncomeSnapshot(nextState.currencyProduction);
-      const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects, incomePerSecond);
+      const startResult = startMap(
+        currencies,
+        queuedMapDef,
+        queuedMap.craftedMap,
+        costReduction,
+        speedBonus,
+        deviceEffects,
+        incomePerSecond,
+        rewardBonus,
+        shardChanceBonus,
+      );
       if (startResult) {
         currencies = startResult.currencies;
         activeMap = startResult.activeMap;
@@ -114,19 +119,13 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
         if (activeMap && isMapComplete(activeMap, now)) {
           const queuedDef = baseMapMap[activeMap.craftedMap.baseMapId];
           if (queuedDef) {
-            const queuedStreak = updatedPrestige.lastMapFamily === queuedDef.family ? updatedPrestige.lastMapFamilyStreak : 0;
-            const qRewardBonus = getMapRewardBonus(nextState.talentsPurchased, queuedStreak) + getBaseMapRewardUpgradeBonus(nextState.purchasedUpgrades, {
-              tier: queuedDef.tier,
-              streak: queuedStreak,
-              totalMirrorShards: updatedPrestige.totalMirrorShards,
-            });
-            const qShardChanceBonus = getMapShardChanceUpgradeBonus(nextState.purchasedUpgrades, updatedPrestige.totalMirrorShards);
-            const qResult = completeMap(queuedDef, activeMap, qRewardBonus, qShardChanceBonus);
+            const qResult = completeMap(queuedDef, activeMap);
             currencies = applyMapRewards(currencies, qResult);
             const isSameFamilyQ = updatedPrestige.lastMapFamily === queuedDef.family;
             updatedPrestige.mirrorShards += qResult.shardAmount;
             updatedPrestige.totalMirrorShards += qResult.shardAmount;
             updatedPrestige.mapsCompleted += 1;
+            updatedPrestige.encounterMapsCompleted += qResult.encounterId ? 1 : 0;
             updatedPrestige.lastMapFamily = queuedDef.family;
             updatedPrestige.lastMapFamilyStreak = isSameFamilyQ ? updatedPrestige.lastMapFamilyStreak + 1 : 1;
             activeMap = null;
@@ -180,6 +179,8 @@ export function loadGameState() {
           craftedMap,
           deviceEffects: savedActiveMap.deviceEffects ?? emptyDeviceEffects,
           incomePerSecond: typeof savedActiveMap.incomePerSecond === "number" ? savedActiveMap.incomePerSecond : 0,
+          rewardBonus: typeof savedActiveMap.rewardBonus === "number" ? savedActiveMap.rewardBonus : 0,
+          shardChanceBonus: typeof savedActiveMap.shardChanceBonus === "number" ? savedActiveMap.shardChanceBonus : 0,
         };
       }
     }

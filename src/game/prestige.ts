@@ -7,9 +7,14 @@ import {
   type UnlockedCurrencyState,
 } from "./currencies";
 import { initialGeneratorsOwned, type GeneratorOwnedState } from "./generators";
-import { getPrestigeShardUpgradeBonus, initialPurchasedUpgrades, type PurchasedUpgradeState } from "./upgradeEngine";
+import {
+  getEncounterPrestigeUpgradeBonus,
+  getPrestigeShardUpgradeBonus,
+  initialPurchasedUpgrades,
+  type PurchasedUpgradeState,
+} from "./upgradeEngine";
 import type { ActiveMapState } from "./maps";
-import type { TalentPurchasedState } from "./talents";
+import { getEncounterPrestigeBonus, type TalentPurchasedState } from "./talents";
 import { resetDeviceModifiers, type MapDeviceState } from "./mapDevice";
 
 export const PRESTIGE_BALANCE = {
@@ -18,6 +23,7 @@ export const PRESTIGE_BALANCE = {
   tierBonusPerTier: 2,
   tierBonusMinTier: 4,
   mapsCompletedBonus: 1.0,
+  encounterMapsBonus: 1.5,
   crackedMirrorPerRank: 0.15,
   lingeringWealthPerRank: 0.02,
 } as const;
@@ -27,6 +33,7 @@ export type PrestigeState = {
   totalMirrorShards: number;
   prestigeCount: number;
   mapsCompleted: number;
+  encounterMapsCompleted: number;
   lastMapFamily: string | null;
   lastMapFamilyStreak: number;
   lifetimeFragmentsProduced: number;
@@ -37,6 +44,7 @@ export const initialPrestigeState: PrestigeState = {
   totalMirrorShards: 0,
   prestigeCount: 0,
   mapsCompleted: 0,
+  encounterMapsCompleted: 0,
   lastMapFamily: null,
   lastMapFamilyStreak: 0,
   lifetimeFragmentsProduced: 0,
@@ -58,7 +66,9 @@ export function calculatePrestigeShards(
   currenciesState: CurrencyState,
   unlockedCurrencies: UnlockedCurrencyState,
   mapsCompleted: number,
+  encounterMapsCompleted: number,
   crackedMirrorRank: number,
+  encounterBonusMultiplier = 0,
 ) {
   const totalValue = getTotalCurrencyValue(currenciesState);
   if (totalValue < PRESTIGE_BALANCE.minimumValueForPrestige) return 0;
@@ -67,7 +77,9 @@ export function calculatePrestigeShards(
   const highestTier = getHighestUnlockedTier(unlockedCurrencies);
   const tierBonus = Math.max(0, highestTier - PRESTIGE_BALANCE.tierBonusMinTier + 1) * PRESTIGE_BALANCE.tierBonusPerTier;
   const mapBonus = Math.floor(mapsCompleted * PRESTIGE_BALANCE.mapsCompletedBonus);
-  const subtotal = baseShards + tierBonus + mapBonus;
+  const encounterBonusBase = Math.floor(encounterMapsCompleted * PRESTIGE_BALANCE.encounterMapsBonus);
+  const encounterBonus = Math.floor(encounterBonusBase * Math.max(0, 1 + encounterBonusMultiplier));
+  const subtotal = baseShards + tierBonus + mapBonus + encounterBonus;
   const crackedMirrorMultiplier = 1 + crackedMirrorRank * PRESTIGE_BALANCE.crackedMirrorPerRank;
 
   return Math.max(0, Math.floor(subtotal * crackedMirrorMultiplier));
@@ -97,12 +109,15 @@ export function performPrestige(
 ): PrestigeResult | null {
   const crackedMirrorRank = talentsPurchased.crackedMirror ?? 0;
   const lingeringWealthRank = talentsPurchased.lingeringWealth ?? 0;
+  const encounterBonusMultiplier = getEncounterPrestigeBonus(talentsPurchased) + getEncounterPrestigeUpgradeBonus(purchasedUpgrades);
 
   const baseShards = calculatePrestigeShards(
     currenciesState,
     unlockedCurrencies,
     prestige.mapsCompleted,
+    prestige.encounterMapsCompleted,
     crackedMirrorRank,
+    encounterBonusMultiplier,
   );
   const shardUpgradeMultiplier = 1 + getPrestigeShardUpgradeBonus(purchasedUpgrades);
   const shardsGained = Math.max(0, Math.floor(baseShards * shardUpgradeMultiplier));
@@ -129,6 +144,7 @@ export function performPrestige(
       totalMirrorShards: prestige.totalMirrorShards + shardsGained,
       prestigeCount: prestige.prestigeCount + 1,
       mapsCompleted: 0,
+      encounterMapsCompleted: 0,
       lastMapFamily: null,
       lastMapFamilyStreak: 0,
       lifetimeFragmentsProduced: prestige.lifetimeFragmentsProduced,

@@ -31,6 +31,9 @@ import {
   applyMapRewards,
   getMapIncomeSnapshot,
   startMap,
+  getEncounterAdjustedStreak,
+  getEncounterRewardTags,
+  hasMapEncounter,
 } from "./maps";
 import { initialPrestigeState, type PrestigeState } from "./prestige";
 import {
@@ -40,6 +43,8 @@ import {
   getMapRewardBonus,
   getMapCostReduction,
   getMapSpeedBonus,
+  getEncounterRewardBonus,
+  getEncounterSpeedBonus,
   type TalentPurchasedState,
 } from "./talents";
 import { initialMapDeviceState, resolveLoadoutEffects, type MapDeviceState } from "./mapDevice";
@@ -81,6 +86,34 @@ export function calculateCurrencyProduction(generatorsOwned: GeneratorOwnedState
   });
 
   return currencyProduction;
+}
+
+export function getRunStartMapBonuses(
+  craftedMap: NonNullable<QueuedMapSetup["craftedMap"]>,
+  prestige: PrestigeState,
+  talentsPurchased: TalentPurchasedState,
+  purchasedUpgrades: PurchasedUpgradeState,
+) {
+  const mapDef = baseMapMap[craftedMap.baseMapId];
+  if (!mapDef) return { rewardBonus: 0, shardChanceBonus: 0, speedBonus: 0 };
+
+  const streakAtStart = prestige.lastMapFamily === mapDef.family ? prestige.lastMapFamilyStreak : 0;
+  const adjustedStreak = getEncounterAdjustedStreak(craftedMap, streakAtStart);
+  const hasEncounter = hasMapEncounter(craftedMap);
+  const rewardBonus =
+    getMapRewardBonus(talentsPurchased, adjustedStreak)
+    + getEncounterRewardBonus(talentsPurchased, hasEncounter)
+    + getBaseMapRewardUpgradeBonus(purchasedUpgrades, {
+      tier: mapDef.tier,
+      streak: adjustedStreak,
+      totalMirrorShards: prestige.totalMirrorShards,
+      encounterTags: getEncounterRewardTags(craftedMap),
+      hasEncounter,
+    });
+  const shardChanceBonus = getMapShardChanceUpgradeBonus(purchasedUpgrades, prestige.totalMirrorShards, hasEncounter);
+  const speedBonus = getMapSpeedBonus(talentsPurchased) + getEncounterSpeedBonus(talentsPurchased, hasEncounter);
+
+  return { rewardBonus, shardChanceBonus, speedBonus };
 }
 
 export function synchronizeGameState(gameState: GameState) {
@@ -163,14 +196,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
   if (activeMap && isMapComplete(activeMap, now)) {
     const mapDef = baseMapMap[activeMap.craftedMap.baseMapId];
     if (mapDef) {
-      const currentStreak = prestige.lastMapFamily === mapDef.family ? prestige.lastMapFamilyStreak : 0;
-      const rewardBonus = getMapRewardBonus(state.talentsPurchased, currentStreak) + getBaseMapRewardUpgradeBonus(state.purchasedUpgrades, {
-        tier: mapDef.tier,
-        streak: currentStreak,
-        totalMirrorShards: prestige.totalMirrorShards,
-      });
-      const shardChanceBonus = getMapShardChanceUpgradeBonus(state.purchasedUpgrades, prestige.totalMirrorShards);
-      const result = completeMap(mapDef, activeMap, rewardBonus, shardChanceBonus);
+      const result = completeMap(mapDef, activeMap);
       currencies = applyMapRewards(currencies, result);
       lastMapResult = result;
       mapNotification = { result, mapName: mapDef.name, timestamp: now };
@@ -181,6 +207,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
         mirrorShards: prestige.mirrorShards + result.shardAmount,
         totalMirrorShards: prestige.totalMirrorShards + result.shardAmount,
         mapsCompleted: prestige.mapsCompleted + 1,
+        encounterMapsCompleted: prestige.encounterMapsCompleted + (result.encounterId ? 1 : 0),
         lastMapFamily: mapDef.family,
         lastMapFamilyStreak: isSameFamily ? prestige.lastMapFamilyStreak + 1 : 1,
       };
@@ -191,14 +218,29 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
       const queuedMapDef = baseMapMap[queuedMap.baseMapId];
       if (queuedMapDef) {
         const costReduction = getMapCostReduction(state.talentsPurchased);
-        const speedBonus = getMapSpeedBonus(state.talentsPurchased);
+        const { rewardBonus, shardChanceBonus, speedBonus } = getRunStartMapBonuses(
+          queuedMap.craftedMap,
+          prestige,
+          state.talentsPurchased,
+          state.purchasedUpgrades,
+        );
         const deviceEffects = augmentDeviceEffectsForUpgrades(
           resolveLoadoutEffects(queuedMap.deviceLoadout),
           state.purchasedUpgrades,
           true,
         );
         const incomePerSecond = getMapIncomeSnapshot(state.currencyProduction);
-        const startResult = startMap(currencies, queuedMapDef, queuedMap.craftedMap, costReduction, speedBonus, deviceEffects, incomePerSecond);
+        const startResult = startMap(
+          currencies,
+          queuedMapDef,
+          queuedMap.craftedMap,
+          costReduction,
+          speedBonus,
+          deviceEffects,
+          incomePerSecond,
+          rewardBonus,
+          shardChanceBonus,
+        );
         if (startResult) {
           currencies = startResult.currencies;
           activeMap = startResult.activeMap;
@@ -233,3 +275,4 @@ export function startGameEngine(updateState: (updater: (currentState: GameState)
 
   return () => window.clearInterval(intervalId);
 }
+

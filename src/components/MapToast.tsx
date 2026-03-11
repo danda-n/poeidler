@@ -15,6 +15,7 @@ export function MapToast({ notification }: MapToastProps) {
       <div className="map-toast-header">
         <span className="map-toast-title">
           {mapName} complete
+          {result.encounterName && <span className="map-toast-encounter">{result.encounterName}</span>}
           {result.shardDropped && <span className="map-toast-shard-badge"> Shard!</span>}
           {result.bonusRewardTriggered && <span className="map-toast-bonus-badge"> Bonus!</span>}
         </span>

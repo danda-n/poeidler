@@ -19,6 +19,8 @@ import type { ResolvedDeviceEffects, DeviceLoadout } from "./mapDevice";
 export type MapFamily = "currency" | "focused" | "mirror";
 export type MapRarity = "normal" | "magic" | "rare";
 export type MapContentTag = "stash" | "workshop" | "realm" | "focused" | "mirror";
+export type MapEncounterId = "expedition" | "ritual" | "delirium";
+export type MapEncounterTag = "shards" | "focused" | "highRisk" | "prestige";
 
 export type MapCost = Partial<Record<CurrencyId, number>>;
 export type MapReward = Partial<Record<CurrencyId, number>>;
@@ -49,6 +51,7 @@ export type CraftedMap = {
   rarity: MapRarity;
   affixIds: string[];
   contentTags: MapContentTag[];
+  encounterId: MapEncounterId | null;
   resolvedStats: ResolvedAffixStats;
 };
 
@@ -58,11 +61,15 @@ export type ActiveMapState = {
   durationMs: number;
   deviceEffects: ResolvedDeviceEffects;
   incomePerSecond: number;
+  rewardBonus: number;
+  shardChanceBonus: number;
 } | null;
 
 export type MapCompletionResult = {
   baseMapId: string;
   rarity: MapRarity;
+  encounterId: MapEncounterId | null;
+  encounterName: string | null;
   rewards: MapReward;
   shardDropped: boolean;
   shardAmount: number;
@@ -88,6 +95,31 @@ export type MapRewardPreview = {
   rewards: MapReward;
 };
 
+export type MapEncounterUnlockRequirement =
+  | { type: "mapsCompleted"; amount: number }
+  | { type: "totalMirrorShards"; amount: number }
+  | { type: "prestigeCount"; amount: number };
+
+export type MapEncounterProgression = {
+  mapsCompleted: number;
+  totalMirrorShards: number;
+  prestigeCount: number;
+};
+
+export type MapEncounterDefinition = {
+  id: MapEncounterId;
+  name: string;
+  description: string;
+  tags: MapEncounterTag[];
+  rewardMultiplier: number;
+  focusedRewardMultiplier: number;
+  durationMultiplier: number;
+  costMultiplier: number;
+  shardChanceBonus: number;
+  streakRewardMultiplier: number;
+  unlockRequirement: MapEncounterUnlockRequirement;
+};
+
 export const MAP_BALANCE = {
   baseShardChance: 0.01,
   maxShardChance: 0.05,
@@ -105,6 +137,53 @@ const mapContentValueMultiplier: Record<MapContentTag, number> = {
   focused: 1.05,
   mirror: 1.08,
 };
+
+export const mapEncounters: MapEncounterDefinition[] = [
+  {
+    id: "expedition",
+    name: "Expedition",
+    description: "Longer route with stronger shard odds and better prestige setup.",
+    tags: ["shards", "prestige"],
+    rewardMultiplier: -0.06,
+    focusedRewardMultiplier: 0,
+    durationMultiplier: 0.35,
+    costMultiplier: 0.08,
+    shardChanceBonus: 0.012,
+    streakRewardMultiplier: 1.15,
+    unlockRequirement: { type: "mapsCompleted", amount: 1 },
+  },
+  {
+    id: "ritual",
+    name: "Ritual",
+    description: "Higher-cost focused rewards that convert map time into targeted payouts.",
+    tags: ["focused", "prestige"],
+    rewardMultiplier: 0.08,
+    focusedRewardMultiplier: 0.5,
+    durationMultiplier: 0.22,
+    costMultiplier: 0.12,
+    shardChanceBonus: 0.004,
+    streakRewardMultiplier: 1,
+    unlockRequirement: { type: "mapsCompleted", amount: 3 },
+  },
+  {
+    id: "delirium",
+    name: "Delirium",
+    description: "High-reward runs with muted streak scaling and elevated shard pressure.",
+    tags: ["highRisk", "shards"],
+    rewardMultiplier: 0.42,
+    focusedRewardMultiplier: 0.18,
+    durationMultiplier: 0.45,
+    costMultiplier: 0.18,
+    shardChanceBonus: 0.006,
+    streakRewardMultiplier: 0,
+    unlockRequirement: { type: "totalMirrorShards", amount: 8 },
+  },
+];
+
+export const mapEncounterMap: Record<MapEncounterId, MapEncounterDefinition> = mapEncounters.reduce((acc, encounter) => {
+  acc[encounter.id] = encounter;
+  return acc;
+}, {} as Record<MapEncounterId, MapEncounterDefinition>);
 
 export const baseMaps: BaseMapDefinition[] = [
   {
@@ -190,6 +269,7 @@ function getDefaultCraftedMap(baseMapId: string): CraftedMap {
     rarity: "normal",
     affixIds: [],
     contentTags: [...(baseMap?.contentTags ?? [])],
+    encounterId: null,
     resolvedStats: resolveAffixStats([]),
   };
 }
@@ -203,6 +283,9 @@ export function hydrateCraftedMap(map: Partial<CraftedMap> | null | undefined): 
 
   const fallback = getDefaultCraftedMap(map.baseMapId);
   const affixIds = Array.isArray(map.affixIds) ? map.affixIds.filter((id): id is string => typeof id === "string") : [];
+  const encounterId = typeof map.encounterId === "string" && map.encounterId in mapEncounterMap
+    ? map.encounterId as MapEncounterId
+    : fallback.encounterId;
 
   return {
     baseMapId: map.baseMapId,
@@ -213,6 +296,7 @@ export function hydrateCraftedMap(map: Partial<CraftedMap> | null | undefined): 
     contentTags: Array.isArray(map.contentTags) && map.contentTags.length > 0
       ? map.contentTags.filter((tag): tag is MapContentTag => typeof tag === "string")
       : fallback.contentTags,
+    encounterId,
     resolvedStats: resolveAffixStats(affixIds),
   };
 }
@@ -341,6 +425,46 @@ export function isMapUnlocked(mapDef: BaseMapDefinition, currencies: CurrencySta
   return currencies[req.currencyId] >= req.amount || false;
 }
 
+export function getMapEncounter(encounterId: MapEncounterId | null | undefined): MapEncounterDefinition | null {
+  if (!encounterId) return null;
+  return mapEncounterMap[encounterId] ?? null;
+}
+
+export function isMapEncounterUnlocked(encounter: MapEncounterDefinition, progression: MapEncounterProgression): boolean {
+  switch (encounter.unlockRequirement.type) {
+    case "mapsCompleted":
+      return progression.mapsCompleted >= encounter.unlockRequirement.amount;
+    case "totalMirrorShards":
+      return progression.totalMirrorShards >= encounter.unlockRequirement.amount;
+    case "prestigeCount":
+      return progression.prestigeCount >= encounter.unlockRequirement.amount;
+  }
+}
+
+export function getMapEncounterUnlockText(encounter: MapEncounterDefinition): string {
+  switch (encounter.unlockRequirement.type) {
+    case "mapsCompleted":
+      return `Complete ${encounter.unlockRequirement.amount} map${encounter.unlockRequirement.amount === 1 ? "" : "s"}`;
+    case "totalMirrorShards":
+      return `Reach ${encounter.unlockRequirement.amount} total shards`;
+    case "prestigeCount":
+      return `Prestige ${encounter.unlockRequirement.amount} time${encounter.unlockRequirement.amount === 1 ? "" : "s"}`;
+  }
+}
+
+export function hasMapEncounter(craftedMap: CraftedMap): boolean {
+  return craftedMap.encounterId !== null;
+}
+
+export function getEncounterRewardTags(craftedMap: CraftedMap): MapEncounterTag[] {
+  return getMapEncounter(craftedMap.encounterId)?.tags ?? [];
+}
+
+export function getEncounterAdjustedStreak(craftedMap: CraftedMap, streak: number): number {
+  const encounter = getMapEncounter(craftedMap.encounterId);
+  return streak * (encounter?.streakRewardMultiplier ?? 1);
+}
+
 function getMapTierMultiplier(tier: number): number {
   return 1 + Math.max(0, tier - 1) * 0.18;
 }
@@ -353,18 +477,38 @@ function getContentMultiplier(tags: MapContentTag[]): number {
   return tags.reduce((total, tag) => total * (mapContentValueMultiplier[tag] ?? 1), 1);
 }
 
+function getEncounterRewardMultiplier(craftedMap: CraftedMap): number {
+  const encounter = getMapEncounter(craftedMap.encounterId);
+  return encounter ? 1 + encounter.rewardMultiplier : 1;
+}
+
+function getEncounterFocusedRewardMultiplier(craftedMap: CraftedMap): number {
+  const encounter = getMapEncounter(craftedMap.encounterId);
+  return encounter ? 1 + encounter.focusedRewardMultiplier : 1;
+}
+
+function getEncounterDurationMultiplier(craftedMap: CraftedMap): number {
+  const encounter = getMapEncounter(craftedMap.encounterId);
+  return encounter ? 1 + encounter.durationMultiplier : 1;
+}
+
+function getEncounterCostMultiplier(craftedMap: CraftedMap): number {
+  const encounter = getMapEncounter(craftedMap.encounterId);
+  return encounter ? 1 + encounter.costMultiplier : 1;
+}
+
 function getRewardValueMultiplier(
   craftedMap: CraftedMap,
   rewardBonus: number,
   deviceEffects?: ResolvedDeviceEffects,
 ): number {
   const totalBonus = rewardBonus + craftedMap.resolvedStats.rewardMultiplier + (deviceEffects?.rewardMultiplier ?? 0);
-  return Math.max(0.35, 1 + totalBonus);
+  return Math.max(0.35, 1 + totalBonus) * getEncounterRewardMultiplier(craftedMap);
 }
 
 function getFocusedValueMultiplier(craftedMap: CraftedMap, deviceEffects?: ResolvedDeviceEffects): number {
   const totalBonus = craftedMap.resolvedStats.focusedRewardMultiplier + (deviceEffects?.focusedRewardMultiplier ?? 0);
-  return Math.max(0.25, 1 + totalBonus);
+  return Math.max(0.25, 1 + totalBonus) * getEncounterFocusedRewardMultiplier(craftedMap);
 }
 
 function getBaseRewardValue(
@@ -415,7 +559,8 @@ export function getResolvedMapCost(
   costReduction: number,
   deviceEffects?: ResolvedDeviceEffects,
 ): MapCost {
-  const costMult = 1 + craftedMap.resolvedStats.costMultiplier + (deviceEffects?.costMultiplier ?? 0);
+  const costMult = (1 + craftedMap.resolvedStats.costMultiplier + (deviceEffects?.costMultiplier ?? 0))
+    * getEncounterCostMultiplier(craftedMap);
   const resolved: MapCost = {};
   Object.entries(mapDef.cost).forEach(([cid, amount]) => {
     const adjusted = Math.ceil((amount ?? 0) * Math.max(0.1, costMult) * Math.max(0, 1 - costReduction));
@@ -441,7 +586,8 @@ export function getResolvedMapDuration(
   speedBonus: number,
   deviceEffects?: ResolvedDeviceEffects,
 ): number {
-  const durationMult = 1 + craftedMap.resolvedStats.durationMultiplier + (deviceEffects?.durationMultiplier ?? 0);
+  const durationMult = (1 + craftedMap.resolvedStats.durationMultiplier + (deviceEffects?.durationMultiplier ?? 0))
+    * getEncounterDurationMultiplier(craftedMap);
   return Math.max(MAP_BALANCE.minDurationMs, Math.round(mapDef.durationMs * Math.max(0.2, durationMult) * Math.max(0, 1 - speedBonus)));
 }
 
@@ -477,6 +623,8 @@ export function startMap(
   speedBonus: number,
   deviceEffects: ResolvedDeviceEffects,
   incomePerSecond: number,
+  rewardBonus: number,
+  shardChanceBonus: number,
 ): { currencies: CurrencyState; activeMap: ActiveMapState } | null {
   if (!canAffordMap(mapDef, craftedMap, currencies, costReduction, deviceEffects)) return null;
 
@@ -494,6 +642,8 @@ export function startMap(
       durationMs: getResolvedMapDuration(mapDef, craftedMap, speedBonus, deviceEffects),
       deviceEffects,
       incomePerSecond,
+      rewardBonus,
+      shardChanceBonus,
     },
   };
 }
@@ -512,14 +662,12 @@ export function isMapComplete(activeMap: ActiveMapState, now: number): boolean {
 export function completeMap(
   mapDef: BaseMapDefinition,
   activeMap: NonNullable<ActiveMapState>,
-  rewardBonus: number,
-  shardChanceBonus = 0,
 ): MapCompletionResult {
   const preview = getMapRewardPreview(
     mapDef,
     activeMap.craftedMap,
     activeMap.incomePerSecond,
-    rewardBonus,
+    activeMap.rewardBonus,
     activeMap.deviceEffects,
   );
 
@@ -536,7 +684,11 @@ export function completeMap(
 
   const shardChance = Math.min(
     MAP_BALANCE.maxShardChance,
-    mapDef.baseShardChance + activeMap.craftedMap.resolvedStats.shardChanceBonus + activeMap.deviceEffects.shardChanceBonus + shardChanceBonus,
+    mapDef.baseShardChance
+      + activeMap.craftedMap.resolvedStats.shardChanceBonus
+      + activeMap.deviceEffects.shardChanceBonus
+      + (getMapEncounter(activeMap.craftedMap.encounterId)?.shardChanceBonus ?? 0)
+      + activeMap.shardChanceBonus,
   );
   const shardDropped = Math.random() < shardChance;
   const shardAmount = shardDropped ? 1 : 0;
@@ -544,6 +696,8 @@ export function completeMap(
   return {
     baseMapId: mapDef.id,
     rarity: activeMap.craftedMap.rarity,
+    encounterId: activeMap.craftedMap.encounterId,
+    encounterName: getMapEncounter(activeMap.craftedMap.encounterId)?.name ?? null,
     rewards,
     shardDropped,
     shardAmount,

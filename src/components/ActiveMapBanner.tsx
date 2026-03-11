@@ -5,6 +5,7 @@ import {
   getRarityLabel,
   getMapProgress,
   getMapTimeRemaining,
+  getMapEncounter,
   type ActiveMapState,
   type QueuedMapSetup,
 } from "../game/maps";
@@ -37,7 +38,9 @@ export function ActiveMapBanner({ activeMap, queuedMap }: ActiveMapBannerProps) 
 
   const progress = getMapProgress(activeMap, now);
   const remaining = getMapTimeRemaining(activeMap, now);
+  const activeEncounter = getMapEncounter(activeMap.craftedMap.encounterId);
   const queuedDef = queuedMap ? baseMapMap[queuedMap.baseMapId] : null;
+  const queuedEncounter = queuedMap ? getMapEncounter(queuedMap.craftedMap.encounterId) : null;
 
   return (
     <div className="active-map-banner">
@@ -48,6 +51,7 @@ export function ActiveMapBanner({ activeMap, queuedMap }: ActiveMapBannerProps) 
               {getRarityLabel(activeMap.craftedMap.rarity)}
             </span>{" "}
             {mapDef.name}
+            {activeEncounter && <span className="active-map-banner-encounter">{activeEncounter.name}</span>}
           </span>
           <span className="active-map-banner-time">{formatMs(remaining)}</span>
         </div>
@@ -59,10 +63,11 @@ export function ActiveMapBanner({ activeMap, queuedMap }: ActiveMapBannerProps) 
         </div>
         {queuedDef && (
           <div className="active-map-banner-queue">
-            Next → {queuedDef.name}
+            Next {"->"} {queuedDef.name}{queuedEncounter ? ` (${queuedEncounter.name})` : ""}
           </div>
         )}
       </div>
     </div>
   );
 }
+

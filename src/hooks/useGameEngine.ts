@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { convertCurrency } from "../game/conversionEngine";
 import { fragmentCurrencyId, type CurrencyId } from "../game/currencies";
 import { generatorMap, getMaxAffordableGeneratorPurchases, type GeneratorId } from "../game/generators";
-import { createInitialGameState, startGameEngine, synchronizeGameState, type GameState } from "../game/gameEngine";
+import { createInitialGameState, getRunStartMapBonuses, startGameEngine, synchronizeGameState, type GameState } from "../game/gameEngine";
 import { AUTOSAVE_INTERVAL_MS, clearSavedGame, loadGameState, saveGameState } from "../game/saveSystem";
 import {
   augmentDeviceEffectsForUpgrades,
@@ -26,7 +26,7 @@ import {
 } from "../game/maps";
 import { resolveLoadoutEffects, payLoadoutCost, type DeviceLoadout } from "../game/mapDevice";
 import { performPrestige, canPrestige } from "../game/prestige";
-import { purchaseTalent as purchaseTalentFn, getMapSpeedBonus, getMapCostReduction, getConversionBonus, getGeneratorCostReduction } from "../game/talents";
+import { purchaseTalent as purchaseTalentFn, getConversionBonus, getGeneratorCostReduction, getMapCostReduction } from "../game/talents";
 import { getGeneratorCost } from "../game/generators";
 
 export function useGameEngine() {
@@ -184,7 +184,12 @@ export function useGameEngine() {
       if (!isMapUnlocked(mapDef, currentState.currencies)) return currentState;
 
       const costReduction = getMapCostReduction(currentState.talentsPurchased);
-      const speedBonus = getMapSpeedBonus(currentState.talentsPurchased);
+      const { rewardBonus, shardChanceBonus, speedBonus } = getRunStartMapBonuses(
+        craftedMap,
+        currentState.prestige,
+        currentState.talentsPurchased,
+        currentState.purchasedUpgrades,
+      );
       const deviceEffects = augmentDeviceEffectsForUpgrades(
         resolveLoadoutEffects(deviceLoadout),
         currentState.purchasedUpgrades,
@@ -193,7 +198,17 @@ export function useGameEngine() {
       const incomePerSecond = getMapIncomeSnapshot(currentState.currencyProduction);
 
       const currencies = payLoadoutCost(currentState.currencies, deviceLoadout);
-      const result = startMap(currencies, mapDef, craftedMap, costReduction, speedBonus, deviceEffects, incomePerSecond);
+      const result = startMap(
+        currencies,
+        mapDef,
+        craftedMap,
+        costReduction,
+        speedBonus,
+        deviceEffects,
+        incomePerSecond,
+        rewardBonus,
+        shardChanceBonus,
+      );
       if (!result) return currentState;
 
       return {
@@ -293,3 +308,4 @@ export function useGameEngine() {
     },
   };
 }
+

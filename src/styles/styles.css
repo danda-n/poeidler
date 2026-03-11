@@ -2255,3 +2255,93 @@ img {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+.map-encounter-section {
+  display: grid;
+  gap: 8px;
+}
+
+.map-encounter-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-encounter-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ffd36a;
+}
+
+.map-encounter-copy,
+.map-preview-note {
+  font-size: 0.68rem;
+  color: #8c8c94;
+}
+
+.map-encounter-list {
+  display: grid;
+  gap: 6px;
+}
+
+.map-encounter-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: #d5d5dc;
+  text-align: left;
+}
+
+.map-encounter-card:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.map-encounter-card-selected {
+  border-color: rgba(255, 211, 106, 0.28);
+  background: rgba(255, 211, 106, 0.07);
+}
+
+.map-encounter-card-locked {
+  opacity: 0.45;
+}
+
+.map-encounter-name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-encounter-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #f0f0f0;
+}
+
+.map-encounter-meta {
+  font-size: 0.66rem;
+  color: #9aa2b2;
+}
+
+.map-encounter-desc {
+  font-size: 0.7rem;
+  color: #92929a;
+  line-height: 1.35;
+}
+
+.map-encounter-inline,
+.active-map-banner-encounter,
+.map-toast-encounter {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 211, 106, 0.12);
+  color: #ffd36a;
+  font-size: 0.64rem;
+  font-weight: 700;
+}

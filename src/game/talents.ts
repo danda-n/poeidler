@@ -1,5 +1,3 @@
-// ── Talent Types ──
-
 export type TalentBranch = "cartography" | "economy" | "reflection";
 
 export type TalentDefinition = {
@@ -15,10 +13,7 @@ export type TalentDefinition = {
 
 export type TalentPurchasedState = Record<string, number>;
 
-// ── Talent Definitions ──
-
 export const talents: TalentDefinition[] = [
-  // Cartography
   {
     id: "surveyorsEye",
     name: "Surveyor's Eye",
@@ -56,8 +51,26 @@ export const talents: TalentDefinition[] = [
     maxRank: 3,
     prerequisite: "hiddenStashes",
   },
-
-  // Economy
+  {
+    id: "fieldReports",
+    name: "Field Reports",
+    description: "Maps with encounters grant 8% more rewards per rank",
+    branch: "cartography",
+    baseCost: 10,
+    costPerRank: 6,
+    maxRank: 3,
+    prerequisite: "pathMemory",
+  },
+  {
+    id: "hazardCharts",
+    name: "Hazard Charts",
+    description: "Maps with encounters finish 4% faster per rank",
+    branch: "cartography",
+    baseCost: 12,
+    costPerRank: 7,
+    maxRank: 3,
+    prerequisite: "fieldReports",
+  },
   {
     id: "firmHand",
     name: "Firm Hand",
@@ -95,8 +108,6 @@ export const talents: TalentDefinition[] = [
     costPerRank: 3,
     maxRank: 4,
   },
-
-  // Reflection
   {
     id: "crackedMirror",
     name: "Cracked Mirror",
@@ -115,6 +126,16 @@ export const talents: TalentDefinition[] = [
     costPerRank: 6,
     maxRank: 5,
     prerequisite: "crackedMirror",
+  },
+  {
+    id: "echoingArchives",
+    name: "Echoing Archives",
+    description: "Encounter maps contribute 25% more prestige value per rank",
+    branch: "reflection",
+    baseCost: 11,
+    costPerRank: 7,
+    maxRank: 3,
+    prerequisite: "lingeringWealth",
   },
 ];
 
@@ -188,8 +209,6 @@ export function purchaseTalent(
   };
 }
 
-// ── Talent Effect Getters ──
-
 export function getMapSpeedBonus(purchased: TalentPurchasedState): number {
   return (purchased.surveyorsEye ?? 0) * 0.05;
 }
@@ -203,6 +222,20 @@ export function getMapRewardBonus(purchased: TalentPurchasedState, streak: numbe
 
 export function getMapCostReduction(purchased: TalentPurchasedState): number {
   return (purchased.efficientRolling ?? 0) * 0.08;
+}
+
+export function getEncounterRewardBonus(purchased: TalentPurchasedState, hasEncounter: boolean): number {
+  if (!hasEncounter) return 0;
+  return (purchased.fieldReports ?? 0) * 0.08;
+}
+
+export function getEncounterSpeedBonus(purchased: TalentPurchasedState, hasEncounter: boolean): number {
+  if (!hasEncounter) return 0;
+  return (purchased.hazardCharts ?? 0) * 0.04;
+}
+
+export function getEncounterPrestigeBonus(purchased: TalentPurchasedState): number {
+  return (purchased.echoingArchives ?? 0) * 0.25;
 }
 
 export function getClickPowerBonus(purchased: TalentPurchasedState): number {
@@ -231,8 +264,8 @@ export function getBranchLabel(branch: TalentBranch): string {
 
 export function getBranchIcon(branch: TalentBranch): string {
   switch (branch) {
-    case "cartography": return "\uD83D\uDDFA\uFE0F";
-    case "economy": return "\uD83D\uDCB0";
-    case "reflection": return "\uD83D\uDD2E";
+    case "cartography": return "???";
+    case "economy": return "??";
+    case "reflection": return "??";
   }
 }

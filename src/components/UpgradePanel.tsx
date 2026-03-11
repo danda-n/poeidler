@@ -70,6 +70,12 @@ function describeEffect(upgrade: UpgradeDefinition, level: number, totalMirrorSh
       const activeSteps = upgrade.effect.maxSteps === undefined ? steps : Math.min(steps, upgrade.effect.maxSteps);
       return `+${(upgrade.effect.value * 100 * level).toFixed(2)}% shard chance per ${upgrade.effect.shardStep} shards (${activeSteps} active)`;
     }
+    case "percentEncounterReward":
+      return `+${Math.round(upgrade.effect.value * 100 * level)}% encounter reward value`;
+    case "flatEncounterShardChance":
+      return `+${(upgrade.effect.value * 100 * level).toFixed(2)}% shard chance on encounter maps`;
+    case "percentEncounterPrestigeShards":
+      return `+${Math.round(upgrade.effect.value * 100 * level)}% encounter prestige value`;
     case "unlockFeature":
       return level > 0 ? "Unlocked" : "Unlock new purchase flow";
   }
@@ -109,7 +115,7 @@ function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, 
       <div className="upgrade-page-header">
         <div>
           <h2 className="upgrade-page-title">Upgrades</h2>
-          <p className="upgrade-page-subtitle">Build short-term power, map routing, automation, and prestige-linked loops without crowding the play screen.</p>
+          <p className="upgrade-page-subtitle">Build short-term power, map routing, automation, encounter specialization, and prestige-linked loops without crowding the play screen.</p>
         </div>
         <div className="upgrade-page-stats">
           <div className="upgrade-stat-card">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
 import { canPrestige, calculatePrestigeShards, type PrestigeState } from "../game/prestige";
-import type { TalentPurchasedState } from "../game/talents";
+import { getEncounterPrestigeBonus, type TalentPurchasedState } from "../game/talents";
 
 type PrestigePanelProps = {
   currencies: CurrencyState;
@@ -16,11 +16,14 @@ function PrestigePanel({ currencies, unlockedCurrencies, prestige, talentsPurcha
 
   const eligible = canPrestige(currencies);
   const crackedMirrorRank = talentsPurchased.crackedMirror ?? 0;
+  const encounterBonusMultiplier = getEncounterPrestigeBonus(talentsPurchased);
   const projectedShards = calculatePrestigeShards(
     currencies,
     unlockedCurrencies,
     prestige.mapsCompleted,
+    prestige.encounterMapsCompleted,
     crackedMirrorRank,
+    encounterBonusMultiplier,
   );
 
   function handlePrestige() {
@@ -58,6 +61,10 @@ function PrestigePanel({ currencies, unlockedCurrencies, prestige, talentsPurcha
         <div className="prestige-stat-row">
           <span className="prestige-stat-label">Maps This Run</span>
           <span className="prestige-stat-value">{prestige.mapsCompleted}</span>
+        </div>
+        <div className="prestige-stat-row">
+          <span className="prestige-stat-label">Encounter Maps</span>
+          <span className="prestige-stat-value">{prestige.encounterMapsCompleted}</span>
         </div>
       </div>
 

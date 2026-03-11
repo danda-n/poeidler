@@ -1,5 +1,6 @@
 import { currencyMap, initialCurrencyMultipliers, type CurrencyId, type CurrencyMultipliers, type CurrencyState, type UnlockedCurrencyState } from "./currencies";
 import { generators, getGeneratorCost, type GeneratorId, type GeneratorOwnedState } from "./generators";
+import type { MapEncounterTag } from "./maps";
 import type { ResolvedDeviceEffects } from "./mapDevice";
 
 export const upgradeCategories = ["generators", "economy", "maps", "automation", "atlas", "relics"] as const;
@@ -45,7 +46,10 @@ export type UpgradeEffect =
   | { type: "percentMapStreakReward"; value: number }
   | { type: "percentPrestigeShards"; value: number }
   | { type: "percentMapRewardFromShards"; value: number; shardStep: number; maxSteps?: number }
-  | { type: "flatMapShardChanceFromShards"; value: number; shardStep: number; maxSteps?: number };
+  | { type: "flatMapShardChanceFromShards"; value: number; shardStep: number; maxSteps?: number }
+  | { type: "percentEncounterReward"; value: number }
+  | { type: "flatEncounterShardChance"; value: number }
+  | { type: "percentEncounterPrestigeShards"; value: number };
 
 export type UpgradeDefinition = {
   id: string;
@@ -78,15 +82,18 @@ export const upgrades: UpgradeDefinition[] = [
   { id: "mapCalibration", category: "maps", group: "Reward Engines", name: "Map Calibration", description: "Lift baseline map reward value.", baseCost: { alterationOrb: 25, jewellersOrb: 2 }, costMultiplier: 1.35, requirements: [{ type: "unlockedCurrency", currencyId: "alterationOrb" }], effect: { type: "percentMapReward", value: 0.12 } },
   { id: "focusedSurvey", category: "maps", group: "Reward Engines", name: "Focused Survey", description: "Make specialized maps a stronger choice when you want targeted currencies.", baseCost: { jewellersOrb: 10, fusingOrb: 4 }, costMultiplier: 1.36, prerequisite: "mapCalibration", requirements: [{ type: "mapsCompleted", amount: 1 }], effect: { type: "percentFocusedMapReward", value: 0.18 } },
   { id: "waystoneDrafting", category: "maps", group: "Reward Engines", name: "Waystone Drafting", description: "Higher-tier maps become a clearer step up instead of just a longer run.", baseCost: { fusingOrb: 14, chaosOrb: 3 }, costMultiplier: 1.38, prerequisite: "focusedSurvey", requirements: [{ type: "mapsCompleted", amount: 3 }], effect: { type: "percentMapRewardPerTier", value: 0.1 } },
+  { id: "encounterCartography", category: "maps", group: "Reward Engines", name: "Encounter Cartography", description: "Map encounters pay out more value once you start routing around them.", baseCost: { alchemyOrb: 8, chaosOrb: 3 }, costMultiplier: 1.42, prerequisite: "waystoneDrafting", requirements: [{ type: "mapsCompleted", amount: 5 }], effect: { type: "percentEncounterReward", value: 0.14 } },
   { id: "buyMax", category: "automation", group: "Queue Control", name: "Buy Max", description: "Buy the maximum affordable generators at once.", baseCost: { alterationOrb: 1 }, maxLevel: 1, requirements: [{ type: "unlockedCurrency", currencyId: "alterationOrb" }], effect: { type: "unlockFeature", feature: "buyMax" } },
   { id: "queuePriority", category: "automation", group: "Queue Control", name: "Queue Priority", description: "Queued maps gain extra reward value, making route planning matter.", baseCost: { jewellersOrb: 14, fusingOrb: 4 }, costMultiplier: 1.4, requirements: [{ type: "mapsCompleted", amount: 2 }], effect: { type: "percentQueuedMapReward", value: 0.2 } },
   { id: "relayStability", category: "automation", group: "Queue Control", name: "Relay Stability", description: "Queued maps gain shard consistency so chaining runs feels better.", baseCost: { chaosOrb: 4, regalOrb: 1 }, costMultiplier: 1.42, prerequisite: "queuePriority", requirements: [{ type: "mapsCompleted", amount: 4 }], effect: { type: "flatQueuedMapShardChance", value: 0.0035 } },
   { id: "atlasSurveying", category: "atlas", group: "Atlas Memory", name: "Atlas Surveying", description: "Increase baseline shard chance for all maps.", baseCost: { chaosOrb: 2, regalOrb: 1 }, costMultiplier: 1.4, requirements: [{ type: "mapsCompleted", amount: 3 }], effect: { type: "flatMapShardChance", value: 0.004 } },
   { id: "atlasTrails", category: "atlas", group: "Atlas Memory", name: "Atlas Trails", description: "Family streaks matter more, rewarding committed routing.", baseCost: { chaosOrb: 8, regalOrb: 3 }, costMultiplier: 1.44, prerequisite: "atlasSurveying", requirements: [{ type: "totalMirrorShards", amount: 5 }], effect: { type: "percentMapStreakReward", value: 0.05 } },
   { id: "routeCompass", category: "atlas", group: "Atlas Memory", name: "Route Compass", description: "Tier advantage grows as your atlas experience deepens.", baseCost: { regalOrb: 6, exaltedOrb: 1 }, costMultiplier: 1.48, prerequisite: "atlasTrails", requirements: [{ type: "totalMirrorShards", amount: 12 }], effect: { type: "percentMapRewardPerTier", value: 0.06 } },
+  { id: "hazardSurveying", category: "atlas", group: "Atlas Memory", name: "Hazard Surveying", description: "Encounter runs become more reliable shard sources once your atlas deepens.", baseCost: { regalOrb: 6, exaltedOrb: 1 }, costMultiplier: 1.5, prerequisite: "routeCompass", requirements: [{ type: "totalMirrorShards", amount: 18 }], effect: { type: "flatEncounterShardChance", value: 0.003 } },
   { id: "relicLattice", category: "relics", group: "Relic Echoes", name: "Relic Lattice", description: "Prestige yields more shards, strengthening long-term resets.", baseCost: { chaosOrb: 12, regalOrb: 4 }, costMultiplier: 1.5, requirements: [{ type: "prestigeCount", amount: 1 }], effect: { type: "percentPrestigeShards", value: 0.12 } },
   { id: "shardResonance", category: "relics", group: "Relic Echoes", name: "Shard Resonance", description: "Total shards feed back into map rewards, tying resets to active runs.", baseCost: { regalOrb: 8, exaltedOrb: 2 }, costMultiplier: 1.55, prerequisite: "relicLattice", requirements: [{ type: "totalMirrorShards", amount: 12 }], effect: { type: "percentMapRewardFromShards", value: 0.03, shardStep: 25, maxSteps: 8 } },
   { id: "heirloomSpark", category: "relics", group: "Relic Echoes", name: "Heirloom Spark", description: "Shard stockpiles also steady future shard drops inside maps.", baseCost: { exaltedOrb: 4, divineOrb: 1 }, costMultiplier: 1.6, prerequisite: "shardResonance", requirements: [{ type: "totalMirrorShards", amount: 30 }], effect: { type: "flatMapShardChanceFromShards", value: 0.0015, shardStep: 25, maxSteps: 8 } },
+  { id: "echoArchive", category: "relics", group: "Relic Echoes", name: "Echo Archive", description: "Encounter-heavy runs cash out for better prestige rewards.", baseCost: { exaltedOrb: 3, divineOrb: 1 }, costMultiplier: 1.65, prerequisite: "heirloomSpark", requirements: [{ type: "prestigeCount", amount: 2 }], effect: { type: "percentEncounterPrestigeShards", value: 0.2 } },
 ];
 
 export type UpgradeId = (typeof upgrades)[number]["id"];
@@ -110,6 +117,8 @@ export type MapUpgradeContext = {
   tier: number;
   streak: number;
   totalMirrorShards: number;
+  encounterTags: MapEncounterTag[];
+  hasEncounter: boolean;
 };
 
 export const upgradeMap: Record<UpgradeId, UpgradeDefinition> = upgrades.reduce((acc, upgrade) => {
@@ -300,6 +309,8 @@ export function getBaseMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgrade
         const steps = getShardThresholdSteps(context.totalMirrorShards, upgrade.effect.shardStep, upgrade.effect.maxSteps);
         return bonus + steps * level * upgrade.effect.value;
       }
+      case "percentEncounterReward":
+        return context.hasEncounter ? bonus + level * upgrade.effect.value : bonus;
       default:
         return bonus;
     }
@@ -320,7 +331,11 @@ export function getQueuedMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgra
   }, 0);
 }
 
-export function getMapShardChanceUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState, totalMirrorShards: number) {
+export function getMapShardChanceUpgradeBonus(
+  purchasedUpgrades: PurchasedUpgradeState,
+  totalMirrorShards: number,
+  hasEncounter = false,
+) {
   return upgrades.reduce((bonus, upgrade) => {
     const level = purchasedUpgrades[upgrade.id as UpgradeId];
     if (level <= 0) return bonus;
@@ -332,6 +347,8 @@ export function getMapShardChanceUpgradeBonus(purchasedUpgrades: PurchasedUpgrad
         const steps = getShardThresholdSteps(totalMirrorShards, upgrade.effect.shardStep, upgrade.effect.maxSteps);
         return bonus + steps * level * upgrade.effect.value;
       }
+      case "flatEncounterShardChance":
+        return hasEncounter ? bonus + level * upgrade.effect.value : bonus;
       default:
         return bonus;
     }
@@ -348,6 +365,13 @@ export function getQueuedMapShardChanceUpgradeBonus(purchasedUpgrades: Purchased
 export function getPrestigeShardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "percentPrestigeShards") return bonus;
+    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+  }, 0);
+}
+
+export function getEncounterPrestigeUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+  return upgrades.reduce((bonus, upgrade) => {
+    if (upgrade.effect.type !== "percentEncounterPrestigeShards") return bonus;
     return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
   }, 0);
 }
@@ -436,9 +460,9 @@ export function getUpgradeCategoryDescription(category: UpgradeCategory) {
   switch (category) {
     case "generators": return "Immediate output boosts across currency lines.";
     case "economy": return "Click and conversion tools for short-term pushes.";
-    case "maps": return "Active run value and map specialization.";
+    case "maps": return "Active run value, encounter routing, and targeted map scaling.";
     case "automation": return "Batching and queue-based leverage.";
-    case "atlas": return "Routing and map progression layers that build over time.";
-    case "relics": return "Prestige-fed bonuses that echo back into live runs.";
+    case "atlas": return "Routing, streaks, and encounter reliability that build over time.";
+    case "relics": return "Prestige-fed bonuses that echo back into live runs and encounter planning.";
   }
 }
