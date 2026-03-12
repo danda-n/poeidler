@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { convertCurrency } from "@/game/conversionEngine";
 import { fragmentCurrencyId, getTotalCurrencyValue, type CurrencyId } from "@/game/currencies";
 import { createInitialGameState, getRunStartMapBonuses, startGameEngine, synchronizeGameState, type GameState } from "@/game/gameEngine";
@@ -41,6 +41,14 @@ export function useGameEngine() {
   const gameStateRef = useRef(gameState);
   const lastPublishedAtRef = useRef(Date.now());
 
+  const publishDeferredGameState = useCallback((nextState: GameState) => {
+    gameStateRef.current = nextState;
+    lastPublishedAtRef.current = Date.now();
+    startTransition(() => {
+      setGameState(nextState);
+    });
+  }, []);
+
   const publishGameState = useCallback((nextState: GameState) => {
     gameStateRef.current = nextState;
     setGameState(nextState);
@@ -75,11 +83,10 @@ export function useGameEngine() {
         gameStateRef.current = nextState;
         const now = Date.now();
         if (now - lastPublishedAtRef.current >= DISPLAY_SYNC_INTERVAL_MS) {
-          setGameState(nextState);
-          lastPublishedAtRef.current = now;
+          publishDeferredGameState(nextState);
         }
       }),
-    [],
+    [publishDeferredGameState],
   );
 
   useEffect(() => {
@@ -369,3 +376,4 @@ export function useGameEngine() {
     actions,
   };
 }
+

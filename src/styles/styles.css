@@ -3715,6 +3715,8 @@ body {
 
 .shell-main {
   overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
   scrollbar-gutter: stable;
   padding: 16px 20px 20px;
 }
@@ -3899,6 +3901,9 @@ body {
 
 .upgrade-tree-board {
   overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable both-edges;
 }
 
 .upgrade-tree-grid {
@@ -3912,4 +3917,29 @@ body {
 .upgrade-focus-card {
   content-visibility: auto;
   contain-intrinsic-size: 640px;
+}
+.currency-list,
+.map-base-list,
+.device-workbench,
+.device-mod-card-grid {
+  contain: layout paint;
+}
+
+.screen-stack > .shell-card,
+.progress-screen > .shell-card,
+.progress-panel-card,
+.device-stage-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 520px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-enter {
+    animation: none;
+  }
+
+  .shell-main,
+  .upgrade-tree-board {
+    scroll-behavior: auto;
+  }
 }

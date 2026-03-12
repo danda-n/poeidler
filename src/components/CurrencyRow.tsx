@@ -1,22 +1,26 @@
-import { formatCurrencyValue } from "../game/currencies";
-import { InfoIcon } from "./InfoIcon";
+import { memo } from "react";
+import { formatCurrencyValue } from "@/game/currencies";
+import type { GeneratorId } from "@/game/generators";
+import { InfoIcon } from "@/components/InfoIcon";
 
 type CurrencyRowProps = {
   icon: string;
   name: string;
   value: number;
   productionRate: number;
+  generatorId?: GeneratorId;
   generatorLabel?: string;
   generatorDisabled?: boolean;
   generatorTooltip?: string;
-  onBuyGenerator?: () => void;
+  onBuyGenerator?: (generatorId: GeneratorId) => void;
 };
 
-export function CurrencyRow({
+export const CurrencyRow = memo(function CurrencyRow({
   icon,
   name,
   value,
   productionRate,
+  generatorId,
   generatorLabel,
   generatorDisabled = false,
   generatorTooltip,
@@ -34,8 +38,8 @@ export function CurrencyRow({
       <div className="currency-row-side">
         <span className="currency-row-value">{formatCurrencyValue(value)}</span>
         <div className="currency-row-actions">
-          {generatorLabel && (
-            <button className="btn btn-sm" type="button" onClick={onBuyGenerator} disabled={generatorDisabled}>
+          {generatorLabel && generatorId && onBuyGenerator && (
+            <button className="btn btn-sm" type="button" onClick={() => onBuyGenerator(generatorId)} disabled={generatorDisabled}>
               {generatorLabel}
             </button>
           )}
@@ -44,4 +48,4 @@ export function CurrencyRow({
       </div>
     </div>
   );
-}
+});

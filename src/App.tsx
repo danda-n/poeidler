@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppViewModel, pageCopy } from "@/components/app/useAppViewModel";
 import { ActiveMapBanner } from "@/components/ActiveMapBanner";
 import { AppShell } from "@/components/AppShell";
@@ -16,6 +16,8 @@ export function App() {
   const { gameState, actions } = useGameEngine();
   const [activePage, setActivePage] = useState<PageId>("home");
   const appView = useAppViewModel(gameState);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+  const hasScrolledBetweenPagesRef = useRef(false);
 
   useEffect(() => {
     if (activePage !== "home" && !appView.unlockedPages[activePage]) {
@@ -23,9 +25,17 @@ export function App() {
     }
   }, [activePage, appView.unlockedPages]);
 
-  const activePageCopy = pageCopy[activePage];
+  useEffect(() => {
+    if (!hasScrolledBetweenPagesRef.current) {
+      hasScrolledBetweenPagesRef.current = true;
+      return;
+    }
 
-  function renderActivePage() {
+    mainScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activePage]);
+
+  const activePageCopy = pageCopy[activePage];
+  const activePageContent = useMemo(() => {
     if (activePage === "upgrades" && appView.hasAnyGenerator) {
       return (
         <div className="section-enter">
@@ -89,11 +99,12 @@ export function App() {
         onNavigate={setActivePage}
       />
     );
-  }
+  }, [activePage, actions, appView.hasAnyGenerator, appView.hasPrestige, appView.hasTalents, appView.hasTier4, appView.mapStatusLabel, appView.topStripState.totalProductionValue, gameState]);
 
   return (
     <>
       <AppShell
+        ref={mainScrollRef}
         brandTitle="PoE Idle"
         statusText={gameState.lastSaveTime ? `Saved ${new Date(gameState.lastSaveTime).toLocaleTimeString()}` : "Autosave active"}
         pageTitle={activePageCopy.title}
@@ -119,7 +130,7 @@ export function App() {
           prestige={gameState.prestige}
           mapsUnlocked={appView.hasTier4}
         />
-        {renderActivePage()}
+        {activePageContent}
       </AppShell>
 
       <MapToast notification={gameState.mapNotification} />

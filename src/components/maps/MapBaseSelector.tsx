@@ -1,5 +1,6 @@
-import { baseMaps, isMapUnlocked } from "../../game/maps";
-import { currencyMap, formatCurrencyValue, type CurrencyState } from "../../game/currencies";
+import { memo } from "react";
+import { currencyMap, formatCurrencyValue, type CurrencyState } from "@/game/currencies";
+import { baseMaps, isMapUnlocked } from "@/game/maps";
 
 type MapBaseSelectorProps = {
   currencies: CurrencyState;
@@ -7,7 +8,7 @@ type MapBaseSelectorProps = {
   onSelectBase: (baseMapId: string) => void;
 };
 
-export function MapBaseSelector({ currencies, selectedBaseMapId, onSelectBase }: MapBaseSelectorProps) {
+export const MapBaseSelector = memo(function MapBaseSelector({ currencies, selectedBaseMapId, onSelectBase }: MapBaseSelectorProps) {
   return (
     <div className="map-base-list">
       {baseMaps.map((mapDef) => {
@@ -38,4 +39,4 @@ export function MapBaseSelector({ currencies, selectedBaseMapId, onSelectBase }:
       })}
     </div>
   );
-}
+});
