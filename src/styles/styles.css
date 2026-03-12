@@ -3353,3 +3353,338 @@ body {
     min-width: 760px;
   }
 }
+
+/* Map device refresh */
+.map-selector-shell {
+  gap: 14px;
+}
+
+.device-workbench {
+  display: grid;
+  gap: 16px;
+}
+
+.device-stage-card {
+  gap: 16px;
+}
+
+.device-stage-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.device-stage-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f7f3e8;
+}
+
+.device-stage-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.device-stage-badge {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #b8c5d8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.device-stage-badge-active {
+  background: rgba(139, 233, 253, 0.12);
+  border-color: rgba(139, 233, 253, 0.24);
+  color: #a8ecff;
+}
+
+.device-target-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.65fr) minmax(0, 1.35fr);
+  gap: 14px;
+}
+
+.device-target-card,
+.device-summary-panel,
+.device-slot-card,
+.device-affix-card,
+.device-mod-card,
+.device-mod-category-summary,
+.device-crafting-panel {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.device-target-copy,
+.device-slot-card-copy,
+.device-mod-card-copy,
+.device-mod-card-playstyle,
+.device-summary-footnote,
+.device-target-subcopy,
+.device-craft-description {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #95a3b9;
+}
+
+.device-target-subcopy {
+  color: #b8c5d8;
+}
+
+.device-encounter-panel {
+  gap: 10px;
+}
+
+.device-crafting-panel {
+  gap: 12px;
+}
+
+.device-crafting-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.device-affix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.device-affix-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #edf0f6;
+}
+
+.device-affix-desc {
+  font-size: 0.7rem;
+  color: #8fa0b9;
+}
+
+.device-craft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.device-craft-button {
+  min-height: 98px;
+  align-items: flex-start;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.device-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.device-slot-card-filled {
+  background: linear-gradient(180deg, rgba(244, 213, 140, 0.08), rgba(255, 255, 255, 0.03));
+  border-color: rgba(244, 213, 140, 0.18);
+}
+
+.device-slot-card-topline,
+.device-mod-card-header,
+.device-summary-metric {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.device-slot-card-label,
+.device-summary-panel-title,
+.device-mod-category-summary-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #edf0f6;
+}
+
+.device-slot-card-tier,
+.device-mod-card-tier,
+.device-mod-card-category,
+.device-summary-panel-subtitle {
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.device-slot-card-title,
+.device-mod-card-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #f7f3e8;
+}
+
+.device-mod-library {
+  display: grid;
+  gap: 12px;
+}
+
+.device-mod-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.device-mod-category-tab {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+  color: #b8c5d8;
+}
+
+.device-mod-category-tab-active {
+  border-color: rgba(244, 213, 140, 0.24);
+  background: rgba(244, 213, 140, 0.08);
+  color: #f4d58c;
+}
+
+.device-mod-category-name {
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.device-mod-category-copy,
+.device-mod-category-summary-copy {
+  font-size: 0.68rem;
+  color: #8fa0b9;
+}
+
+.device-mod-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+.device-mod-card-selected {
+  border-color: rgba(88, 217, 139, 0.24);
+  background: linear-gradient(180deg, rgba(88, 217, 139, 0.1), rgba(255, 255, 255, 0.03));
+}
+
+.device-mod-card-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.device-mod-delta-list,
+.device-summary-token-list,
+.device-summary-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.device-mod-delta,
+.device-summary-token {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #b6c4d7;
+}
+
+.device-mod-delta-positive,
+.device-summary-metric-value-good {
+  color: #9ef0bf;
+}
+
+.device-mod-delta-negative,
+.device-summary-token-alert,
+.device-summary-metric-value-bad {
+  color: #ff9a9a;
+}
+
+.device-mod-card-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.device-summary-card {
+  gap: 14px;
+}
+
+.device-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.device-summary-column {
+  display: grid;
+  gap: 12px;
+}
+
+.device-summary-metric-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.device-summary-metric-label {
+  font-size: 0.68rem;
+  color: #8fa0b9;
+}
+
+.device-summary-metric-value {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.device-summary-metric-value-neutral {
+  color: #edf0f6;
+}
+
+.device-commit-button {
+  margin-top: 4px;
+}
+
+@media (max-width: 1100px) {
+  .device-target-grid,
+  .device-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .device-stage-header,
+  .device-mod-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .device-slots-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .device-craft-grid,
+  .device-mod-card-grid,
+  .device-affix-grid {
+    grid-template-columns: 1fr;
+  }
+}

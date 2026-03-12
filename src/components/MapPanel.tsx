@@ -13,7 +13,6 @@ import {
   getMapRewardPreview,
   getResolvedMapCost,
   getResolvedMapDuration,
-  hasMapEncounter,
   type ActiveMapState,
   type CraftedMap,
   type CraftingAction,
@@ -171,8 +170,8 @@ export function MapPanel({
     <div className="map-panel">
       <div className="map-panel-header">
         <div>
-          <h2 className="map-panel-title">Maps</h2>
-          <p className="map-panel-copy">Prepare a route, tune the map, and let rewards keep pace with the economy instead of falling behind it.</p>
+          <h2 className="map-panel-title">Map Device</h2>
+          <p className="map-panel-copy">Pick the route, shape the map, socket a few meaningful device mods, then commit with a clear preview of rewards and tradeoffs.</p>
         </div>
         <span className="map-panel-stats">
           Completed: {prestige.mapsCompleted} | Encounter runs: {prestige.encounterMapsCompleted} | Shards: {formatCurrencyValue(prestige.mirrorShards)}
@@ -190,7 +189,15 @@ export function MapPanel({
 
       {showPrepArea && (
         <>
-          <MapBaseSelector currencies={currencies} selectedBaseMapId={selectedBaseMapId} onSelectBase={handleSelectBase} />
+          <section className="shell-card map-selector-shell">
+            <div className="shell-card-header">
+              <div>
+                <p className="shell-card-eyebrow">Step 0</p>
+                <h3 className="shell-card-title">Select the base map</h3>
+              </div>
+            </div>
+            <MapBaseSelector currencies={currencies} selectedBaseMapId={selectedBaseMapId} onSelectBase={handleSelectBase} />
+          </section>
 
           {mapDef && craftedMap && (
             <MapPreparationPanel
@@ -220,8 +227,8 @@ export function MapPanel({
             />
           )}
 
-          {!selectedBaseMapId && !activeMap && <p className="map-select-hint">Select a map above to choose an encounter, craft it, and start the run.</p>}
-          {!selectedBaseMapId && activeMap && !queuedMap && <p className="map-select-hint">Select a map above to queue it for after the current run.</p>}
+          {!selectedBaseMapId && !activeMap && <p className="map-select-hint">Select a base map to start the setup flow, then choose an encounter, craft the route, socket device mods, and launch the run.</p>}
+          {!selectedBaseMapId && activeMap && !queuedMap && <p className="map-select-hint">Select a base map to prepare the next route while the current one is still running.</p>}
         </>
       )}
     </div>

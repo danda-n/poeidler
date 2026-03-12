@@ -1,5 +1,5 @@
+import { useMemo, useState } from "react";
 import {
-  MAP_BALANCE,
   canAffordCraft,
   craftingActionDescriptions,
   craftingActionLabels,
@@ -20,15 +20,17 @@ import {
 } from "../../game/maps";
 import {
   LOADOUT_MAX_SLOTS,
-  addModToLoadout,
   canAddModToLoadout,
   deviceModMap,
   deviceModPool,
+  getDeviceModDeltas,
   getLoadoutTotalCost,
+  getModCategoryDescription,
+  getModCategoryLabel,
   getModTierColor,
   getModTierLabel,
-  removeModFromLoadout,
   type DeviceLoadout,
+  type DeviceModCategory,
 } from "../../game/mapDevice";
 import { currencyMap, formatCurrencyValue, type CurrencyState } from "../../game/currencies";
 import { formatMs, formatPercent, formatSignedPercent } from "./mapFormatting";
@@ -59,6 +61,32 @@ type MapPreparationPanelProps = {
   onCommit: () => void;
 };
 
+const modCategories: DeviceModCategory[] = ["reward", "duration", "utility", "synergy"];
+
+function formatCostEntries(cost: Partial<Record<string, number>>, currencies: CurrencyState) {
+  return Object.entries(cost).map(([currencyId, amount]) => {
+    const definition = currencyMap[currencyId as keyof typeof currencyMap];
+    const hasEnough = Math.floor(currencies[currencyId as keyof CurrencyState]) >= (amount ?? 0);
+    return {
+      key: currencyId,
+      label: `${formatCurrencyValue(amount ?? 0)} ${definition?.shortLabel ?? currencyId}`,
+      affordable: hasEnough,
+    };
+  });
+}
+
+function getCommitLabel(hasActiveMap: boolean, hasQueuedMap: boolean, canCommit: boolean, loadoutAffordable: boolean) {
+  if (hasActiveMap) {
+    return hasQueuedMap ? "Queued map already set" : "Queue for next run";
+  }
+
+  if (!loadoutAffordable || !canCommit) {
+    return "Need more resources";
+  }
+
+  return "Start map run";
+}
+
 export function MapPreparationPanel({
   currencies,
   mapDef,
@@ -84,224 +112,320 @@ export function MapPreparationPanel({
   onRemoveMod,
   onCommit,
 }: MapPreparationPanelProps) {
+  const [activeCategory, setActiveCategory] = useState<DeviceModCategory>("reward");
   const encounter = getMapEncounter(craftedMap.encounterId);
+  const appliedMods = loadout.modIds.map((modId) => deviceModMap[modId]).filter(Boolean);
+  const openSlots = LOADOUT_MAX_SLOTS - loadout.modIds.length;
+  const mapCostRows = resolvedCost ? formatCostEntries(resolvedCost, currencies) : [];
+  const loadoutCostRows = formatCostEntries(loadoutCost, currencies);
+  const availableMods = useMemo(
+    () => deviceModPool.filter((definition) => definition.category === activeCategory),
+    [activeCategory],
+  );
+
+  const summaryRows = [
+    { label: "Base rewards", value: formatSignedPercent(rewardMult - 1), tone: rewardMult >= 1 ? "good" : "bad" },
+    { label: "Focused rewards", value: Object.keys(mapDef.focusedRewardWeights).length > 0 ? formatSignedPercent(focusedRewardMult - 1) : "No focused pool", tone: focusedRewardMult >= 1 ? "good" : "neutral" },
+    { label: "Shard chance", value: formatPercent(shardChance), tone: shardChance >= 0.02 ? "good" : "neutral" },
+    { label: "Run time", value: resolvedDuration ? formatMs(resolvedDuration) : "-", tone: "neutral" },
+  ] as const;
 
   return (
-    <div className="map-prep-layout">
-      <section className="map-prep-card">
-        <div className="map-craft-header">
-          <span className="map-craft-rarity" style={{ color: getRarityColor(craftedMap.rarity) }}>
-            {getRarityLabel(craftedMap.rarity)} {mapDef.name}
-          </span>
-          <span className="map-craft-tier">Tier {craftedMap.tier}</span>
+    <div className="device-workbench">
+      <section className="shell-card device-stage-card">
+        <div className="device-stage-header">
+          <div>
+            <p className="shell-card-eyebrow">Step 1</p>
+            <h3 className="device-stage-title">Choose target and shape the map</h3>
+          </div>
+          <div className="device-stage-badge-row">
+            <span className="device-stage-badge">{getRarityLabel(craftedMap.rarity)}</span>
+            <span className="device-stage-badge">Tier {craftedMap.tier}</span>
+            {encounter && <span className="device-stage-badge device-stage-badge-active">{encounter.name}</span>}
+          </div>
         </div>
 
-        <div className="map-encounter-section">
-          <div className="map-encounter-header">
-            <span className="map-encounter-title">Encounter</span>
-            <span className="map-encounter-copy">Choose the route goal before you spend on crafting.</span>
+        <div className="device-target-grid">
+          <div className="device-target-card">
+            <div className="map-craft-header">
+              <span className="map-craft-rarity" style={{ color: getRarityColor(craftedMap.rarity) }}>
+                {getRarityLabel(craftedMap.rarity)} {mapDef.name}
+              </span>
+              <span className="map-craft-tier">{mapDef.family} route</span>
+            </div>
+            <p className="device-target-copy">{mapDef.description}</p>
+            <div className="device-target-subcopy">Build around the encounter first, then use crafting to sharpen that run target.</div>
           </div>
-          <div className="map-encounter-list">
-            <button
-              type="button"
-              className={`map-encounter-card${craftedMap.encounterId === null ? " map-encounter-card-selected" : ""}`}
-              onClick={() => onSelectEncounter(null)}
-            >
-              <span className="map-encounter-name">No encounter</span>
-              <span className="map-encounter-desc">Stable baseline rewards with no extra cost or route pressure.</span>
-            </button>
-            {mapEncounters.map((entry) => {
-              const unlocked = isMapEncounterUnlocked(entry, encounterProgression);
-              const selected = craftedMap.encounterId === entry.id;
+
+          <div className="map-encounter-section device-encounter-panel">
+            <div className="map-encounter-header">
+              <span className="map-encounter-title">Run target</span>
+              <span className="map-encounter-copy">Pick the encounter goal that matches the kind of return you want.</span>
+            </div>
+            <div className="map-encounter-list">
+              <button
+                type="button"
+                className={`map-encounter-card${craftedMap.encounterId === null ? " map-encounter-card-selected" : ""}`}
+                onClick={() => onSelectEncounter(null)}
+              >
+                <div className="map-encounter-name-row">
+                  <span className="map-encounter-name">No encounter</span>
+                  <span className="map-encounter-meta">Stable baseline</span>
+                </div>
+                <span className="map-encounter-desc">Simple payout profile with no extra cost or route pressure.</span>
+              </button>
+              {mapEncounters.map((entry) => {
+                const unlocked = isMapEncounterUnlocked(entry, encounterProgression);
+                const selected = craftedMap.encounterId === entry.id;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className={`map-encounter-card${selected ? " map-encounter-card-selected" : ""}${!unlocked ? " map-encounter-card-locked" : ""}`}
+                    disabled={!unlocked}
+                    onClick={() => onSelectEncounter(entry.id)}
+                  >
+                    <div className="map-encounter-name-row">
+                      <span className="map-encounter-name">{entry.name}</span>
+                      <span className="map-encounter-meta">{formatSignedPercent(entry.rewardMultiplier)} reward, {formatSignedPercent(entry.durationMultiplier)} time</span>
+                    </div>
+                    <span className="map-encounter-desc">{unlocked ? entry.description : getMapEncounterUnlockText(entry)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="device-crafting-panel">
+          <div className="device-crafting-header">
+            <div>
+              <span className="map-encounter-title">Map crafting</span>
+              <span className="map-encounter-copy">Use a small number of crafting actions to set the tone of the run before touching device mods.</span>
+            </div>
+          </div>
+
+          {craftedMap.affixIds.length > 0 ? (
+            <div className="device-affix-grid">
+              {craftedMap.affixIds.map((affixId) => (
+                <div key={affixId} className="device-affix-card">
+                  <span className="device-affix-name">{getAffixDisplayName(affixId)}</span>
+                  <span className="device-affix-desc">{getAffixDescription(affixId)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="map-affix-empty">No affixes yet. Crafting sets the map's baseline identity before device mods push it toward speed, payout, or shard pressure.</p>
+          )}
+
+          <div className="map-craft-actions device-craft-grid">
+            {(["transmute", "augment", "alter", "regal", "chaos", "alchemy", "exalt"] as CraftingAction[]).map((action) => {
+              const isAvailable = availableActions.includes(action);
+              const affordable = canAffordCraft(currencies, action);
+              const canUse = isAvailable && affordable;
+
               return (
                 <button
-                  key={entry.id}
+                  key={action}
                   type="button"
-                  className={`map-encounter-card${selected ? " map-encounter-card-selected" : ""}${!unlocked ? " map-encounter-card-locked" : ""}`}
-                  disabled={!unlocked}
-                  onClick={() => onSelectEncounter(entry.id)}
+                  className={`btn btn-craft device-craft-button${canUse ? "" : " btn-craft-disabled"}`}
+                  disabled={!canUse}
+                  onClick={() => onCraft(action)}
+                  title={craftingActionDescriptions[action]}
                 >
-                  <div className="map-encounter-name-row">
-                    <span className="map-encounter-name">{entry.name}</span>
-                    <span className="map-encounter-meta">
-                      {formatSignedPercent(entry.rewardMultiplier)} reward, {formatSignedPercent(entry.durationMultiplier)} time
-                    </span>
-                  </div>
-                  <span className="map-encounter-desc">{unlocked ? entry.description : getMapEncounterUnlockText(entry)}</span>
+                  <span className="btn-craft-label">{craftingActionLabels[action]}</span>
+                  <span className="device-craft-description">{craftingActionDescriptions[action]}</span>
+                  <span className="btn-craft-cost">
+                    {Object.entries(craftingCosts[action]).map(([currencyId, amount]) => (
+                      <span key={currencyId}>{amount} {currencyMap[currencyId as keyof typeof currencyMap]?.shortLabel ?? currencyId}</span>
+                    ))}
+                  </span>
                 </button>
               );
             })}
           </div>
         </div>
+      </section>
 
-        {craftedMap.affixIds.length > 0 ? (
-          <div className="map-affix-list">
-            {craftedMap.affixIds.map((affixId) => (
-              <div key={affixId} className="map-affix-row">
-                <span className="map-affix-name">{getAffixDisplayName(affixId)}</span>
-                <span className="map-affix-desc">{getAffixDescription(affixId)}</span>
-              </div>
-            ))}
+      <section className="shell-card device-stage-card">
+        <div className="device-stage-header">
+          <div>
+            <p className="shell-card-eyebrow">Step 2</p>
+            <h3 className="device-stage-title">Socket device mods</h3>
           </div>
-        ) : (
-          <p className="map-affix-empty">No affixes yet. Stronger rolls now matter more because reward floors scale with total wealth.</p>
-        )}
+          <div className="device-stage-badge-row">
+            <span className="device-stage-badge">{loadout.modIds.length}/{LOADOUT_MAX_SLOTS} slots used</span>
+            {openSlots > 0 && <span className="device-stage-badge">{openSlots} open</span>}
+          </div>
+        </div>
 
-        <div className="map-craft-actions">
-          {(["transmute", "augment", "alter", "regal", "chaos", "alchemy", "exalt"] as CraftingAction[]).map((action) => {
-            const isAvailable = availableActions.includes(action);
-            const cost = craftingCosts[action];
-            const affordable = canAffordCraft(currencies, action);
-            const canUse = isAvailable && affordable;
-
+        <div className="device-slots-grid">
+          {Array.from({ length: LOADOUT_MAX_SLOTS }, (_, index) => {
+            const definition = appliedMods[index];
             return (
-              <button
-                key={action}
-                type="button"
-                className={`btn btn-craft${canUse ? "" : " btn-craft-disabled"}`}
-                disabled={!canUse}
-                onClick={() => onCraft(action)}
-                title={craftingActionDescriptions[action]}
-              >
-                <span className="btn-craft-label">{craftingActionLabels[action]}</span>
-                <span className="btn-craft-cost">
-                  {Object.entries(cost).map(([currencyId, amount]) => (
-                    <span key={currencyId}>{amount} {currencyMap[currencyId as keyof typeof currencyMap]?.shortLabel ?? currencyId}</span>
-                  ))}
-                </span>
-              </button>
+              <div key={index} className={`device-slot-card${definition ? " device-slot-card-filled" : ""}`}>
+                <div className="device-slot-card-topline">
+                  <span className="device-slot-card-label">Slot {index + 1}</span>
+                  {definition && <span className="device-slot-card-tier" style={{ color: getModTierColor(definition.tier) }}>{getModTierLabel(definition.tier)}</span>}
+                </div>
+                {definition ? (
+                  <>
+                    <div className="device-slot-card-title">{definition.name}</div>
+                    <div className="device-slot-card-copy">{definition.summary}</div>
+                    <button type="button" className="btn btn-sm" onClick={() => onRemoveMod(definition.id)}>Remove</button>
+                  </>
+                ) : (
+                  <>
+                    <div className="device-slot-card-title">Empty slot</div>
+                    <div className="device-slot-card-copy">Choose a mod category below, then socket one of its cards here.</div>
+                  </>
+                )}
+              </div>
             );
           })}
         </div>
-      </section>
 
-      <section className="map-prep-card">
-        <div className="device-loadout">
-          <div className="device-loadout-header">
-            <span className="device-loadout-title">Device Mods</span>
-            <span className="device-loadout-count">{loadout.modIds.length}/{LOADOUT_MAX_SLOTS} slots</span>
+        <div className="device-mod-library">
+          <div className="device-mod-category-tabs">
+            {modCategories.map((category) => {
+              const count = deviceModPool.filter((definition) => definition.category === category).length;
+              const active = activeCategory === category;
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  className={`device-mod-category-tab${active ? " device-mod-category-tab-active" : ""}`}
+                  onClick={() => setActiveCategory(category)}
+                >
+                  <span className="device-mod-category-name">{getModCategoryLabel(category)}</span>
+                  <span className="device-mod-category-copy">{count} mods</span>
+                </button>
+              );
+            })}
           </div>
 
-          {loadout.modIds.length > 0 && (
-            <div className="device-loadout-selected">
-              {loadout.modIds.map((modId) => {
-                const definition = deviceModMap[modId];
-                if (!definition) return null;
-                return (
-                  <div key={modId} className="device-loadout-chip">
-                    <span className="device-loadout-chip-name" style={{ color: getModTierColor(definition.tier) }}>{definition.name}</span>
-                    <span className="device-loadout-chip-desc">{definition.description}</span>
-                    <button type="button" className="device-loadout-chip-remove" onClick={() => onRemoveMod(modId)} title="Remove">x</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="device-mod-category-summary">
+            <span className="device-mod-category-summary-title">{getModCategoryLabel(activeCategory)}</span>
+            <span className="device-mod-category-summary-copy">{getModCategoryDescription(activeCategory)}</span>
+          </div>
 
-          {loadout.modIds.length < LOADOUT_MAX_SLOTS && (
-            <div className="device-loadout-pool">
-              {deviceModPool.map((definition) => {
-                const alreadyAdded = loadout.modIds.includes(definition.id);
-                const canAdd = canAddModToLoadout(loadout, definition.id);
-                return (
-                  <div key={definition.id} className={`device-pool-row${alreadyAdded ? " device-pool-row-added" : ""}`}>
-                    <div className="device-pool-row-info">
-                      <span className="device-pool-row-name" style={{ color: getModTierColor(definition.tier) }}>{definition.name}</span>
-                      <span className="device-pool-row-tier">{getModTierLabel(definition.tier)}</span>
-                      <span className="device-pool-row-desc">{definition.description}</span>
+          <div className="device-mod-card-grid">
+            {availableMods.map((definition) => {
+              const alreadyAdded = loadout.modIds.includes(definition.id);
+              const canAdd = canAddModToLoadout(loadout, definition.id);
+              const deltas = getDeviceModDeltas(definition);
+              return (
+                <div key={definition.id} className={`device-mod-card${alreadyAdded ? " device-mod-card-selected" : ""}`}>
+                  <div className="device-mod-card-header">
+                    <div>
+                      <div className="device-mod-card-title-row">
+                        <span className="device-mod-card-title">{definition.name}</span>
+                        <span className="device-mod-card-tier" style={{ color: getModTierColor(definition.tier) }}>{getModTierLabel(definition.tier)}</span>
+                      </div>
+                      <div className="device-mod-card-summary">{definition.summary}</div>
                     </div>
-                    {!alreadyAdded && (
-                      <button type="button" className="btn btn-sm device-pool-add-btn" disabled={!canAdd} onClick={() => onAddMod(definition.id)}>
-                        Add
-                      </button>
-                    )}
+                    <span className="device-mod-card-category">{getModCategoryLabel(definition.category)}</span>
                   </div>
-                );
-              })}
-            </div>
-          )}
+
+                  <p className="device-mod-card-copy">{definition.description}</p>
+
+                  <div className="device-mod-delta-list">
+                    {deltas.map((delta) => (
+                      <span key={`${definition.id}-${delta.type}`} className={`device-mod-delta${delta.value > 0 ? " device-mod-delta-positive" : " device-mod-delta-negative"}`}>
+                        {delta.label}: {delta.type === "bonusReward" || delta.type === "shardChance" ? formatSignedPercent(delta.value) : formatSignedPercent(delta.value)}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="device-mod-card-footer">
+                    <span className="device-mod-card-playstyle">{definition.playstyle}</span>
+                    <button type="button" className="btn btn-sm" disabled={!canAdd || alreadyAdded} onClick={() => onAddMod(definition.id)}>
+                      {alreadyAdded ? "Socketed" : canAdd ? "Socket" : "No slots"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      <section className="map-prep-card map-preview-card">
-        <div className="map-preview-header-row">
-          <span className="map-encounter-title">Run Preview</span>
-          {encounter && <span className="map-encounter-inline">{encounter.name}</span>}
+      <section className="shell-card device-stage-card device-summary-card">
+        <div className="device-stage-header">
+          <div>
+            <p className="shell-card-eyebrow">Step 3</p>
+            <h3 className="device-stage-title">Review outcome and commit</h3>
+          </div>
+          {runBonuses.encounterChain > 0 && <span className="device-stage-badge device-stage-badge-active">Chain {runBonuses.encounterChain}</span>}
         </div>
+
         {runBonuses.encounterChain > 0 && (
           <div className="map-preview-callout">
             Expedition chain {runBonuses.encounterChain}: +{Math.round(runBonuses.encounterChain * 6)}% reward, +{(runBonuses.encounterChain * 0.15).toFixed(2)}% shard chance
           </div>
         )}
-        <div className="map-craft-preview">
-          <div className="map-preview-row">
-            <span className="map-preview-label">Map cost</span>
-            <span className="map-preview-value">
-              {resolvedCost
-                ? Object.entries(resolvedCost).map(([currencyId, amount]) => {
-                    const definition = currencyMap[currencyId as keyof typeof currencyMap];
-                    const hasEnough = Math.floor(currencies[currencyId as keyof CurrencyState]) >= (amount ?? 0);
-                    return <span key={currencyId} style={{ color: hasEnough ? undefined : "#e05050" }}>{formatCurrencyValue(amount ?? 0)} {definition?.shortLabel ?? currencyId}</span>;
-                  })
-                : "-"}
-            </span>
-          </div>
-          {loadout.modIds.length > 0 && (
-            <div className="map-preview-row">
-              <span className="map-preview-label">Mod cost</span>
-              <span className="map-preview-value">
-                {Object.entries(loadoutCost).map(([currencyId, amount]) => {
-                  const definition = currencyMap[currencyId as keyof typeof currencyMap];
-                  const hasEnough = Math.floor(currencies[currencyId as keyof CurrencyState]) >= (amount ?? 0);
-                  return <span key={currencyId} style={{ color: hasEnough ? undefined : "#e05050" }}>{formatCurrencyValue(amount ?? 0)} {definition?.shortLabel ?? currencyId}</span>;
-                })}
-              </span>
+
+        <div className="device-summary-grid">
+          <div className="device-summary-column">
+            <div className="device-summary-panel">
+              <span className="device-summary-panel-title">Costs</span>
+              <div className="device-summary-token-list">
+                {mapCostRows.length > 0 ? mapCostRows.map((entry) => (
+                  <span key={entry.key} className={`device-summary-token${entry.affordable ? "" : " device-summary-token-alert"}`}>{entry.label}</span>
+                )) : <span className="device-summary-token">-</span>}
+              </div>
+              {loadoutCostRows.length > 0 && (
+                <>
+                  <span className="device-summary-panel-subtitle">Device cost</span>
+                  <div className="device-summary-token-list">
+                    {loadoutCostRows.map((entry) => (
+                      <span key={entry.key} className={`device-summary-token${entry.affordable ? "" : " device-summary-token-alert"}`}>{entry.label}</span>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-          )}
-          <div className="map-preview-row">
-            <span className="map-preview-label">Duration</span>
-            <span className="map-preview-value">{resolvedDuration ? formatMs(resolvedDuration) : "-"}</span>
-          </div>
-          <div className="map-preview-row">
-            <span className="map-preview-label">Reward mods</span>
-            <span className="map-preview-value">
-              {formatSignedPercent(rewardMult - 1)} base
-              {Object.keys(mapDef.focusedRewardWeights).length > 0 && <>, {formatSignedPercent(focusedRewardMult - 1)} focused</>}
-              {runBonuses.rewardBonus > 0 && <>, +{Math.round(runBonuses.rewardBonus * 100)}% planning</>}
-            </span>
-          </div>
-          <div className="map-preview-row">
-            <span className="map-preview-label">Wealth floor</span>
-            <span className="map-preview-value">~{formatCurrencyValue(rewardPreview?.economyFloorValue ?? 0)} value</span>
-          </div>
-          <div className="map-preview-row">
-            <span className="map-preview-label">Shard chance</span>
-            <span className="map-preview-value" style={{ color: shardChance > 0.02 ? "#c0a0ff" : undefined }}>{formatPercent(shardChance)}</span>
-          </div>
-          <div className="map-preview-row">
-            <span className="map-preview-label">Projected</span>
-            <span className="map-preview-value map-preview-rewards">
-              {rewardPreview
-                ? Object.entries(rewardPreview.rewards).map(([currencyId, amount]) => {
-                    const definition = currencyMap[currencyId as keyof typeof currencyMap];
-                    return <span key={currencyId}>{formatCurrencyValue(amount ?? 0)} {definition?.shortLabel ?? currencyId}</span>;
-                  })
-                : "-"}
-            </span>
-          </div>
-          <div className="map-preview-row">
-            <span className="map-preview-label">Value</span>
-            <span className="map-preview-value">{rewardPreview ? `~${formatCurrencyValue(rewardPreview.totalRewardValue)} total value` : "-"}</span>
-          </div>
-          {rewardPreview && rewardPreview.encounterNotes.length > 0 && (
-            <div className="map-preview-notes">
-              {rewardPreview.encounterNotes.map((note) => <span key={note}>{note}</span>)}
+
+            <div className="device-summary-panel">
+              <span className="device-summary-panel-title">Reward profile</span>
+              <div className="device-summary-metric-grid">
+                {summaryRows.map((row) => (
+                  <div key={row.label} className="device-summary-metric">
+                    <span className="device-summary-metric-label">{row.label}</span>
+                    <span className={`device-summary-metric-value device-summary-metric-value-${row.tone}`}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+          </div>
+
+          <div className="device-summary-column">
+            <div className="device-summary-panel">
+              <span className="device-summary-panel-title">Projected rewards</span>
+              <div className="device-summary-token-list">
+                {rewardPreview
+                  ? Object.entries(rewardPreview.rewards).map(([currencyId, amount]) => {
+                      const definition = currencyMap[currencyId as keyof typeof currencyMap];
+                      return <span key={currencyId} className="device-summary-token">{formatCurrencyValue(amount ?? 0)} {definition?.shortLabel ?? currencyId}</span>;
+                    })
+                  : <span className="device-summary-token">-</span>}
+              </div>
+              <div className="device-summary-footnote">Wealth floor ~{formatCurrencyValue(rewardPreview?.economyFloorValue ?? 0)} value. Projected total ~{formatCurrencyValue(rewardPreview?.totalRewardValue ?? 0)}.</div>
+            </div>
+
+            {(rewardPreview?.encounterNotes.length ?? 0) > 0 && (
+              <div className="device-summary-panel">
+                <span className="device-summary-panel-title">Tradeoffs and notes</span>
+                <div className="device-summary-notes">
+                  {rewardPreview?.encounterNotes.map((note) => <span key={note}>{note}</span>)}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <button type="button" className="btn btn-primary btn-full" disabled={!canCommit || !loadoutAffordable} onClick={onCommit}>
-          {hasActiveMap ? (hasQueuedMap ? "Queue full" : "Queue for Next Run") : (!canCommit ? "Can't Afford" : "Run Map")}
+        <button type="button" className="btn btn-primary btn-full device-commit-button" disabled={!canCommit || !loadoutAffordable} onClick={onCommit}>
+          {getCommitLabel(hasActiveMap, hasQueuedMap, canCommit, loadoutAffordable)}
         </button>
       </section>
     </div>
