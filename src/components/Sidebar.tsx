@@ -1,40 +1,40 @@
-export type PageId = "currency" | "upgrades" | "maps" | "prestige" | "talents";
+export type PageId = "home" | "upgrades" | "mapDevice" | "progress";
+
 export type PageMeta = {
   badge?: string;
   tone?: "active" | "ready" | "alert";
 };
 
-type NavGroup = "core" | "longterm";
+type NavGroup = "primary" | "longTerm";
 
 type NavItem = {
   id: PageId;
   label: string;
-  icon: string;
+  description: string;
   group: NavGroup;
-  unlockKey?: string;
+  unlockKey?: PageId;
 };
 
 const navItems: NavItem[] = [
-  { id: "currency", label: "Play", icon: "\u2692", group: "core" },
-  { id: "upgrades", label: "Upgrades", icon: "\u25B2", group: "core", unlockKey: "upgrades" },
-  { id: "maps", label: "Maps", icon: "\uD83D\uDDFA\uFE0F", group: "core", unlockKey: "maps" },
-  { id: "prestige", label: "Prestige", icon: "\uD83D\uDD2E", group: "longterm", unlockKey: "prestige" },
-  { id: "talents", label: "Talents", icon: "\u2B50", group: "longterm", unlockKey: "talents" },
+  { id: "home", label: "Home", description: "Core loop and stash", group: "primary" },
+  { id: "upgrades", label: "Upgrades", description: "Economy and system boosts", group: "primary", unlockKey: "upgrades" },
+  { id: "mapDevice", label: "Map Device", description: "Crafting, queue, and runs", group: "primary", unlockKey: "mapDevice" },
+  { id: "progress", label: "Progress", description: "Prestige and talents", group: "longTerm", unlockKey: "progress" },
 ];
 
 const navGroups: { id: NavGroup; label: string }[] = [
-  { id: "core", label: "Now" },
-  { id: "longterm", label: "Long-term" },
+  { id: "primary", label: "Primary" },
+  { id: "longTerm", label: "Long-term" },
 ];
 
 type SidebarProps = {
   activePage: PageId;
-  unlockedPages: Record<string, boolean>;
+  unlockedPages: Partial<Record<PageId, boolean>>;
   pageMeta?: Partial<Record<PageId, PageMeta>>;
   onNavigate: (page: PageId) => void;
 };
 
-function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }: SidebarProps) {
+export function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }: SidebarProps) {
   return (
     <nav className="sidebar">
       {navGroups.map((group) => {
@@ -54,8 +54,10 @@ function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }: Sideb
                     disabled={locked}
                     onClick={() => !locked && onNavigate(item.id)}
                   >
-                    <span className="sidebar-item-icon">{item.icon}</span>
-                    <span className="sidebar-item-label">{item.label}</span>
+                    <div className="sidebar-item-copy">
+                      <span className="sidebar-item-label">{item.label}</span>
+                      <span className="sidebar-item-description">{locked ? "Unlock later" : item.description}</span>
+                    </div>
                     {meta?.badge && (
                       <span className={`sidebar-item-badge sidebar-item-badge-${meta.tone ?? "ready"}`}>
                         {meta.badge}
@@ -71,5 +73,3 @@ function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }: Sideb
     </nav>
   );
 }
-
-export default Sidebar;

@@ -1,29 +1,28 @@
 # Current State
 
 ## Current systems
-- Single-page React 18 + TypeScript + Vite idle game with sidebar-gated Play, Upgrades, Maps, Prestige, and Talents views plus nav badges for affordable upgrades, atlas status, and prestige readiness
-- `GameState` remains the single source of truth, with `src/hooks/useGameEngine.ts` wiring UI actions into pure game modules for currencies, generators, upgrades, maps, prestige, talents, and save/load
-- Core loop in `src/game/gameEngine.ts` ticks every 100 ms, recomputes derived state on each mutation, autosaves every 5 s, tracks map notifications, and grants offline progress capped at 8 h on load
-- Progression now spans 11 currency tiers, manual adjacent-tier conversion, generator line scaling with owned-count milestones, generator cost reduction hooks, wealth-aware map rewards, map unlocks, prestige resets, and mirror-shard talent spend
-- Map rewards now scale from both live production and current stash value, so runs stay relevant deeper into the economy instead of flattening into trivial payouts
-- Upgrade progression is split across generators, economy, maps, automation, atlas, and relic categories, with stronger non-flat levers like generator discounts, map speed, and map cost reduction layered alongside reward scaling
-- Maps are visible outside the map tab through the global atlas banner, while the map screen itself is broken into reusable base-selection, run-status, and preparation sections for clearer flow
+- React 18 + TypeScript + Vite idle game now uses a shell layout with a persistent top wealth bar, an expanded text-first sidebar, and clearer major screens for Home, Upgrades, Map Device, and Progress
+- `GameState` remains the single source of truth, with `src/hooks/useGameEngine.ts` still wiring UI actions into pure game modules for currencies, generators, upgrades, maps, prestige, talents, and save/load
+- Core loop in `src/game/gameEngine.ts` still ticks every 100 ms, recomputes derived state on each mutation, autosaves every 5 s, tracks map notifications, and grants offline progress capped at 8 h on load
+- Home now focuses on the click loop, stash, next unlocks, and manual conversion, while long-term systems are split into dedicated screens so adding future systems does not keep bloating one page
+- Progression still spans 11 currency tiers, manual adjacent-tier conversion, generator line scaling with owned-count milestones, wealth-aware map rewards, map unlocks, prestige resets, mirror-shard talents, and preserved save behavior
+- Prestige and talents now share the Progress screen, while maps stay isolated in the Map Device screen and unlocked currencies with meaningful amounts or income stay visible in the wealth bar
 
 ## Known issues
-- There is still no test framework or lint setup, so regression coverage depends on manual checks plus `cmd /c npx tsc -b`
+- There is still no test framework or lint setup, so regression coverage depends on manual checks plus `cmd /c npm run build`
 - The repo still has several legacy default exports outside the files touched in this pass
 - Talent branch icons are still placeholder glyphs in `src/game/talents.ts`
-- Late-game balance still needs another dedicated pass now that generator milestones, wealth floors, and new upgrade levers all interact
-- `cmd /c npm run build` succeeds here when run with elevated permissions, but plain sandboxed builds can still hit `esbuild` `spawn EPERM`
+- Late-game balance still needs another dedicated pass now that generator milestones, wealth floors, map rewards, and upgrade levers all interact
+- The wealth bar intentionally caps visible currencies for readability, so very wide late-game inventories roll extra unlocked currencies into a `+N more unlocked` summary chip
 
 ## Next 3 priorities
 - Add lightweight automated coverage around save/load, map completion and queue chaining, prestige payout math, and upgrade interaction math
-- Continue late-game balance tuning for the new generator milestones, wealth-scaled map rewards, and cost-reduction upgrades
-- Keep trimming legacy UI defaults and older one-file components so the remaining screens match the newer component boundaries
+- Continue late-game balance tuning for the generator milestones, wealth-scaled map rewards, and cost-reduction upgrades
+- Keep breaking older one-file UI surfaces into cleaner screen-level components as more long-term systems are added
 
 ## Files that matter most
-- `src/game/gameEngine.ts`
-- `src/game/maps.ts`
-- `src/game/upgradeEngine.ts`
+- `src/App.tsx`
+- `src/components/AppShell.tsx`
+- `src/components/Sidebar.tsx`
+- `src/components/WealthBar.tsx`
 - `src/hooks/useGameEngine.ts`
-- `src/components/MapPanel.tsx`
