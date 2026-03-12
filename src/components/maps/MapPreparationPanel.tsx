@@ -1,4 +1,19 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
+import { formatMs, formatPercent, formatSignedPercent } from "@/components/maps/mapFormatting";
+import { currencyMap, formatCurrencyValue, type CurrencyState } from "@/game/currencies";
+import {
+  LOADOUT_MAX_SLOTS,
+  canAddModToLoadout,
+  deviceModMap,
+  deviceModPool,
+  getDeviceModDeltas,
+  getModCategoryDescription,
+  getModCategoryLabel,
+  getModTierColor,
+  getModTierLabel,
+  type DeviceLoadout,
+  type DeviceModCategory,
+} from "@/game/mapDevice";
 import {
   canAffordCraft,
   craftingActionDescriptions,
@@ -17,23 +32,7 @@ import {
   type CraftingAction,
   type MapEncounterProgression,
   type MapRewardPreview,
-} from "../../game/maps";
-import {
-  LOADOUT_MAX_SLOTS,
-  canAddModToLoadout,
-  deviceModMap,
-  deviceModPool,
-  getDeviceModDeltas,
-  getLoadoutTotalCost,
-  getModCategoryDescription,
-  getModCategoryLabel,
-  getModTierColor,
-  getModTierLabel,
-  type DeviceLoadout,
-  type DeviceModCategory,
-} from "../../game/mapDevice";
-import { currencyMap, formatCurrencyValue, type CurrencyState } from "../../game/currencies";
-import { formatMs, formatPercent, formatSignedPercent } from "./mapFormatting";
+} from "@/game/maps";
 
 type MapPreparationPanelProps = {
   currencies: CurrencyState;
@@ -87,7 +86,7 @@ function getCommitLabel(hasActiveMap: boolean, hasQueuedMap: boolean, canCommit:
   return "Start map run";
 }
 
-export function MapPreparationPanel({
+export const MapPreparationPanel = memo(function MapPreparationPanel({
   currencies,
   mapDef,
   craftedMap,
@@ -118,14 +117,15 @@ export function MapPreparationPanel({
   const openSlots = LOADOUT_MAX_SLOTS - loadout.modIds.length;
   const mapCostRows = resolvedCost ? formatCostEntries(resolvedCost, currencies) : [];
   const loadoutCostRows = formatCostEntries(loadoutCost, currencies);
-  const availableMods = useMemo(
-    () => deviceModPool.filter((definition) => definition.category === activeCategory),
-    [activeCategory],
-  );
+  const availableMods = useMemo(() => deviceModPool.filter((definition) => definition.category === activeCategory), [activeCategory]);
 
   const summaryRows = [
     { label: "Base rewards", value: formatSignedPercent(rewardMult - 1), tone: rewardMult >= 1 ? "good" : "bad" },
-    { label: "Focused rewards", value: Object.keys(mapDef.focusedRewardWeights).length > 0 ? formatSignedPercent(focusedRewardMult - 1) : "No focused pool", tone: focusedRewardMult >= 1 ? "good" : "neutral" },
+    {
+      label: "Focused rewards",
+      value: Object.keys(mapDef.focusedRewardWeights).length > 0 ? formatSignedPercent(focusedRewardMult - 1) : "No focused pool",
+      tone: focusedRewardMult >= 1 ? "good" : "neutral",
+    },
     { label: "Shard chance", value: formatPercent(shardChance), tone: shardChance >= 0.02 ? "good" : "neutral" },
     { label: "Run time", value: resolvedDuration ? formatMs(resolvedDuration) : "-", tone: "neutral" },
   ] as const;
@@ -332,7 +332,7 @@ export function MapPreparationPanel({
                   <div className="device-mod-delta-list">
                     {deltas.map((delta) => (
                       <span key={`${definition.id}-${delta.type}`} className={`device-mod-delta${delta.value > 0 ? " device-mod-delta-positive" : " device-mod-delta-negative"}`}>
-                        {delta.label}: {delta.type === "bonusReward" || delta.type === "shardChance" ? formatSignedPercent(delta.value) : formatSignedPercent(delta.value)}
+                        {delta.label}: {formatSignedPercent(delta.value)}
                       </span>
                     ))}
                   </div>
@@ -430,4 +430,4 @@ export function MapPreparationPanel({
       </section>
     </div>
   );
-}
+});

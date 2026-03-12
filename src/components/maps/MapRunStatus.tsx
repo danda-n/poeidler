@@ -1,3 +1,6 @@
+import { memo } from "react";
+import { formatMs } from "@/components/maps/mapFormatting";
+import { currencyMap, formatCurrencyValue } from "@/game/currencies";
 import {
   baseMapMap,
   getAffixDisplayName,
@@ -10,9 +13,7 @@ import {
   type MapCompletionResult,
   type MapEncounterProgression,
   type QueuedMapSetup,
-} from "../../game/maps";
-import { currencyMap, formatCurrencyValue } from "../../game/currencies";
-import { formatMs } from "./mapFormatting";
+} from "@/game/maps";
 
 type MapRunStatusProps = {
   activeMap: ActiveMapState;
@@ -23,7 +24,7 @@ type MapRunStatusProps = {
   onCancelQueue: () => void;
 };
 
-export function MapRunStatus({ activeMap, queuedMap, lastMapResult, now, onCancelQueue }: MapRunStatusProps) {
+export const MapRunStatus = memo(function MapRunStatus({ activeMap, queuedMap, lastMapResult, now, onCancelQueue }: MapRunStatusProps) {
   const activeMapDef = activeMap ? baseMapMap[activeMap.craftedMap.baseMapId] : null;
   const activeEncounter = activeMap ? getMapEncounter(activeMap.craftedMap.encounterId) : null;
   const queuedMapDef = queuedMap ? baseMapMap[queuedMap.baseMapId] : null;
@@ -102,4 +103,4 @@ export function MapRunStatus({ activeMap, queuedMap, lastMapResult, now, onCance
       )}
     </>
   );
-}
+});

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
-import { canPrestige, calculatePrestigeShards, type PrestigeState } from "../game/prestige";
-import { getEncounterPrestigeBonus, type TalentPurchasedState } from "../game/talents";
+import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "@/game/currencies";
+import { calculatePrestigeShards, canPrestige, type PrestigeState } from "@/game/prestige";
+import { getEncounterPrestigeBonus, type TalentPurchasedState } from "@/game/talents";
 
 type PrestigePanelProps = {
   currencies: CurrencyState;
@@ -11,7 +11,7 @@ type PrestigePanelProps = {
   onPrestige: () => void;
 };
 
-function PrestigePanel({ currencies, unlockedCurrencies, prestige, talentsPurchased, onPrestige }: PrestigePanelProps) {
+export function PrestigePanel({ currencies, unlockedCurrencies, prestige, talentsPurchased, onPrestige }: PrestigePanelProps) {
   const [confirming, setConfirming] = useState(false);
 
   const eligible = canPrestige(currencies);
@@ -87,18 +87,14 @@ function PrestigePanel({ currencies, unlockedCurrencies, prestige, talentsPurcha
         <ul className="prestige-keep-list">
           <li>Mirror Shards</li>
           <li>Purchased talents</li>
-          {(talentsPurchased.lingeringWealth ?? 0) > 0 && (
-            <li>Small % of lower currencies</li>
-          )}
+          {(talentsPurchased.lingeringWealth ?? 0) > 0 && <li>Small % of lower currencies</li>}
         </ul>
       </div>
 
       <div className="prestige-actions">
         {confirming ? (
           <>
-            <span className="prestige-confirm-text">
-              Reset run for +{formatCurrencyValue(projectedShards)} shards?
-            </span>
+            <span className="prestige-confirm-text">Reset run for +{formatCurrencyValue(projectedShards)} shards?</span>
             <div className="prestige-confirm-buttons">
               <button type="button" className="btn btn-danger" onClick={handlePrestige}>
                 Confirm Prestige
@@ -122,5 +118,3 @@ function PrestigePanel({ currencies, unlockedCurrencies, prestige, talentsPurcha
     </div>
   );
 }
-
-export default PrestigePanel;

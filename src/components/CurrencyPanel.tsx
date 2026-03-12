@@ -1,14 +1,15 @@
-import { currencyMap, formatCurrencyValue, getVisibleCurrencies, type CurrencyProduction, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
+import { memo, useMemo } from "react";
+import { CurrencyRow } from "@/components/CurrencyRow";
+import { currencyMap, formatCurrencyValue, getVisibleCurrencies, type CurrencyProduction, type CurrencyState, type UnlockedCurrencyState } from "@/game/currencies";
 import {
+  generatorByCurrency,
   getGeneratorCost,
   getGeneratorMilestoneBonus,
   getGeneratorOutputMultiplier,
   getNextGeneratorMilestone,
-  generatorByCurrency,
   type GeneratorId,
   type GeneratorOwnedState,
-} from "../game/generators";
-import { CurrencyRow } from "./CurrencyRow";
+} from "@/game/generators";
 
 type CurrencyPanelProps = {
   currenciesState: CurrencyState;
@@ -19,7 +20,7 @@ type CurrencyPanelProps = {
   onBuyGenerator: (generatorId: GeneratorId) => void;
 };
 
-export function CurrencyPanel({
+export const CurrencyPanel = memo(function CurrencyPanel({
   currenciesState,
   currencyProduction,
   generatorsOwned,
@@ -27,9 +28,11 @@ export function CurrencyPanel({
   buyMaxEnabled,
   onBuyGenerator,
 }: CurrencyPanelProps) {
+  const visibleCurrencies = useMemo(() => getVisibleCurrencies(unlockedCurrencies), [unlockedCurrencies]);
+
   return (
     <div className="currency-list">
-      {getVisibleCurrencies(unlockedCurrencies).map((currency) => {
+      {visibleCurrencies.map((currency) => {
         const generator = generatorByCurrency[currency.id];
         const generatorOwned = generator ? generatorsOwned[generator.id] : 0;
         const generatorCost = generator ? getGeneratorCost(generator.id, generatorOwned, 1) : null;
@@ -60,4 +63,4 @@ export function CurrencyPanel({
       })}
     </div>
   );
-}
+});

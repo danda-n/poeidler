@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { ShellHeader } from "@/components/layout/ShellHeader";
+import { ShellPageHeader } from "@/components/layout/ShellPageHeader";
 
 type AppShellProps = {
   brandTitle: string;
@@ -25,28 +27,13 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="shell-root">
-      <header className="shell-topbar">
-        <div className="shell-brand-row">
-          <div className="shell-brand-copy">
-            <h1 className="shell-brand-title">{brandTitle}</h1>
-            <span className="shell-brand-status">{statusText}</span>
-          </div>
-          <div className="shell-brand-actions">{headerActions}</div>
-        </div>
-        {topBar}
-      </header>
+      <ShellHeader brandTitle={brandTitle} statusText={statusText} headerActions={headerActions} topBar={topBar} />
 
       <div className="shell-body">
         <aside className="shell-sidebar-frame">{sidebar}</aside>
         <main className="shell-main">
           <div className="shell-main-inner">
-            <header className="shell-page-header">
-              <div>
-                <p className="shell-page-eyebrow">Current screen</p>
-                <h2 className="shell-page-title">{pageTitle}</h2>
-                <p className="shell-page-description">{pageDescription}</p>
-              </div>
-            </header>
+            <ShellPageHeader title={pageTitle} description={pageDescription} />
 
             {children}
 

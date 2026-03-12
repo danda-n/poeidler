@@ -1,11 +1,12 @@
-import { formatCurrencyValue, currencyMap } from "../game/currencies";
-import type { MapNotification } from "../game/maps";
+import { memo } from "react";
+import { currencyMap, formatCurrencyValue } from "@/game/currencies";
+import type { MapNotification } from "@/game/maps";
 
 type MapToastProps = {
   notification: MapNotification | null;
 };
 
-export function MapToast({ notification }: MapToastProps) {
+export const MapToast = memo(function MapToast({ notification }: MapToastProps) {
   if (!notification) return null;
 
   const { result, mapName } = notification;
@@ -35,4 +36,4 @@ export function MapToast({ notification }: MapToastProps) {
       </div>
     </div>
   );
-}
+});

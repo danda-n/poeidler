@@ -1,11 +1,11 @@
-import { currencyMap, formatCurrencyValue, scrambleName, type CurrencyDefinition, type CurrencyProduction } from "../game/currencies";
+import { currencyMap, formatCurrencyValue, scrambleName, type CurrencyDefinition, type CurrencyProduction } from "@/game/currencies";
 
 type MysteryRowProps = {
   currency: CurrencyDefinition;
   currencyProduction: CurrencyProduction;
 };
 
-function MysteryRow({ currency, currencyProduction }: MysteryRowProps) {
+export function MysteryRow({ currency, currencyProduction }: MysteryRowProps) {
   const requirement = currency.unlockRequirement;
 
   if (!requirement) {
@@ -32,5 +32,3 @@ function MysteryRow({ currency, currencyProduction }: MysteryRowProps) {
     </div>
   );
 }
-
-export default MysteryRow;

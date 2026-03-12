@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import {
   baseMapMap,
   getMapEncounter,
@@ -9,8 +9,8 @@ import {
   type ActiveMapState,
   type MapCompletionResult,
   type QueuedMapSetup,
-} from "../game/maps";
-import type { PrestigeState } from "../game/prestige";
+} from "@/game/maps";
+import type { PrestigeState } from "@/game/prestige";
 
 type ActiveMapBannerProps = {
   activeMap: ActiveMapState;
@@ -27,7 +27,7 @@ function formatMs(ms: number): string {
   return minutes > 0 ? `${minutes}:${String(seconds).padStart(2, "0")}` : `${seconds}s`;
 }
 
-export function ActiveMapBanner({ activeMap, queuedMap, lastMapResult, prestige, mapsUnlocked }: ActiveMapBannerProps) {
+export const ActiveMapBanner = memo(function ActiveMapBanner({ activeMap, queuedMap, lastMapResult, prestige, mapsUnlocked }: ActiveMapBannerProps) {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -89,4 +89,4 @@ export function ActiveMapBanner({ activeMap, queuedMap, lastMapResult, prestige,
       </div>
     </div>
   );
-}
+});

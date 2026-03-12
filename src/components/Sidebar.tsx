@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 export type PageId = "home" | "upgrades" | "mapDevice" | "progress";
 
 export type PageMeta = {
@@ -16,9 +18,9 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { id: "home", label: "Home", description: "Core loop and stash", group: "primary" },
+  { id: "home", label: "Currency", description: "Core loop and stash", group: "primary" },
   { id: "upgrades", label: "Upgrades", description: "Economy and system boosts", group: "primary", unlockKey: "upgrades" },
-  { id: "mapDevice", label: "Map Device", description: "Crafting, queue, and runs", group: "primary", unlockKey: "mapDevice" },
+  { id: "mapDevice", label: "Maps", description: "Crafting, queue, and runs", group: "primary", unlockKey: "mapDevice" },
   { id: "progress", label: "Progress", description: "Prestige and talents", group: "longTerm", unlockKey: "progress" },
 ];
 
@@ -34,7 +36,7 @@ type SidebarProps = {
   onNavigate: (page: PageId) => void;
 };
 
-export function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }: SidebarProps) {
   return (
     <nav className="sidebar">
       {navGroups.map((group) => {
@@ -72,4 +74,4 @@ export function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }
       })}
     </nav>
   );
-}
+});
