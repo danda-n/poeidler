@@ -1,131 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useAppViewModel, pageCopy } from "@/components/app/useAppViewModel";
 import { ActiveMapBanner } from "@/components/ActiveMapBanner";
 import { AppShell } from "@/components/AppShell";
 import { MapToast } from "@/components/MapToast";
 import { ProgressScreen } from "@/components/ProgressScreen";
 import { SettingsPanel } from "@/components/SettingsPanel";
-import { Sidebar, type PageId, type PageMeta } from "@/components/Sidebar";
+import { Sidebar, type PageId } from "@/components/Sidebar";
 import { TopStatusStrip } from "@/components/TopStatusStrip";
 import { UpgradePanel } from "@/components/UpgradePanel";
 import { CurrencyScreen } from "@/components/screens/CurrencyScreen";
 import { MapsScreen } from "@/components/screens/MapsScreen";
-import {
-  fragmentCurrencyId,
-  getTotalCurrencyValue,
-  getTotalProductionValuePerSecond,
-  getVisibleCurrencies,
-} from "@/game/currencies";
-import { generatorIds } from "@/game/generators";
-import { canPrestige } from "@/game/prestige";
-import { getAffordableUpgradeCount } from "@/game/upgradeEngine";
 import { useGameEngine } from "@/hooks/useGameEngine";
-
-const pageCopy: Record<PageId, { title: string; description: string }> = {
-  home: {
-    title: "Currency",
-    description: "Run the core loop, monitor your stash, and keep the next few economy actions in one focused screen.",
-  },
-  upgrades: {
-    title: "Upgrades",
-    description: "Spend into production, routing, and long-term value once the base economy is online.",
-  },
-  mapDevice: {
-    title: "Maps",
-    description: "Choose a map, tune the device, and queue runs without crowding the rest of the game.",
-  },
-  progress: {
-    title: "Progress",
-    description: "Check run milestones, prestige readiness, and talent investments in one long-term screen.",
-  },
-};
 
 export function App() {
   const { gameState, actions } = useGameEngine();
   const [activePage, setActivePage] = useState<PageId>("home");
-
-  const hasAnyGenerator = useMemo(
-    () => generatorIds.some((id) => gameState.generatorsOwned[id] > 0),
-    [gameState.generatorsOwned],
-  );
-  const hasTier4 = gameState.unlockedCurrencies.alterationOrb;
-  const hasPrestige =
-    hasTier4 &&
-    (gameState.prestige.prestigeCount > 0 || gameState.prestige.mapsCompleted >= 1 || gameState.currencies.jewellersOrb >= 1);
-  const hasTalents = gameState.prestige.totalMirrorShards > 0;
-  const canPrestigeNow = canPrestige(gameState.currencies);
-
-  const unlockedPages = useMemo<Partial<Record<PageId, boolean>>>(
-    () => ({
-      upgrades: hasAnyGenerator,
-      mapDevice: hasTier4,
-      progress: hasPrestige || hasTalents,
-    }),
-    [hasAnyGenerator, hasPrestige, hasTalents, hasTier4],
-  );
+  const appView = useAppViewModel(gameState);
 
   useEffect(() => {
-    if (activePage !== "home" && !unlockedPages[activePage]) {
+    if (activePage !== "home" && !appView.unlockedPages[activePage]) {
       setActivePage("home");
     }
-  }, [activePage, unlockedPages]);
-
-  const affordableUpgradeCount = useMemo(
-    () =>
-      getAffordableUpgradeCount({
-        currencies: gameState.currencies,
-        purchasedUpgrades: gameState.purchasedUpgrades,
-        unlockedCurrencies: gameState.unlockedCurrencies,
-        prestige: gameState.prestige,
-      }),
-    [gameState.currencies, gameState.prestige, gameState.purchasedUpgrades, gameState.unlockedCurrencies],
-  );
-
-  const pageMeta = useMemo<Partial<Record<PageId, PageMeta>>>(
-    () => ({
-      upgrades: affordableUpgradeCount > 0 ? { badge: String(affordableUpgradeCount), tone: "ready" } : undefined,
-      mapDevice: gameState.activeMap ? { badge: "Live", tone: "active" } : hasTier4 ? { badge: "Ready", tone: "active" } : undefined,
-      progress: canPrestigeNow ? { badge: "Ready", tone: "alert" } : hasTalents ? { badge: "Talents", tone: "active" } : undefined,
-    }),
-    [affordableUpgradeCount, canPrestigeNow, gameState.activeMap, hasTalents, hasTier4],
-  );
-
-  const topStripState = useMemo(() => {
-    const visibleCurrencies = getVisibleCurrencies(gameState.unlockedCurrencies);
-    const wealthCandidates = visibleCurrencies.filter(
-      (currency) =>
-        currency.id === fragmentCurrencyId ||
-        gameState.currencies[currency.id] > 0 ||
-        gameState.currencyProduction[currency.id] > 0,
-    );
-    const prioritizedHighTier = wealthCandidates
-      .filter((currency) => currency.id !== fragmentCurrencyId)
-      .sort((left, right) => right.tier - left.tier)
-      .slice(0, 4);
-    const wealthBarIds = [fragmentCurrencyId, ...prioritizedHighTier.map((currency) => currency.id)];
-    const items = visibleCurrencies
-      .filter((currency) => wealthBarIds.includes(currency.id))
-      .sort((left, right) => left.tier - right.tier)
-      .map((currency) => ({
-        id: currency.id,
-        label: currency.shortLabel,
-        icon: currency.icon,
-        amount: gameState.currencies[currency.id],
-        productionRate: gameState.currencyProduction[currency.id],
-      }));
-
-    return {
-      items,
-      hiddenCount: Math.max(0, wealthCandidates.filter((currency) => currency.id !== fragmentCurrencyId).length - prioritizedHighTier.length),
-      totalWealthValue: getTotalCurrencyValue(gameState.currencies),
-      totalProductionValue: getTotalProductionValuePerSecond(gameState.currencyProduction),
-    };
-  }, [gameState.currencies, gameState.currencyProduction, gameState.unlockedCurrencies]);
+  }, [activePage, appView.unlockedPages]);
 
   const activePageCopy = pageCopy[activePage];
-  const mapStatusLabel = gameState.activeMap ? "Map running" : hasTier4 ? "Map device unlocked" : "Atlas locked";
 
   function renderActivePage() {
-    if (activePage === "upgrades" && hasAnyGenerator) {
+    if (activePage === "upgrades" && appView.hasAnyGenerator) {
       return (
         <div className="section-enter">
           <UpgradePanel
@@ -139,7 +40,7 @@ export function App() {
       );
     }
 
-    if (activePage === "mapDevice" && hasTier4) {
+    if (activePage === "mapDevice" && appView.hasTier4) {
       return (
         <MapsScreen
           currencies={gameState.currencies}
@@ -158,7 +59,7 @@ export function App() {
       );
     }
 
-    if (activePage === "progress" && (hasPrestige || hasTalents)) {
+    if (activePage === "progress" && (appView.hasPrestige || appView.hasTalents)) {
       return (
         <ProgressScreen
           currencies={gameState.currencies}
@@ -180,8 +81,8 @@ export function App() {
         unlockedCurrencies={gameState.unlockedCurrencies}
         buyMaxEnabled={gameState.unlockedFeatures.buyMax}
         prestige={gameState.prestige}
-        activeMapLabel={mapStatusLabel}
-        totalProductionValue={topStripState.totalProductionValue}
+        activeMapLabel={appView.mapStatusLabel}
+        totalProductionValue={appView.topStripState.totalProductionValue}
         onGenerateFragment={actions.generateFragment}
         onBuyGenerator={actions.buyGenerator}
         onConvertCurrency={actions.manualConvert}
@@ -202,13 +103,13 @@ export function App() {
         }
         topBar={
           <TopStatusStrip
-            items={topStripState.items}
-            totalWealthValue={topStripState.totalWealthValue}
-            totalProductionValue={topStripState.totalProductionValue}
-            hiddenCount={topStripState.hiddenCount}
+            items={appView.topStripState.items}
+            totalWealthValue={appView.topStripState.totalWealthValue}
+            totalProductionValue={appView.topStripState.totalProductionValue}
+            hiddenCount={appView.topStripState.hiddenCount}
           />
         }
-        sidebar={<Sidebar activePage={activePage} unlockedPages={unlockedPages} pageMeta={pageMeta} onNavigate={setActivePage} />}
+        sidebar={<Sidebar activePage={activePage} unlockedPages={appView.unlockedPages} pageMeta={appView.pageMeta} onNavigate={setActivePage} />}
         footer={<footer className="game-footer">v{gameState.settings.version}</footer>}
       >
         <ActiveMapBanner
@@ -216,7 +117,7 @@ export function App() {
           queuedMap={gameState.queuedMap}
           lastMapResult={gameState.lastMapResult}
           prestige={gameState.prestige}
-          mapsUnlocked={hasTier4}
+          mapsUnlocked={appView.hasTier4}
         />
         {renderActivePage()}
       </AppShell>
