@@ -7,6 +7,7 @@ type AppShellProps = {
   statusText: string;
   pageTitle: string;
   pageDescription: string;
+  contentWidth?: "default" | "wide";
   headerActions?: ReactNode;
   topBar: ReactNode;
   sidebar: ReactNode;
@@ -20,6 +21,7 @@ export const AppShell = forwardRef<HTMLElement, AppShellProps>(function AppShell
     statusText,
     pageTitle,
     pageDescription,
+    contentWidth = "default",
     headerActions,
     topBar,
     sidebar,
@@ -35,7 +37,7 @@ export const AppShell = forwardRef<HTMLElement, AppShellProps>(function AppShell
       <div className="shell-body">
         <aside className="shell-sidebar-frame">{sidebar}</aside>
         <main ref={ref} className="shell-main">
-          <div className="shell-main-inner">
+          <div className={`shell-main-inner${contentWidth === "wide" ? " shell-main-inner-wide" : ""}`}>
             <ShellPageHeader title={pageTitle} description={pageDescription} />
 
             {children}

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "@/game/currencies";
 import type { PrestigeState } from "@/game/prestige";
 import {
@@ -8,11 +8,14 @@ import {
   getUpgradeCategoryLabel,
   getUpgradeCategoryStats,
   getUpgradeCost,
+  getUpgradesByCategory,
   type PurchasedUpgradeState,
   type UpgradeAvailabilityState,
   type UpgradeCategory,
+  type UpgradeDefinition,
   type UpgradeId,
   upgradeCategories,
+  upgrades,
 } from "@/game/upgradeEngine";
 import {
   describeUpgradeEffect,
@@ -20,9 +23,9 @@ import {
   getUpgradeNodeRequirementText,
   getUpgradeNodeState,
   getUpgradeNodeStateLabel,
-  getUpgradeTree,
+  getUpgradePresentation,
+  type UpgradeNodeKind,
   type UpgradeNodeState,
-  type UpgradeTreeModel,
 } from "@/game/upgradeTree";
 
 type UpgradePanelProps = {
@@ -33,56 +36,25 @@ type UpgradePanelProps = {
   onBuyUpgrade: (upgradeId: UpgradeId) => void;
 };
 
-type GraphPathGeometry = {
-  key: string;
-  d: string;
-  toId: UpgradeId;
-};
-
 type UpgradeTone = "ready" | "owned" | "open" | "locked";
 
-type UpgradeNodeRuntime = {
+type UpgradeRowViewModel = {
   id: UpgradeId;
+  definition: UpgradeDefinition;
   level: number;
+  tier: number;
+  lane: string;
+  kind: UpgradeNodeKind;
   state: UpgradeNodeState;
   tone: UpgradeTone;
+  statusLabel: string;
   costLabel: string;
   canBuy: boolean;
+  requirementText: string;
+  currentEffect: string;
+  nextEffect: string;
+  isMaxed: boolean;
 };
-
-type UpgradeTreeNodeCardProps = {
-  node: UpgradeTreeModel["nodes"][number];
-  runtime: UpgradeNodeRuntime;
-  isSelected: boolean;
-  onSelect: (upgradeId: UpgradeId) => void;
-  onKeySelect: (event: KeyboardEvent<HTMLDivElement>, upgradeId: UpgradeId) => void;
-  nodeRefs: React.MutableRefObject<Partial<Record<UpgradeId, HTMLDivElement | null>>>;
-};
-
-function pickSelectedUpgradeId(category: UpgradeCategory, availabilityState: UpgradeAvailabilityState) {
-  const tree = getUpgradeTree(category);
-  const readyNode = tree.nodes.find((node) => getUpgradeNodeState(availabilityState, node.definition.id as UpgradeId) === "available");
-  if (readyNode) return readyNode.definition.id as UpgradeId;
-
-  const ownedNode = tree.nodes.find((node) => {
-    const state = getUpgradeNodeState(availabilityState, node.definition.id as UpgradeId);
-    return state === "purchased" || state === "maxed";
-  });
-  if (ownedNode) return ownedNode.definition.id as UpgradeId;
-
-  return tree.nodes[0]?.definition.id as UpgradeId;
-}
-
-function getKindLabel(kind: UpgradeTreeModel["nodes"][number]["presentation"]["kind"]) {
-  switch (kind) {
-    case "minor":
-      return "Minor";
-    case "unlock":
-      return "Unlock";
-    case "keystone":
-      return "Major";
-  }
-}
 
 function getStateTone(nodeState: UpgradeNodeState): UpgradeTone {
   switch (nodeState) {
@@ -98,66 +70,39 @@ function getStateTone(nodeState: UpgradeNodeState): UpgradeTone {
   }
 }
 
-const laneCopyByOrder: Record<number, string> = {
-  1: "Primary route",
-  2: "Branch route",
-  3: "Late route",
-};
+function getKindLabel(kind: UpgradeNodeKind) {
+  switch (kind) {
+    case "minor":
+      return "Minor";
+    case "unlock":
+      return "Unlock";
+    case "keystone":
+      return "Major";
+  }
+}
 
-const UpgradeTreeNodeCard = memo(function UpgradeTreeNodeCard({
-  node,
-  runtime,
-  isSelected,
-  onSelect,
-  onKeySelect,
-  nodeRefs,
-}: UpgradeTreeNodeCardProps) {
-  return (
-    <div
-      ref={(element) => {
-        nodeRefs.current[node.definition.id as UpgradeId] = element;
-      }}
-      role="button"
-      tabIndex={0}
-      className={`upgrade-node upgrade-node-${node.presentation.kind} upgrade-node-${runtime.state}${isSelected ? " upgrade-node-selected" : ""}`}
-      style={{ gridColumn: node.gridColumn, gridRow: node.gridRow }}
-      onClick={() => onSelect(node.definition.id as UpgradeId)}
-      onKeyDown={(event) => onKeySelect(event, node.definition.id as UpgradeId)}
-    >
-      <div className="upgrade-node-topline">
-        <span className="upgrade-node-kind">{getKindLabel(node.presentation.kind)}</span>
-        <span className="upgrade-node-level">Lv {runtime.level}</span>
-      </div>
-      <div className="upgrade-node-title">{node.presentation.shortLabel}</div>
-      <div className="upgrade-node-effect">{node.presentation.shortEffect}</div>
-      <div className="upgrade-node-footer">
-        <span className={`upgrade-node-state upgrade-node-state-${runtime.tone}`}>{getUpgradeNodeStateLabel(runtime.state)}</span>
-        <span className={`upgrade-node-cost${runtime.canBuy ? " upgrade-node-cost-ready" : ""}`}>{runtime.costLabel}</span>
-      </div>
-    </div>
-  );
-});
+function pickSelectedUpgradeId(rows: UpgradeRowViewModel[]) {
+  return rows.find((row) => row.state === "available")?.id ?? rows.find((row) => row.level > 0)?.id ?? rows[0]?.id ?? null;
+}
 
-const UpgradeConnectionLayer = memo(function UpgradeConnectionLayer({
-  paths,
-}: {
-  paths: Array<{ key: string; d: string; tone: UpgradeTone }>;
-}) {
-  return (
-    <svg className="upgrade-tree-lines" aria-hidden="true">
-      {paths.map((path) => (
-        <path key={path.key} d={path.d} className={`upgrade-tree-path upgrade-tree-path-${path.tone}`} />
-      ))}
-    </svg>
-  );
-});
+function groupUpgradeRows(rows: UpgradeRowViewModel[]) {
+  const groupedRows = new Map<string, UpgradeRowViewModel[]>();
+
+  rows.forEach((row) => {
+    const existingRows = groupedRows.get(row.definition.group) ?? [];
+    existingRows.push(row);
+    groupedRows.set(row.definition.group, existingRows);
+  });
+
+  return Array.from(groupedRows.entries()).map(([groupName, groupRows]) => ({
+    groupName,
+    rows: groupRows,
+  }));
+}
 
 export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, prestige, onBuyUpgrade }: UpgradePanelProps) {
   const [activeCategory, setActiveCategory] = useState<UpgradeCategory>("generators");
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<UpgradeId | null>(null);
-  const [pathGeometry, setPathGeometry] = useState<GraphPathGeometry[]>([]);
-  const boardRef = useRef<HTMLDivElement | null>(null);
-  const nodeRefs = useRef<Partial<Record<UpgradeId, HTMLDivElement | null>>>({});
 
   const availabilityState = useMemo<UpgradeAvailabilityState>(
     () => ({
@@ -169,7 +114,49 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
     [currenciesState, prestige, purchasedUpgrades, unlockedCurrencies],
   );
 
-  const tree = useMemo(() => getUpgradeTree(activeCategory), [activeCategory]);
+  const rowsByCategory = useMemo(() => {
+    return Object.fromEntries(
+      upgradeCategories.map((category) => {
+        const rows = getUpgradesByCategory(category)
+          .map((definition) => {
+            const upgradeId = definition.id as UpgradeId;
+            const presentation = getUpgradePresentation(upgradeId);
+            const level = purchasedUpgrades[upgradeId];
+            const state = getUpgradeNodeState(availabilityState, upgradeId);
+            const nextLevel = definition.maxLevel !== undefined && level >= definition.maxLevel ? level : level + 1;
+
+            return {
+              id: upgradeId,
+              definition,
+              level,
+              tier: presentation.tier,
+              lane: presentation.lane,
+              kind: presentation.kind,
+              state,
+              tone: getStateTone(state),
+              statusLabel: getUpgradeNodeStateLabel(state),
+              costLabel: formatUpgradeCost(getUpgradeCost(upgradeId, level)),
+              canBuy: canPurchaseUpgrade(availabilityState, upgradeId),
+              requirementText: getUpgradeNodeRequirementText(availabilityState, upgradeId),
+              currentEffect: level > 0 ? describeUpgradeEffect(definition, level, prestige.totalMirrorShards) : "Not active yet",
+              nextEffect:
+                definition.maxLevel !== undefined && level >= definition.maxLevel
+                  ? "Already maxed"
+                  : describeUpgradeEffect(definition, nextLevel, prestige.totalMirrorShards),
+              isMaxed: definition.maxLevel !== undefined && level >= definition.maxLevel,
+            } satisfies UpgradeRowViewModel;
+          })
+          .sort((left, right) => {
+            if (left.tier !== right.tier) return left.tier - right.tier;
+            if (left.lane !== right.lane) return left.lane.localeCompare(right.lane);
+            return left.definition.name.localeCompare(right.definition.name);
+          });
+
+        return [category, rows];
+      }),
+    ) as Record<UpgradeCategory, UpgradeRowViewModel[]>;
+  }, [availabilityState, prestige.totalMirrorShards, purchasedUpgrades]);
+
   const categoryStats = useMemo(
     () =>
       Object.fromEntries(
@@ -183,110 +170,53 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
     [purchasedUpgrades],
   );
 
-  const nodeRuntimeById = useMemo(() => {
-    const nextRuntime = {} as Record<UpgradeId, UpgradeNodeRuntime>;
-
-    tree.nodes.forEach((node) => {
-      const upgradeId = node.definition.id as UpgradeId;
-      const level = purchasedUpgrades[upgradeId];
-      const state = getUpgradeNodeState(availabilityState, upgradeId);
-      const cost = getUpgradeCost(upgradeId, level);
-
-      nextRuntime[upgradeId] = {
-        id: upgradeId,
-        level,
-        state,
-        tone: getStateTone(state),
-        costLabel: formatUpgradeCost(cost),
-        canBuy: canPurchaseUpgrade(availabilityState, upgradeId),
-      };
-    });
-
-    return nextRuntime;
-  }, [availabilityState, purchasedUpgrades, tree.nodes]);
-
-  const selectedNode = (selectedUpgradeId ? tree.nodeMap[selectedUpgradeId] : undefined) ?? tree.nodes[0] ?? null;
-  const selectedId = selectedNode?.definition.id as UpgradeId | undefined;
+  const activeRows = rowsByCategory[activeCategory];
+  const groupedRows = useMemo(() => groupUpgradeRows(activeRows), [activeRows]);
 
   useEffect(() => {
-    const nextSelectedId = pickSelectedUpgradeId(activeCategory, availabilityState);
-    if (!selectedUpgradeId || !tree.nodeMap[selectedUpgradeId]) {
+    const nextSelectedId = pickSelectedUpgradeId(activeRows);
+    if (!selectedUpgradeId || !activeRows.some((row) => row.id === selectedUpgradeId)) {
       setSelectedUpgradeId(nextSelectedId);
     }
-  }, [activeCategory, availabilityState, selectedUpgradeId, tree.nodeMap]);
+  }, [activeRows, selectedUpgradeId]);
 
-  useEffect(() => {
-    function measurePathGeometry() {
-      if (!boardRef.current) return;
-      const boardRect = boardRef.current.getBoundingClientRect();
-      const nextGeometry: GraphPathGeometry[] = tree.edges.flatMap((edge) => {
-        const fromEl = nodeRefs.current[edge.fromId];
-        const toEl = nodeRefs.current[edge.toId];
-        if (!fromEl || !toEl) return [];
+  const selectedUpgrade = activeRows.find((row) => row.id === selectedUpgradeId) ?? activeRows[0] ?? null;
 
-        const fromRect = fromEl.getBoundingClientRect();
-        const toRect = toEl.getBoundingClientRect();
-        const startX = fromRect.right - boardRect.left;
-        const startY = fromRect.top + fromRect.height / 2 - boardRect.top;
-        const endX = toRect.left - boardRect.left;
-        const endY = toRect.top + toRect.height / 2 - boardRect.top;
-        const bend = Math.max(28, Math.abs(endX - startX) * 0.35);
+  const upcomingUnlocks = useMemo(() => {
+    return activeRows
+      .filter((row) => row.state === "locked")
+      .slice(0, 3)
+      .map((row) => ({
+        id: row.id,
+        name: row.definition.name,
+        requirementText: row.requirementText,
+      }));
+  }, [activeRows]);
 
-        return [{
-          key: `${edge.fromId}-${edge.toId}`,
-          toId: edge.toId,
-          d: `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`,
-        }];
-      });
-
-      setPathGeometry(nextGeometry);
+  const selectedUnlocksNext = useMemo(() => {
+    if (!selectedUpgrade) {
+      return [];
     }
 
-    const frame = window.requestAnimationFrame(measurePathGeometry);
-    const observer = typeof ResizeObserver !== "undefined" && boardRef.current ? new ResizeObserver(measurePathGeometry) : null;
-    if (observer && boardRef.current) {
-      observer.observe(boardRef.current);
-    }
+    return upgrades
+      .filter((upgrade) => upgrade.prerequisite === selectedUpgrade.id)
+      .map((upgrade) => upgrade.name);
+  }, [selectedUpgrade]);
 
-    window.addEventListener("resize", measurePathGeometry);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      observer?.disconnect();
-      window.removeEventListener("resize", measurePathGeometry);
-    };
-  }, [tree]);
-
-  const renderedPaths = useMemo(
-    () => pathGeometry.map((path) => ({ ...path, tone: nodeRuntimeById[path.toId]?.tone ?? "locked" })),
-    [nodeRuntimeById, pathGeometry],
-  );
-
-  function handleNodeKeyDown(event: KeyboardEvent<HTMLDivElement>, upgradeId: UpgradeId) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      setSelectedUpgradeId(upgradeId);
-    }
-  }
-
-  if (!selectedNode || !selectedId) {
+  if (!selectedUpgrade) {
     return null;
   }
 
-  const selectedDefinition = selectedNode.definition;
-  const selectedRuntime = nodeRuntimeById[selectedId];
-  const selectedCurrentEffect =
-    selectedRuntime.level > 0 ? describeUpgradeEffect(selectedDefinition, selectedRuntime.level, prestige.totalMirrorShards) : "Not active yet";
-  const selectedNextEffect =
-    selectedDefinition.maxLevel !== undefined && selectedRuntime.level >= selectedDefinition.maxLevel
-      ? "Already maxed"
-      : describeUpgradeEffect(selectedDefinition, selectedRuntime.level + 1, prestige.totalMirrorShards);
+  const selectedCostLabel = selectedUpgrade.isMaxed ? "Maxed" : selectedUpgrade.costLabel;
 
   return (
-    <div className="upgrade-page upgrade-tree-page">
+    <div className="upgrade-page upgrade-structured-page">
       <div className="upgrade-page-header">
         <div>
           <h2 className="upgrade-page-title">Upgrades</h2>
-          <p className="upgrade-page-subtitle">Build through readable branches instead of scanning a long shopping list. Each category is now a compact progression board with clear next steps.</p>
+          <p className="upgrade-page-subtitle">
+            Browse one category at a time, compare clean rows, and use the detail panel for the deeper read before you commit currency.
+          </p>
         </div>
         <div className="upgrade-page-stats">
           <div className="upgrade-stat-card">
@@ -304,120 +234,207 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
         </div>
       </div>
 
-      <div className="upgrade-category-tabs">
-        {upgradeCategories.map((category) => {
-          const stats = categoryStats[category];
-          const active = category === activeCategory;
-          return (
-            <button
-              key={category}
-              type="button"
-              className={`upgrade-category-tab${active ? " upgrade-category-tab-active" : ""}`}
-              onClick={() => {
-                setActiveCategory(category);
-                setSelectedUpgradeId(pickSelectedUpgradeId(category, availabilityState));
-              }}
-            >
-              <span className="upgrade-category-tab-name">{getUpgradeCategoryLabel(category)}</span>
-              <span className="upgrade-category-tab-meta">{stats.unlocked}/{stats.total}</span>
-              {stats.affordable > 0 && <span className="upgrade-category-tab-badge">{stats.affordable}</span>}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="upgrade-category-summary upgrade-tree-summary">
-        <div>
-          <div className="upgrade-category-summary-title">{getUpgradeCategoryLabel(activeCategory)}</div>
-          <div className="upgrade-category-summary-copy">{getUpgradeCategoryDescription(activeCategory)}</div>
-        </div>
-        <div className="upgrade-category-summary-stats">
-          <span>{categoryStats[activeCategory].unlocked} unlocked</span>
-          <span>{categoryStats[activeCategory].affordable} affordable</span>
-          <span>{tree.tierCount} tiers</span>
-        </div>
-      </div>
-
-      <div className="upgrade-tree-legend">
-        <span className="upgrade-legend-item"><span className="upgrade-legend-swatch upgrade-legend-swatch-minor" />Minor node</span>
-        <span className="upgrade-legend-item"><span className="upgrade-legend-swatch upgrade-legend-swatch-unlock" />Unlock node</span>
-        <span className="upgrade-legend-item"><span className="upgrade-legend-swatch upgrade-legend-swatch-keystone" />Major node</span>
-        <span className="upgrade-legend-item"><span className="upgrade-legend-swatch upgrade-legend-swatch-ready" />Ready now</span>
-      </div>
-
-      <div className="upgrade-tree-layout">
-        <section className="shell-card upgrade-tree-shell">
-          <div className="upgrade-tree-tier-header">
-            <div className="upgrade-tree-tier-spacer">Branch</div>
-            {Array.from({ length: tree.tierCount }, (_, index) => (
-              <div key={index + 1} className="upgrade-tree-tier-pill">Tier {index + 1}</div>
-            ))}
+      <div className="upgrade-structured-layout">
+        <aside className="shell-card upgrade-category-rail">
+          <div className="upgrade-category-rail-header">
+            <p className="shell-card-eyebrow">Categories</p>
+            <h3 className="shell-card-title">Choose a progression track</h3>
+            <p className="upgrade-category-rail-copy">Each category keeps its own upgrade lane and affordability summary so you can spot your next spend faster.</p>
           </div>
 
-          <div className="upgrade-tree-board" ref={boardRef}>
-            <UpgradeConnectionLayer paths={renderedPaths} />
+          <div className="upgrade-category-list">
+            {upgradeCategories.map((category) => {
+              const stats = categoryStats[category];
+              const active = category === activeCategory;
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  className={`upgrade-category-button${active ? " upgrade-category-button-active" : ""}`}
+                  onClick={() => {
+                    setActiveCategory(category);
+                    setSelectedUpgradeId(pickSelectedUpgradeId(rowsByCategory[category]));
+                  }}
+                >
+                  <div className="upgrade-category-button-topline">
+                    <span className="upgrade-category-button-name">{getUpgradeCategoryLabel(category)}</span>
+                    {stats.affordable > 0 ? <span className="upgrade-category-button-badge">{stats.affordable}</span> : null}
+                  </div>
+                  <span className="upgrade-category-button-copy">{getUpgradeCategoryDescription(category)}</span>
+                  <div className="upgrade-category-button-metrics">
+                    <span>{stats.unlocked}/{stats.total} unlocked</span>
+                    <span>{stats.affordable} ready</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
 
-            <div className="upgrade-tree-grid" style={{ gridTemplateColumns: tree.gridTemplateColumns, gridTemplateRows: tree.gridTemplateRows }}>
-              {tree.lanes.map((lane) => (
-                <div key={lane.label} className="upgrade-tree-lane-label" style={{ gridColumn: 1, gridRow: lane.order }}>
-                  <span className="upgrade-tree-lane-name">{lane.label}</span>
-                  <span className="upgrade-tree-lane-copy">{laneCopyByOrder[lane.order] ?? "Late route"}</span>
-                </div>
-              ))}
-
-              {tree.nodes.map((node) => (
-                <UpgradeTreeNodeCard
-                  key={node.definition.id}
-                  node={node}
-                  runtime={nodeRuntimeById[node.definition.id as UpgradeId]}
-                  isSelected={node.definition.id === selectedId}
-                  onSelect={setSelectedUpgradeId}
-                  onKeySelect={handleNodeKeyDown}
-                  nodeRefs={nodeRefs}
-                />
-              ))}
+        <section className="upgrade-main-column">
+          <section className="shell-card upgrade-category-summary-card">
+            <div className="upgrade-category-summary-header">
+              <div>
+                <p className="shell-card-eyebrow">Selected category</p>
+                <h3 className="shell-card-title">{getUpgradeCategoryLabel(activeCategory)}</h3>
+                <p className="upgrade-category-summary-copy">{getUpgradeCategoryDescription(activeCategory)}</p>
+              </div>
+              <div className="upgrade-category-summary-stats">
+                <span>{categoryStats[activeCategory].unlocked} unlocked</span>
+                <span>{categoryStats[activeCategory].affordable} affordable</span>
+                <span>{groupedRows.length} groups</span>
+              </div>
             </div>
+          </section>
+
+          <div className="upgrade-group-stack">
+            {groupedRows.map((group) => (
+              <section key={group.groupName} className="shell-card upgrade-group-card">
+                <div className="upgrade-group-header">
+                  <div>
+                    <p className="shell-card-eyebrow">{group.rows[0]?.lane ?? "Track"}</p>
+                    <h3 className="upgrade-group-title">{group.groupName}</h3>
+                  </div>
+                  <div className="upgrade-group-meta">
+                    <span>{group.rows.filter((row) => row.level > 0).length} owned</span>
+                    <span>{group.rows.filter((row) => row.canBuy).length} ready</span>
+                  </div>
+                </div>
+
+                <div className="upgrade-row-list">
+                  {group.rows.map((row) => (
+                    <div
+                      key={row.id}
+                      className={`upgrade-row${row.id === selectedUpgrade.id ? " upgrade-row-selected" : ""}${row.canBuy ? " upgrade-row-ready" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        className="upgrade-row-select"
+                        aria-pressed={row.id === selectedUpgrade.id}
+                        onClick={() => setSelectedUpgradeId(row.id)}
+                      >
+                        <div className="upgrade-row-primary">
+                          <div className="upgrade-row-title-line">
+                            <span className="upgrade-row-title">{row.definition.name}</span>
+                            <span className={`upgrade-kind-chip upgrade-kind-chip-${row.kind}`}>{getKindLabel(row.kind)}</span>
+                            <span className="upgrade-tier-chip">Tier {row.tier}</span>
+                          </div>
+                          <p className="upgrade-row-description">{row.definition.description}</p>
+                        </div>
+
+                        <div className="upgrade-row-summary">
+                          <span className="upgrade-row-metric">Lv {row.level}</span>
+                          <span className={`upgrade-row-status upgrade-row-status-${row.tone}`}>{row.statusLabel}</span>
+                          <span className="upgrade-row-cost">{row.isMaxed ? "Maxed" : row.costLabel}</span>
+                        </div>
+
+                        <div className="upgrade-row-effects">
+                          <div className="upgrade-row-effect-block">
+                            <span className="upgrade-row-effect-label">Current</span>
+                            <span className="upgrade-row-effect-value">{row.currentEffect}</span>
+                          </div>
+                          <div className="upgrade-row-effect-block">
+                            <span className="upgrade-row-effect-label">Next</span>
+                            <span className="upgrade-row-effect-value">{row.nextEffect}</span>
+                          </div>
+                        </div>
+
+                        <div className="upgrade-row-footnote">
+                          {row.state === "locked" ? `Locked: ${row.requirementText}` : row.canBuy ? "Affordable now" : "Available once you can afford the cost"}
+                        </div>
+                      </button>
+
+                      <div className="upgrade-row-actions">
+                        <button type="button" className="btn" onClick={() => setSelectedUpgradeId(row.id)}>
+                          Details
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => onBuyUpgrade(row.id)}
+                          disabled={!row.canBuy}
+                        >
+                          {row.isMaxed ? "Maxed" : row.canBuy ? "Buy" : "Blocked"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         </section>
 
-        <aside className="shell-card upgrade-focus-card">
-          <div className="upgrade-focus-header">
+        <aside className="shell-card upgrade-detail-panel">
+          <div className="upgrade-detail-header">
             <div>
-              <p className="shell-card-eyebrow">Selected node</p>
-              <h3 className="upgrade-focus-title">{selectedNode.presentation.shortLabel}</h3>
+              <p className="shell-card-eyebrow">Selected upgrade</p>
+              <h3 className="upgrade-detail-title">{selectedUpgrade.definition.name}</h3>
             </div>
-            <span className={`upgrade-focus-kind upgrade-focus-kind-${selectedNode.presentation.kind}`}>{getKindLabel(selectedNode.presentation.kind)}</span>
+            <span className={`upgrade-kind-chip upgrade-kind-chip-${selectedUpgrade.kind}`}>{getKindLabel(selectedUpgrade.kind)}</span>
           </div>
 
-          <p className="upgrade-focus-copy">{selectedDefinition.description}</p>
+          <p className="upgrade-detail-copy">{selectedUpgrade.definition.description}</p>
 
-          <div className="upgrade-focus-stats">
-            <div className="upgrade-focus-stat">
-              <span className="upgrade-focus-stat-label">State</span>
-              <span className={`upgrade-focus-stat-value upgrade-focus-stat-value-${selectedRuntime.tone}`}>{getUpgradeNodeStateLabel(selectedRuntime.state)}</span>
+          <div className="upgrade-detail-metrics">
+            <div className="upgrade-detail-metric">
+              <span className="upgrade-detail-label">Status</span>
+              <span className={`upgrade-detail-value upgrade-detail-value-${selectedUpgrade.tone}`}>{selectedUpgrade.statusLabel}</span>
             </div>
-            <div className="upgrade-focus-stat">
-              <span className="upgrade-focus-stat-label">Current</span>
-              <span className="upgrade-focus-stat-value">{selectedCurrentEffect}</span>
+            <div className="upgrade-detail-metric">
+              <span className="upgrade-detail-label">Level</span>
+              <span className="upgrade-detail-value">Lv {selectedUpgrade.level}</span>
             </div>
-            <div className="upgrade-focus-stat">
-              <span className="upgrade-focus-stat-label">Next</span>
-              <span className="upgrade-focus-stat-value">{selectedNextEffect}</span>
+            <div className="upgrade-detail-metric">
+              <span className="upgrade-detail-label">Current effect</span>
+              <span className="upgrade-detail-value">{selectedUpgrade.currentEffect}</span>
             </div>
-            <div className="upgrade-focus-stat">
-              <span className="upgrade-focus-stat-label">Cost</span>
-              <span className="upgrade-focus-stat-value">{selectedRuntime.costLabel}</span>
+            <div className="upgrade-detail-metric">
+              <span className="upgrade-detail-label">Next effect</span>
+              <span className="upgrade-detail-value">{selectedUpgrade.nextEffect}</span>
+            </div>
+            <div className="upgrade-detail-metric">
+              <span className="upgrade-detail-label">Cost</span>
+              <span className="upgrade-detail-value">{selectedCostLabel}</span>
+            </div>
+            <div className="upgrade-detail-metric">
+              <span className="upgrade-detail-label">Prerequisite</span>
+              <span className="upgrade-detail-value">{selectedUpgrade.requirementText}</span>
             </div>
           </div>
 
-          <div className="upgrade-focus-requirements">
-            <span className="upgrade-focus-section-label">Unlock condition</span>
-            <span className="upgrade-focus-requirement">{getUpgradeNodeRequirementText(availabilityState, selectedId)}</span>
-          </div>
-
-          <button className="btn upgrade-focus-buy" type="button" onClick={() => onBuyUpgrade(selectedId)} disabled={!selectedRuntime.canBuy}>
-            {selectedRuntime.state === "maxed" ? "Maxed" : selectedRuntime.canBuy ? `Buy for ${selectedRuntime.costLabel}` : `Need ${selectedRuntime.costLabel}`}
+          <button type="button" className="btn btn-primary upgrade-detail-buy" onClick={() => onBuyUpgrade(selectedUpgrade.id)} disabled={!selectedUpgrade.canBuy}>
+            {selectedUpgrade.isMaxed ? "Maxed" : selectedUpgrade.canBuy ? `Buy for ${selectedUpgrade.costLabel}` : "Not affordable yet"}
           </button>
+
+          <div className="upgrade-detail-section">
+            <span className="upgrade-detail-section-title">Unlocks next</span>
+            {selectedUnlocksNext.length > 0 ? (
+              <div className="upgrade-token-list">
+                {selectedUnlocksNext.map((name) => (
+                  <span key={name} className="upgrade-token">{name}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="upgrade-detail-note">This upgrade is currently a leaf in the visible chain.</p>
+            )}
+          </div>
+
+          <div className="upgrade-detail-section">
+            <span className="upgrade-detail-section-title">What unlocks soon</span>
+            {upcomingUnlocks.length > 0 ? (
+              <div className="upgrade-upcoming-list">
+                {upcomingUnlocks.map((upgrade) => (
+                  <div key={upgrade.id} className="upgrade-upcoming-item">
+                    <span className="upgrade-upcoming-name">{upgrade.name}</span>
+                    <span className="upgrade-upcoming-requirement">{upgrade.requirementText}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="upgrade-detail-note">Everything in this category is already open or owned.</p>
+            )}
+          </div>
         </aside>
       </div>
     </div>

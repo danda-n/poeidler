@@ -35,6 +35,7 @@ export function App() {
   }, [activePage]);
 
   const activePageCopy = pageCopy[activePage];
+  const activeContentWidth = activePage === "home" ? "default" : "wide";
   const activePageContent = useMemo(() => {
     if (activePage === "upgrades" && appView.hasAnyGenerator) {
       return (
@@ -109,6 +110,7 @@ export function App() {
         statusText={gameState.lastSaveTime ? `Saved ${new Date(gameState.lastSaveTime).toLocaleTimeString()}` : "Autosave active"}
         pageTitle={activePageCopy.title}
         pageDescription={activePageCopy.description}
+        contentWidth={activeContentWidth}
         headerActions={
           <SettingsPanel version={gameState.settings.version} lastSaveTime={gameState.lastSaveTime} onResetSave={actions.resetSave} />
         }
