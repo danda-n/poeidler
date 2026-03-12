@@ -1,6 +1,6 @@
-import { formatCurrencyValue, fragmentCurrencyId, type CurrencyProduction, type CurrencyState } from "../game/currencies";
-import { getClickPower } from "../game/upgradeEngine";
-import { InfoIcon } from "./InfoIcon";
+import { formatCurrencyValue, fragmentCurrencyId, type CurrencyProduction, type CurrencyState } from "@/game/currencies";
+import { getClickPower } from "@/game/upgradeEngine";
+import { InfoIcon } from "@/components/InfoIcon";
 
 type ClickPanelProps = {
   currenciesState: CurrencyState;
@@ -9,7 +9,7 @@ type ClickPanelProps = {
   onGenerateFragment: () => void;
 };
 
-function ClickPanel({ currenciesState, currencyProduction, clickMultiplier, onGenerateFragment }: ClickPanelProps) {
+export function ClickPanel({ currenciesState, currencyProduction, clickMultiplier, onGenerateFragment }: ClickPanelProps) {
   const clickPower = getClickPower(currencyProduction[fragmentCurrencyId], clickMultiplier);
   const fragmentCount = currenciesState[fragmentCurrencyId];
   const passiveRate = currencyProduction[fragmentCurrencyId];
@@ -33,5 +33,3 @@ function ClickPanel({ currenciesState, currencyProduction, clickMultiplier, onGe
     </div>
   );
 }
-
-export default ClickPanel;

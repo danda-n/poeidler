@@ -6,7 +6,7 @@ type SettingsPanelProps = {
   onResetSave: () => void;
 };
 
-function SettingsPanel({ version, lastSaveTime, onResetSave }: SettingsPanelProps) {
+export function SettingsPanel({ version, lastSaveTime, onResetSave }: SettingsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const saveLabel = lastSaveTime ? `Saved ${new Date(lastSaveTime).toLocaleTimeString()}` : "Not saved yet";
@@ -50,5 +50,3 @@ function SettingsPanel({ version, lastSaveTime, onResetSave }: SettingsPanelProp
     </div>
   );
 }
-
-export default SettingsPanel;

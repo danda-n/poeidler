@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
-import { getRunStartMapBonuses } from "../game/gameEngine";
+import { memo, useEffect, useMemo, useState } from "react";
+import { MapBaseSelector } from "@/components/maps/MapBaseSelector";
+import { MapPreparationPanel } from "@/components/maps/MapPreparationPanel";
+import { MapRunStatus } from "@/components/maps/MapRunStatus";
+import { currencyMap, type CurrencyProduction, type CurrencyState } from "@/game/currencies";
+import { getRunStartMapBonuses } from "@/game/gameEngine";
 import {
   MAP_BALANCE,
   baseMapMap,
@@ -18,7 +22,7 @@ import {
   type CraftingAction,
   type MapCompletionResult,
   type QueuedMapSetup,
-} from "../game/maps";
+} from "@/game/maps";
 import {
   addModToLoadout,
   canAffordLoadout,
@@ -26,14 +30,10 @@ import {
   removeModFromLoadout,
   resolveLoadoutEffects,
   type DeviceLoadout,
-} from "../game/mapDevice";
-import { currencyMap, formatCurrencyValue, type CurrencyProduction, type CurrencyState } from "../game/currencies";
-import { getMapCostReduction, type TalentPurchasedState } from "../game/talents";
-import { augmentDeviceEffectsForUpgrades, getMapCostReductionUpgradeBonus, type PurchasedUpgradeState } from "../game/upgradeEngine";
-import type { PrestigeState } from "../game/prestige";
-import { MapBaseSelector } from "./maps/MapBaseSelector";
-import { MapPreparationPanel } from "./maps/MapPreparationPanel";
-import { MapRunStatus } from "./maps/MapRunStatus";
+} from "@/game/mapDevice";
+import type { PrestigeState } from "@/game/prestige";
+import { getMapCostReduction, type TalentPurchasedState } from "@/game/talents";
+import { augmentDeviceEffectsForUpgrades, getMapCostReductionUpgradeBonus, type PurchasedUpgradeState } from "@/game/upgradeEngine";
 
 type MapPanelProps = {
   currencies: CurrencyState;
@@ -50,7 +50,7 @@ type MapPanelProps = {
   onCancelQueue: () => void;
 };
 
-export function MapPanel({
+export const MapPanel = memo(function MapPanel({
   currencies,
   currencyProduction,
   activeMap,
@@ -75,59 +75,103 @@ export function MapPanel({
     return () => window.clearInterval(id);
   }, [activeMap]);
 
-  const deviceEffects = augmentDeviceEffectsForUpgrades(resolveLoadoutEffects(preparingLoadout), purchasedUpgrades, Boolean(activeMap && !queuedMap));
-  const costReduction = getMapCostReduction(talentsPurchased) + getMapCostReductionUpgradeBonus(purchasedUpgrades);
-  const encounterProgression = {
-    mapsCompleted: prestige.mapsCompleted,
-    totalMirrorShards: prestige.totalMirrorShards,
-    prestigeCount: prestige.prestigeCount,
-    lastEncounterId: prestige.lastEncounterId,
-    lastEncounterStreak: prestige.lastEncounterStreak,
-  };
-
-  const mapDef = selectedBaseMapId ? baseMapMap[selectedBaseMapId] : null;
-  const runBonuses = craftedMap
-    ? getRunStartMapBonuses(craftedMap, prestige, talentsPurchased, purchasedUpgrades)
-    : { rewardBonus: 0, shardChanceBonus: 0, speedBonus: 0, encounterChain: 0 };
-  const resolvedCost = mapDef && craftedMap ? getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects) : null;
-  const resolvedDuration = mapDef && craftedMap ? getResolvedMapDuration(mapDef, craftedMap, runBonuses.speedBonus, deviceEffects) : null;
-  const encounter = craftedMap ? getMapEncounter(craftedMap.encounterId) : null;
-  const encounterSpecialization = craftedMap ? getEncounterSpecialization(craftedMap) : null;
-  const shardChance = mapDef && craftedMap
-    ? Math.min(
-        MAP_BALANCE.maxShardChance,
-        mapDef.baseShardChance
-          + craftedMap.resolvedStats.shardChanceBonus
-          + deviceEffects.shardChanceBonus
-          + runBonuses.shardChanceBonus
-          + (encounterSpecialization?.shardChanceBonus ?? 0)
-          + (encounter?.shardChanceBonus ?? 0),
-      )
-    : 0;
-  const rewardMult = craftedMap ? 1 + craftedMap.resolvedStats.rewardMultiplier + deviceEffects.rewardMultiplier : 1;
-  const focusedRewardMult = craftedMap ? 1 + craftedMap.resolvedStats.focusedRewardMultiplier + deviceEffects.focusedRewardMultiplier : 1;
-  const availableActions = craftedMap ? getAvailableCraftingActions(craftedMap) : [];
-  const loadoutCost = getLoadoutTotalCost(preparingLoadout);
-  const loadoutAffordable = canAffordLoadout(currencies, preparingLoadout);
-  const currenciesPostLoadout: CurrencyState = loadoutAffordable
-    ? Object.entries(loadoutCost).reduce((nextCurrencies, [currencyId, amount]) => {
-        nextCurrencies[currencyId as keyof CurrencyState] -= amount ?? 0;
-        return nextCurrencies;
-      }, { ...currencies })
-    : currencies;
-  const mapCostAffordable = Boolean(mapDef && craftedMap && canAffordMap(mapDef, craftedMap, currenciesPostLoadout, costReduction, deviceEffects));
+  const deviceEffects = useMemo(
+    () => augmentDeviceEffectsForUpgrades(resolveLoadoutEffects(preparingLoadout), purchasedUpgrades, Boolean(activeMap && !queuedMap)),
+    [activeMap, preparingLoadout, purchasedUpgrades, queuedMap],
+  );
+  const costReduction = useMemo(
+    () => getMapCostReduction(talentsPurchased) + getMapCostReductionUpgradeBonus(purchasedUpgrades),
+    [purchasedUpgrades, talentsPurchased],
+  );
+  const encounterProgression = useMemo(
+    () => ({
+      mapsCompleted: prestige.mapsCompleted,
+      totalMirrorShards: prestige.totalMirrorShards,
+      prestigeCount: prestige.prestigeCount,
+      lastEncounterId: prestige.lastEncounterId,
+      lastEncounterStreak: prestige.lastEncounterStreak,
+    }),
+    [prestige.lastEncounterId, prestige.lastEncounterStreak, prestige.mapsCompleted, prestige.prestigeCount, prestige.totalMirrorShards],
+  );
+  const mapDef = useMemo(() => (selectedBaseMapId ? baseMapMap[selectedBaseMapId] : null), [selectedBaseMapId]);
+  const runBonuses = useMemo(
+    () =>
+      craftedMap
+        ? getRunStartMapBonuses(craftedMap, prestige, talentsPurchased, purchasedUpgrades)
+        : { rewardBonus: 0, shardChanceBonus: 0, speedBonus: 0, encounterChain: 0 },
+    [craftedMap, prestige, purchasedUpgrades, talentsPurchased],
+  );
+  const resolvedCost = useMemo(
+    () => (mapDef && craftedMap ? getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects) : null),
+    [costReduction, craftedMap, deviceEffects, mapDef],
+  );
+  const resolvedDuration = useMemo(
+    () => (mapDef && craftedMap ? getResolvedMapDuration(mapDef, craftedMap, runBonuses.speedBonus, deviceEffects) : null),
+    [craftedMap, deviceEffects, mapDef, runBonuses.speedBonus],
+  );
+  const encounter = useMemo(() => (craftedMap ? getMapEncounter(craftedMap.encounterId) : null), [craftedMap]);
+  const encounterSpecialization = useMemo(() => (craftedMap ? getEncounterSpecialization(craftedMap) : null), [craftedMap]);
+  const shardChance = useMemo(
+    () =>
+      mapDef && craftedMap
+        ? Math.min(
+            MAP_BALANCE.maxShardChance,
+            mapDef.baseShardChance
+              + craftedMap.resolvedStats.shardChanceBonus
+              + deviceEffects.shardChanceBonus
+              + runBonuses.shardChanceBonus
+              + (encounterSpecialization?.shardChanceBonus ?? 0)
+              + (encounter?.shardChanceBonus ?? 0),
+          )
+        : 0,
+    [craftedMap, deviceEffects.shardChanceBonus, encounter, encounterSpecialization, mapDef, runBonuses.shardChanceBonus],
+  );
+  const rewardMult = useMemo(
+    () => (craftedMap ? 1 + craftedMap.resolvedStats.rewardMultiplier + deviceEffects.rewardMultiplier : 1),
+    [craftedMap, deviceEffects.rewardMultiplier],
+  );
+  const focusedRewardMult = useMemo(
+    () => (craftedMap ? 1 + craftedMap.resolvedStats.focusedRewardMultiplier + deviceEffects.focusedRewardMultiplier : 1),
+    [craftedMap, deviceEffects.focusedRewardMultiplier],
+  );
+  const availableActions = useMemo(() => (craftedMap ? getAvailableCraftingActions(craftedMap) : []), [craftedMap]);
+  const loadoutCost = useMemo(() => getLoadoutTotalCost(preparingLoadout), [preparingLoadout]);
+  const loadoutAffordable = useMemo(() => canAffordLoadout(currencies, preparingLoadout), [currencies, preparingLoadout]);
+  const currenciesPostLoadout = useMemo<CurrencyState>(
+    () =>
+      loadoutAffordable
+        ? Object.entries(loadoutCost).reduce((nextCurrencies, [currencyId, amount]) => {
+            nextCurrencies[currencyId as keyof CurrencyState] -= amount ?? 0;
+            return nextCurrencies;
+          }, { ...currencies })
+        : currencies,
+    [currencies, loadoutAffordable, loadoutCost],
+  );
+  const mapCostAffordable = useMemo(
+    () => Boolean(mapDef && craftedMap && canAffordMap(mapDef, craftedMap, currenciesPostLoadout, costReduction, deviceEffects)),
+    [costReduction, craftedMap, currenciesPostLoadout, deviceEffects, mapDef],
+  );
   const canCommit = !queuedMap && loadoutAffordable && mapCostAffordable;
-  const rewardPreview = mapDef && craftedMap
-    ? getMapRewardPreview(
-        mapDef,
-        craftedMap,
-        getMapIncomeSnapshot(currencyProduction),
-        Object.entries(currenciesPostLoadout).reduce((total, [currencyId, amount]) => total + (currencyMap[currencyId as keyof typeof currencyMap]?.baseValue ?? 0) * amount, 0),
-        runBonuses.rewardBonus,
-        deviceEffects,
-        runBonuses.encounterChain,
-      )
-    : null;
+  const rewardPreview = useMemo(() => {
+    if (!mapDef || !craftedMap) {
+      return null;
+    }
+
+    const wealthValue = Object.entries(currenciesPostLoadout).reduce(
+      (total, [currencyId, amount]) => total + (currencyMap[currencyId as keyof typeof currencyMap]?.baseValue ?? 0) * amount,
+      0,
+    );
+
+    return getMapRewardPreview(
+      mapDef,
+      craftedMap,
+      getMapIncomeSnapshot(currencyProduction),
+      wealthValue,
+      runBonuses.rewardBonus,
+      deviceEffects,
+      runBonuses.encounterChain,
+    );
+  }, [craftedMap, currenciesPostLoadout, currencyProduction, deviceEffects, mapDef, runBonuses.encounterChain, runBonuses.rewardBonus]);
   const showPrepArea = !queuedMap || !activeMap;
 
   function handleSelectBase(baseMapId: string) {
@@ -168,16 +212,6 @@ export function MapPanel({
 
   return (
     <div className="map-panel">
-      <div className="map-panel-header">
-        <div>
-          <h2 className="map-panel-title">Map Device</h2>
-          <p className="map-panel-copy">Pick the route, shape the map, socket a few meaningful device mods, then commit with a clear preview of rewards and tradeoffs.</p>
-        </div>
-        <span className="map-panel-stats">
-          Completed: {prestige.mapsCompleted} | Encounter runs: {prestige.encounterMapsCompleted} | Shards: {formatCurrencyValue(prestige.mirrorShards)}
-        </span>
-      </div>
-
       <MapRunStatus
         activeMap={activeMap}
         queuedMap={queuedMap}
@@ -233,4 +267,4 @@ export function MapPanel({
       )}
     </div>
   );
-}
+});

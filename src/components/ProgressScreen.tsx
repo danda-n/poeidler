@@ -1,8 +1,9 @@
-import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
-import type { PrestigeState } from "../game/prestige";
-import type { TalentPurchasedState } from "../game/talents";
-import PrestigePanel from "./PrestigePanel";
-import TalentPanel from "./TalentPanel";
+import { memo, useMemo } from "react";
+import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "@/game/currencies";
+import type { PrestigeState } from "@/game/prestige";
+import type { TalentPurchasedState } from "@/game/talents";
+import { PrestigeScreen } from "@/components/screens/progress/PrestigeScreen";
+import { TalentsScreen } from "@/components/screens/progress/TalentsScreen";
 
 type ProgressScreenProps = {
   currencies: CurrencyState;
@@ -13,7 +14,7 @@ type ProgressScreenProps = {
   onPurchaseTalent: (talentId: string) => void;
 };
 
-export function ProgressScreen({
+export const ProgressScreen = memo(function ProgressScreen({
   currencies,
   unlockedCurrencies,
   prestige,
@@ -21,16 +22,25 @@ export function ProgressScreen({
   onPrestige,
   onPurchaseTalent,
 }: ProgressScreenProps) {
-  const progressStats = [
-    { label: "Prestiges", value: String(prestige.prestigeCount) },
-    { label: "Maps completed", value: String(prestige.mapsCompleted) },
-    { label: "Encounter maps", value: String(prestige.encounterMapsCompleted) },
-    { label: "Mirror shards", value: formatCurrencyValue(prestige.mirrorShards) },
-    { label: "Total shards", value: formatCurrencyValue(prestige.totalMirrorShards) },
-  ];
+  const progressStats = useMemo(
+    () => [
+      { label: "Prestiges", value: String(prestige.prestigeCount) },
+      { label: "Maps completed", value: String(prestige.mapsCompleted) },
+      { label: "Encounter maps", value: String(prestige.encounterMapsCompleted) },
+      { label: "Mirror shards", value: formatCurrencyValue(prestige.mirrorShards) },
+      { label: "Total shards", value: formatCurrencyValue(prestige.totalMirrorShards) },
+    ],
+    [
+      prestige.encounterMapsCompleted,
+      prestige.mapsCompleted,
+      prestige.mirrorShards,
+      prestige.prestigeCount,
+      prestige.totalMirrorShards,
+    ],
+  );
 
   return (
-    <div className="progress-screen">
+    <div className="progress-screen section-enter">
       <section className="shell-card">
         <div className="shell-card-header">
           <div>
@@ -49,20 +59,19 @@ export function ProgressScreen({
       </section>
 
       <div className="progress-layout">
-        <section className="shell-card progress-panel-card">
-          <PrestigePanel
-            currencies={currencies}
-            unlockedCurrencies={unlockedCurrencies}
-            prestige={prestige}
-            talentsPurchased={talentsPurchased}
-            onPrestige={onPrestige}
-          />
-        </section>
-
-        <section className="shell-card progress-panel-card">
-          <TalentPanel mirrorShards={prestige.mirrorShards} talentsPurchased={talentsPurchased} onPurchaseTalent={onPurchaseTalent} />
-        </section>
+        <PrestigeScreen
+          currencies={currencies}
+          unlockedCurrencies={unlockedCurrencies}
+          prestige={prestige}
+          talentsPurchased={talentsPurchased}
+          onPrestige={onPrestige}
+        />
+        <TalentsScreen
+          mirrorShards={prestige.mirrorShards}
+          talentsPurchased={talentsPurchased}
+          onPurchaseTalent={onPurchaseTalent}
+        />
       </div>
     </div>
   );
-}
+});

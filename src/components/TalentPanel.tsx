@@ -1,15 +1,15 @@
-import { formatCurrencyValue } from "../game/currencies";
+import { formatCurrencyValue } from "@/game/currencies";
 import {
+  canPurchaseTalent,
+  getBranchIcon,
+  getBranchLabel,
+  getTalentCost,
+  getTalentsByBranch,
+  isTalentAvailable,
   talentBranches,
   talentMap,
-  getTalentsByBranch,
-  getTalentCost,
-  canPurchaseTalent,
-  isTalentAvailable,
-  getBranchLabel,
-  getBranchIcon,
   type TalentPurchasedState,
-} from "../game/talents";
+} from "@/game/talents";
 
 type TalentPanelProps = {
   mirrorShards: number;
@@ -17,14 +17,12 @@ type TalentPanelProps = {
   onPurchaseTalent: (talentId: string) => void;
 };
 
-function TalentPanel({ mirrorShards, talentsPurchased, onPurchaseTalent }: TalentPanelProps) {
+export function TalentPanel({ mirrorShards, talentsPurchased, onPurchaseTalent }: TalentPanelProps) {
   return (
     <div className="talent-panel">
       <div className="talent-panel-header">
         <h2 className="talent-panel-title">Talents</h2>
-        <span className="talent-shard-display">
-          {formatCurrencyValue(mirrorShards)} Mirror Shards
-        </span>
+        <span className="talent-shard-display">{formatCurrencyValue(mirrorShards)} Mirror Shards</span>
       </div>
 
       <div className="talent-branches">
@@ -85,5 +83,3 @@ function TalentPanel({ mirrorShards, talentsPurchased, onPurchaseTalent }: Talen
     </div>
   );
 }
-
-export default TalentPanel;

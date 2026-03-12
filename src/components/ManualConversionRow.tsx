@@ -1,4 +1,4 @@
-import { currencyMap, getVisibleAdjacentConversions, getSpendableAmount, type CurrencyId, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
+import { currencyMap, getVisibleAdjacentConversions, getSpendableAmount, type CurrencyId, type CurrencyState, type UnlockedCurrencyState } from "@/game/currencies";
 
 type ManualConversionRowProps = {
   currenciesState: CurrencyState;
@@ -6,7 +6,7 @@ type ManualConversionRowProps = {
   onConvertCurrency: (fromCurrencyId: CurrencyId, toCurrencyId: CurrencyId) => void;
 };
 
-function ManualConversionRow({ currenciesState, unlockedCurrencies, onConvertCurrency }: ManualConversionRowProps) {
+export function ManualConversionRow({ currenciesState, unlockedCurrencies, onConvertCurrency }: ManualConversionRowProps) {
   const visibleConversions = getVisibleAdjacentConversions(unlockedCurrencies);
 
   if (visibleConversions.length === 0) {
@@ -29,5 +29,3 @@ function ManualConversionRow({ currenciesState, unlockedCurrencies, onConvertCur
     </div>
   );
 }
-
-export default ManualConversionRow;

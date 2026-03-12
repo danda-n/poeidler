@@ -1,19 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { convertCurrency } from "../game/conversionEngine";
-import { fragmentCurrencyId, getTotalCurrencyValue, type CurrencyId } from "../game/currencies";
-import { getGeneratorCost, getMaxAffordableGeneratorPurchases, generatorMap, type GeneratorId } from "../game/generators";
-import { createInitialGameState, getRunStartMapBonuses, startGameEngine, synchronizeGameState, type GameState } from "../game/gameEngine";
-import { AUTOSAVE_INTERVAL_MS, clearSavedGame, loadGameState, saveGameState } from "../game/saveSystem";
-import {
-  augmentDeviceEffectsForUpgrades,
-  getClickPower,
-  getConversionOutputUpgradeBonus,
-  getGeneratorCostReductionUpgradeBonus,
-  getMapCostReductionUpgradeBonus,
-  purchaseGenerator,
-  purchaseUpgrade,
-  type UpgradeId,
-} from "../game/upgradeEngine";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { convertCurrency } from "@/game/conversionEngine";
+import { fragmentCurrencyId, getTotalCurrencyValue, type CurrencyId } from "@/game/currencies";
+import { generatorMap, getGeneratorCost, getMaxAffordableGeneratorPurchases, type GeneratorId } from "@/game/generators";
+import { createInitialGameState, getRunStartMapBonuses, startGameEngine, synchronizeGameState, type GameState } from "@/game/gameEngine";
+import { payLoadoutCost, resolveLoadoutEffects, type DeviceLoadout } from "@/game/mapDevice";
 import {
   applyCraftingAction,
   baseMapMap,
@@ -25,10 +15,20 @@ import {
   type CraftedMap,
   type CraftingAction,
   type QueuedMapSetup,
-} from "../game/maps";
-import { payLoadoutCost, resolveLoadoutEffects, type DeviceLoadout } from "../game/mapDevice";
-import { canPrestige, performPrestige } from "../game/prestige";
-import { getConversionBonus, getGeneratorCostReduction, getMapCostReduction, purchaseTalent as purchaseTalentFn } from "../game/talents";
+} from "@/game/maps";
+import { canPrestige, performPrestige } from "@/game/prestige";
+import { AUTOSAVE_INTERVAL_MS, clearSavedGame, loadGameState, saveGameState } from "@/game/saveSystem";
+import { getConversionBonus, getGeneratorCostReduction, getMapCostReduction, purchaseTalent as purchaseTalentFn } from "@/game/talents";
+import {
+  augmentDeviceEffectsForUpgrades,
+  getClickPower,
+  getConversionOutputUpgradeBonus,
+  getGeneratorCostReductionUpgradeBonus,
+  getMapCostReductionUpgradeBonus,
+  purchaseGenerator,
+  purchaseUpgrade,
+  type UpgradeId,
+} from "@/game/upgradeEngine";
 
 export function useGameEngine() {
   const [gameState, setGameState] = useState<GameState>(() => loadGameState());
@@ -60,7 +60,7 @@ export function useGameEngine() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
-  function generateFragment() {
+  const generateFragment = useCallback(() => {
     setGameState((currentState) => {
       const power = getClickPower(currentState.currencyProduction[fragmentCurrencyId], currentState.clickMultiplier);
       return {
@@ -71,9 +71,9 @@ export function useGameEngine() {
         },
       };
     });
-  }
+  }, []);
 
-  function manualConvert(fromCurrencyId: CurrencyId, toCurrencyId: CurrencyId) {
+  const manualConvert = useCallback((fromCurrencyId: CurrencyId, toCurrencyId: CurrencyId) => {
     setGameState((currentState) => {
       const talentBonus = getConversionBonus(currentState.talentsPurchased);
       const upgradeBonus = getConversionOutputUpgradeBonus(currentState.purchasedUpgrades);
@@ -95,13 +95,13 @@ export function useGameEngine() {
         currencies: converted,
       };
     });
-  }
+  }, []);
 
-  function buyUpgrade(upgradeId: UpgradeId) {
+  const buyUpgrade = useCallback((upgradeId: UpgradeId) => {
     setGameState((currentState) => synchronizeGameState(purchaseUpgrade(currentState, upgradeId)));
-  }
+  }, []);
 
-  function buyGenerator(generatorId: GeneratorId) {
+  const buyGenerator = useCallback((generatorId: GeneratorId) => {
     setGameState((currentState) => {
       const generator = generatorMap[generatorId];
       const costReduction = getGeneratorCostReduction(currentState.talentsPurchased) + getGeneratorCostReductionUpgradeBonus(currentState.purchasedUpgrades);
@@ -164,9 +164,9 @@ export function useGameEngine() {
 
       return synchronizeGameState(purchaseGenerator(currentState, generatorId, quantity));
     });
-  }
+  }, []);
 
-  function craftMap(craftedMap: CraftedMap, action: CraftingAction): CraftedMap | null {
+  const craftMap = useCallback((craftedMap: CraftedMap, action: CraftingAction): CraftedMap | null => {
     const currentState = gameStateRef.current;
     if (!canAffordCraft(currentState.currencies, action)) return null;
 
@@ -175,9 +175,9 @@ export function useGameEngine() {
 
     setGameState((state) => ({ ...state, currencies: payCraftCost(state.currencies, action) }));
     return newMap;
-  }
+  }, []);
 
-  function startMapAction(baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) {
+  const startMapAction = useCallback((baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) => {
     setGameState((currentState) => {
       const mapDef = baseMapMap[baseMapId];
       if (!mapDef) return currentState;
@@ -219,9 +219,9 @@ export function useGameEngine() {
         queuedMap: null,
       };
     });
-  }
+  }, []);
 
-  function queueMapAction(baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) {
+  const queueMapAction = useCallback((baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) => {
     setGameState((currentState) => {
       const mapDef = baseMapMap[baseMapId];
       if (!mapDef) return currentState;
@@ -231,13 +231,13 @@ export function useGameEngine() {
       const setup: QueuedMapSetup = { baseMapId, craftedMap, deviceLoadout };
       return { ...currentState, queuedMap: setup };
     });
-  }
+  }, []);
 
-  function cancelQueueAction() {
+  const cancelQueueAction = useCallback(() => {
     setGameState((currentState) => ({ ...currentState, queuedMap: null }));
-  }
+  }, []);
 
-  function prestigeAction() {
+  const prestigeAction = useCallback(() => {
     setGameState((currentState) => {
       if (!canPrestige(currentState.currencies)) return currentState;
 
@@ -264,9 +264,9 @@ export function useGameEngine() {
         mapNotification: null,
       });
     });
-  }
+  }, []);
 
-  function purchaseTalent(talentId: string) {
+  const purchaseTalent = useCallback((talentId: string) => {
     setGameState((currentState) => {
       const result = purchaseTalentFn(
         talentId,
@@ -284,16 +284,15 @@ export function useGameEngine() {
         },
       });
     });
-  }
+  }, []);
 
-  function resetSave() {
+  const resetSave = useCallback(() => {
     clearSavedGame();
     setGameState(createInitialGameState());
-  }
+  }, []);
 
-  return {
-    gameState,
-    actions: {
+  const actions = useMemo(
+    () => ({
       generateFragment,
       manualConvert,
       buyUpgrade,
@@ -305,6 +304,12 @@ export function useGameEngine() {
       prestige: prestigeAction,
       purchaseTalent,
       resetSave,
-    },
+    }),
+    [buyGenerator, buyUpgrade, cancelQueueAction, craftMap, generateFragment, manualConvert, prestigeAction, purchaseTalent, queueMapAction, resetSave, startMapAction],
+  );
+
+  return {
+    gameState,
+    actions,
   };
 }
