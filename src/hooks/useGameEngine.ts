@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { convertCurrency } from "@/game/conversionEngine";
 import { fragmentCurrencyId, getTotalCurrencyValue, type CurrencyId } from "@/game/currencies";
-import { generatorMap, getGeneratorCost, getMaxAffordableGeneratorPurchases, type GeneratorId } from "@/game/generators";
 import { createInitialGameState, getRunStartMapBonuses, startGameEngine, synchronizeGameState, type GameState } from "@/game/gameEngine";
+import { generatorMap, getGeneratorCost, getMaxAffordableGeneratorPurchases, type GeneratorId } from "@/game/generators";
 import { payLoadoutCost, resolveLoadoutEffects, type DeviceLoadout } from "@/game/mapDevice";
 import {
   applyCraftingAction,
@@ -30,26 +30,74 @@ import {
   type UpgradeId,
 } from "@/game/upgradeEngine";
 
+const DISPLAY_SYNC_INTERVAL_MS = 200;
+
+type GameStateUpdater = (currentState: GameState) => GameState;
+
+type SyncMode = "immediate" | "deferred";
+
 export function useGameEngine() {
   const [gameState, setGameState] = useState<GameState>(() => loadGameState());
   const gameStateRef = useRef(gameState);
-  gameStateRef.current = gameState;
+  const lastPublishedAtRef = useRef(Date.now());
 
-  useEffect(() => startGameEngine(setGameState), []);
+  const publishGameState = useCallback((nextState: GameState) => {
+    gameStateRef.current = nextState;
+    setGameState(nextState);
+    lastPublishedAtRef.current = Date.now();
+  }, []);
+
+  const updateGameState = useCallback((updater: GameStateUpdater, syncMode: SyncMode = "immediate") => {
+    const currentState = gameStateRef.current;
+    const nextState = updater(currentState);
+    if (nextState === currentState) {
+      return currentState;
+    }
+
+    gameStateRef.current = nextState;
+
+    if (syncMode === "immediate") {
+      setGameState(nextState);
+      lastPublishedAtRef.current = Date.now();
+    }
+
+    return nextState;
+  }, []);
+
+  useEffect(
+    () =>
+      startGameEngine((updater) => {
+        const nextState = updater(gameStateRef.current);
+        if (nextState === gameStateRef.current) {
+          return;
+        }
+
+        gameStateRef.current = nextState;
+        const now = Date.now();
+        if (now - lastPublishedAtRef.current >= DISPLAY_SYNC_INTERVAL_MS) {
+          setGameState(nextState);
+          lastPublishedAtRef.current = now;
+        }
+      }),
+    [],
+  );
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      setGameState((currentState) => {
-        const saveTimestamp = saveGameState(currentState);
-        return {
-          ...currentState,
-          lastSaveTime: saveTimestamp,
-        };
-      });
+      const saveTimestamp = saveGameState(gameStateRef.current);
+      if (gameStateRef.current.lastSaveTime === saveTimestamp) {
+        return;
+      }
+
+      const nextState = {
+        ...gameStateRef.current,
+        lastSaveTime: saveTimestamp,
+      };
+      publishGameState(nextState);
     }, AUTOSAVE_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [publishGameState]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -61,7 +109,7 @@ export function useGameEngine() {
   }, []);
 
   const generateFragment = useCallback(() => {
-    setGameState((currentState) => {
+    updateGameState((currentState) => {
       const power = getClickPower(currentState.currencyProduction[fragmentCurrencyId], currentState.clickMultiplier);
       return {
         ...currentState,
@@ -71,10 +119,10 @@ export function useGameEngine() {
         },
       };
     });
-  }, []);
+  }, [updateGameState]);
 
   const manualConvert = useCallback((fromCurrencyId: CurrencyId, toCurrencyId: CurrencyId) => {
-    setGameState((currentState) => {
+    updateGameState((currentState) => {
       const talentBonus = getConversionBonus(currentState.talentsPurchased);
       const upgradeBonus = getConversionOutputUpgradeBonus(currentState.purchasedUpgrades);
       const converted = convertCurrency(currentState.currencies, fromCurrencyId, toCurrencyId);
@@ -95,14 +143,14 @@ export function useGameEngine() {
         currencies: converted,
       };
     });
-  }, []);
+  }, [updateGameState]);
 
   const buyUpgrade = useCallback((upgradeId: UpgradeId) => {
-    setGameState((currentState) => synchronizeGameState(purchaseUpgrade(currentState, upgradeId)));
-  }, []);
+    updateGameState((currentState) => synchronizeGameState(purchaseUpgrade(currentState, upgradeId)));
+  }, [updateGameState]);
 
   const buyGenerator = useCallback((generatorId: GeneratorId) => {
-    setGameState((currentState) => {
+    updateGameState((currentState) => {
       const generator = generatorMap[generatorId];
       const costReduction = getGeneratorCostReduction(currentState.talentsPurchased) + getGeneratorCostReductionUpgradeBonus(currentState.purchasedUpgrades);
 
@@ -164,7 +212,7 @@ export function useGameEngine() {
 
       return synchronizeGameState(purchaseGenerator(currentState, generatorId, quantity));
     });
-  }, []);
+  }, [updateGameState]);
 
   const craftMap = useCallback((craftedMap: CraftedMap, action: CraftingAction): CraftedMap | null => {
     const currentState = gameStateRef.current;
@@ -173,12 +221,12 @@ export function useGameEngine() {
     const newMap = applyCraftingAction(craftedMap, action);
     if (!newMap) return null;
 
-    setGameState((state) => ({ ...state, currencies: payCraftCost(state.currencies, action) }));
+    updateGameState((state) => ({ ...state, currencies: payCraftCost(state.currencies, action) }));
     return newMap;
-  }, []);
+  }, [updateGameState]);
 
   const startMapAction = useCallback((baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) => {
-    setGameState((currentState) => {
+    updateGameState((currentState) => {
       const mapDef = baseMapMap[baseMapId];
       if (!mapDef) return currentState;
       if (currentState.activeMap) return currentState;
@@ -219,10 +267,10 @@ export function useGameEngine() {
         queuedMap: null,
       };
     });
-  }, []);
+  }, [updateGameState]);
 
   const queueMapAction = useCallback((baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) => {
-    setGameState((currentState) => {
+    updateGameState((currentState) => {
       const mapDef = baseMapMap[baseMapId];
       if (!mapDef) return currentState;
       if (!currentState.activeMap) return currentState;
@@ -231,14 +279,14 @@ export function useGameEngine() {
       const setup: QueuedMapSetup = { baseMapId, craftedMap, deviceLoadout };
       return { ...currentState, queuedMap: setup };
     });
-  }, []);
+  }, [updateGameState]);
 
   const cancelQueueAction = useCallback(() => {
-    setGameState((currentState) => ({ ...currentState, queuedMap: null }));
-  }, []);
+    updateGameState((currentState) => ({ ...currentState, queuedMap: null }));
+  }, [updateGameState]);
 
   const prestigeAction = useCallback(() => {
-    setGameState((currentState) => {
+    updateGameState((currentState) => {
       if (!canPrestige(currentState.currencies)) return currentState;
 
       const result = performPrestige(
@@ -264,15 +312,11 @@ export function useGameEngine() {
         mapNotification: null,
       });
     });
-  }, []);
+  }, [updateGameState]);
 
   const purchaseTalent = useCallback((talentId: string) => {
-    setGameState((currentState) => {
-      const result = purchaseTalentFn(
-        talentId,
-        currentState.talentsPurchased,
-        currentState.prestige.mirrorShards,
-      );
+    updateGameState((currentState) => {
+      const result = purchaseTalentFn(talentId, currentState.talentsPurchased, currentState.prestige.mirrorShards);
       if (!result) return currentState;
 
       return synchronizeGameState({
@@ -284,12 +328,12 @@ export function useGameEngine() {
         },
       });
     });
-  }, []);
+  }, [updateGameState]);
 
   const resetSave = useCallback(() => {
     clearSavedGame();
-    setGameState(createInitialGameState());
-  }, []);
+    publishGameState(createInitialGameState());
+  }, [publishGameState]);
 
   const actions = useMemo(
     () => ({
@@ -305,7 +349,19 @@ export function useGameEngine() {
       purchaseTalent,
       resetSave,
     }),
-    [buyGenerator, buyUpgrade, cancelQueueAction, craftMap, generateFragment, manualConvert, prestigeAction, purchaseTalent, queueMapAction, resetSave, startMapAction],
+    [
+      buyGenerator,
+      buyUpgrade,
+      cancelQueueAction,
+      craftMap,
+      generateFragment,
+      manualConvert,
+      prestigeAction,
+      purchaseTalent,
+      queueMapAction,
+      resetSave,
+      startMapAction,
+    ],
   );
 
   return {
