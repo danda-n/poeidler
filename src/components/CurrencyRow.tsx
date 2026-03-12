@@ -1,5 +1,5 @@
 import { formatCurrencyValue } from "../game/currencies";
-import InfoIcon from "./InfoIcon";
+import { InfoIcon } from "./InfoIcon";
 
 type CurrencyRowProps = {
   icon: string;
@@ -12,7 +12,7 @@ type CurrencyRowProps = {
   onBuyGenerator?: () => void;
 };
 
-function CurrencyRow({
+export function CurrencyRow({
   icon,
   name,
   value,
@@ -45,5 +45,3 @@ function CurrencyRow({
     </div>
   );
 }
-
-export default CurrencyRow;

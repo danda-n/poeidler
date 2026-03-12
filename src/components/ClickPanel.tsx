@@ -1,6 +1,6 @@
 import { formatCurrencyValue, fragmentCurrencyId, type CurrencyProduction, type CurrencyState } from "../game/currencies";
 import { getClickPower } from "../game/upgradeEngine";
-import InfoIcon from "./InfoIcon";
+import { InfoIcon } from "./InfoIcon";
 
 type ClickPanelProps = {
   currenciesState: CurrencyState;
@@ -14,7 +14,7 @@ function ClickPanel({ currenciesState, currencyProduction, clickMultiplier, onGe
   const fragmentCount = currenciesState[fragmentCurrencyId];
   const passiveRate = currencyProduction[fragmentCurrencyId];
 
-  const tooltip = `Click power: ${formatCurrencyValue(clickPower)}\nBase: 1 + production × 0.3\nMultiplier: x${formatCurrencyValue(clickMultiplier)}`;
+  const tooltip = `Click power: ${formatCurrencyValue(clickPower)}\nBase: 1 + production x 0.3\nMultiplier: x${formatCurrencyValue(clickMultiplier)}`;
 
   return (
     <div className="click-area">

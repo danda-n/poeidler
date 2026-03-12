@@ -6,12 +6,12 @@ type FoldablePanelProps = {
   children: React.ReactNode;
 };
 
-function FoldablePanel({ title, defaultOpen = true, children }: FoldablePanelProps) {
+export function FoldablePanel({ title, defaultOpen = true, children }: FoldablePanelProps) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
 
   return (
     <section className="foldable-panel">
-      <button className="foldable-trigger" type="button" onClick={() => setIsOpen((v) => !v)}>
+      <button className="foldable-trigger" type="button" onClick={() => setIsOpen((value) => !value)}>
         <span className="foldable-icon">{isOpen ? "\u25BE" : "\u25B8"}</span>
         <span>{title}</span>
       </button>
@@ -19,5 +19,3 @@ function FoldablePanel({ title, defaultOpen = true, children }: FoldablePanelPro
     </section>
   );
 }
-
-export default FoldablePanel;

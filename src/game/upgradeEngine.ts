@@ -37,6 +37,7 @@ export type UpgradeEffect =
   | { type: "unlockFeature"; feature: FeatureId }
   | { type: "percentClickPower"; value: number }
   | { type: "flatConversionOutput"; value: number }
+  | { type: "percentGeneratorCostReduction"; value: number }
   | { type: "percentMapReward"; value: number }
   | { type: "percentFocusedMapReward"; value: number }
   | { type: "percentMapRewardPerTier"; value: number }
@@ -44,6 +45,8 @@ export type UpgradeEffect =
   | { type: "flatMapShardChance"; value: number }
   | { type: "flatQueuedMapShardChance"; value: number }
   | { type: "percentMapStreakReward"; value: number }
+  | { type: "percentMapSpeed"; value: number }
+  | { type: "percentMapCostReduction"; value: number }
   | { type: "percentPrestigeShards"; value: number }
   | { type: "percentMapRewardFromShards"; value: number; shardStep: number; maxSteps?: number }
   | { type: "flatMapShardChanceFromShards"; value: number; shardStep: number; maxSteps?: number }
@@ -79,17 +82,21 @@ export const upgrades: UpgradeDefinition[] = [
   { id: "divineEfficiency", category: "generators", group: "High Currency", name: "Divine Resonance", description: "Anchor endgame generator scaling.", baseCost: { divineOrb: 2 }, costMultiplier: 1.2, effect: { type: "percentProduction", currency: "divineOrb", value: 0.1 } },
   { id: "clickPower", category: "economy", group: "Direct Power", name: "Click Power", description: "Raise manual click impact for short-term push moments.", baseCost: { fragmentOfWisdom: 25 }, costMultiplier: 1.3, effect: { type: "percentClickPower", value: 0.25 } },
   { id: "exchangeFinesse", category: "economy", group: "Trading", name: "Exchange Finesse", description: "Manual conversions output extra currency, creating a stronger bridge between tiers.", baseCost: { augmentationOrb: 18, alterationOrb: 6 }, costMultiplier: 1.35, requirements: [{ type: "unlockedCurrency", currencyId: "augmentationOrb" }], effect: { type: "flatConversionOutput", value: 1 } },
+  { id: "supplyLogistics", category: "economy", group: "Trading", name: "Supply Logistics", description: "Reduce generator prices so bulk investments stay meaningful deeper into a run.", baseCost: { alterationOrb: 40, jewellersOrb: 6 }, costMultiplier: 1.38, prerequisite: "exchangeFinesse", requirements: [{ type: "mapsCompleted", amount: 1 }], effect: { type: "percentGeneratorCostReduction", value: 0.025 } },
   { id: "mapCalibration", category: "maps", group: "Reward Engines", name: "Map Calibration", description: "Lift baseline map reward value.", baseCost: { alterationOrb: 25, jewellersOrb: 2 }, costMultiplier: 1.35, requirements: [{ type: "unlockedCurrency", currencyId: "alterationOrb" }], effect: { type: "percentMapReward", value: 0.12 } },
   { id: "focusedSurvey", category: "maps", group: "Reward Engines", name: "Focused Survey", description: "Make specialized maps a stronger choice when you want targeted currencies.", baseCost: { jewellersOrb: 10, fusingOrb: 4 }, costMultiplier: 1.36, prerequisite: "mapCalibration", requirements: [{ type: "mapsCompleted", amount: 1 }], effect: { type: "percentFocusedMapReward", value: 0.18 } },
   { id: "waystoneDrafting", category: "maps", group: "Reward Engines", name: "Waystone Drafting", description: "Higher-tier maps become a clearer step up instead of just a longer run.", baseCost: { fusingOrb: 14, chaosOrb: 3 }, costMultiplier: 1.38, prerequisite: "focusedSurvey", requirements: [{ type: "mapsCompleted", amount: 3 }], effect: { type: "percentMapRewardPerTier", value: 0.1 } },
   { id: "encounterCartography", category: "maps", group: "Reward Engines", name: "Encounter Cartography", description: "Map encounters pay out more value once you start routing around them.", baseCost: { alchemyOrb: 8, chaosOrb: 3 }, costMultiplier: 1.42, prerequisite: "waystoneDrafting", requirements: [{ type: "mapsCompleted", amount: 5 }], effect: { type: "percentEncounterReward", value: 0.14 } },
+  { id: "swiftSurvey", category: "maps", group: "Reward Engines", name: "Swift Survey", description: "Turn atlas planning into faster map turnover instead of only bigger payouts.", baseCost: { chaosOrb: 5, regalOrb: 1 }, costMultiplier: 1.45, prerequisite: "encounterCartography", requirements: [{ type: "mapsCompleted", amount: 7 }], effect: { type: "percentMapSpeed", value: 0.03 } },
   { id: "buyMax", category: "automation", group: "Queue Control", name: "Buy Max", description: "Buy the maximum affordable generators at once.", baseCost: { alterationOrb: 1 }, maxLevel: 1, requirements: [{ type: "unlockedCurrency", currencyId: "alterationOrb" }], effect: { type: "unlockFeature", feature: "buyMax" } },
   { id: "queuePriority", category: "automation", group: "Queue Control", name: "Queue Priority", description: "Queued maps gain extra reward value, making route planning matter.", baseCost: { jewellersOrb: 14, fusingOrb: 4 }, costMultiplier: 1.4, requirements: [{ type: "mapsCompleted", amount: 2 }], effect: { type: "percentQueuedMapReward", value: 0.2 } },
   { id: "relayStability", category: "automation", group: "Queue Control", name: "Relay Stability", description: "Queued maps gain shard consistency so chaining runs feels better.", baseCost: { chaosOrb: 4, regalOrb: 1 }, costMultiplier: 1.42, prerequisite: "queuePriority", requirements: [{ type: "mapsCompleted", amount: 4 }], effect: { type: "flatQueuedMapShardChance", value: 0.0035 } },
+  { id: "relayCalibration", category: "automation", group: "Queue Control", name: "Relay Calibration", description: "Queued routing also trims setup drag by accelerating overall map speed.", baseCost: { chaosOrb: 8, regalOrb: 2 }, costMultiplier: 1.46, prerequisite: "relayStability", requirements: [{ type: "mapsCompleted", amount: 6 }], effect: { type: "percentMapSpeed", value: 0.02 } },
   { id: "atlasSurveying", category: "atlas", group: "Atlas Memory", name: "Atlas Surveying", description: "Increase baseline shard chance for all maps.", baseCost: { chaosOrb: 2, regalOrb: 1 }, costMultiplier: 1.4, requirements: [{ type: "mapsCompleted", amount: 3 }], effect: { type: "flatMapShardChance", value: 0.004 } },
   { id: "atlasTrails", category: "atlas", group: "Atlas Memory", name: "Atlas Trails", description: "Family streaks matter more, rewarding committed routing.", baseCost: { chaosOrb: 8, regalOrb: 3 }, costMultiplier: 1.44, prerequisite: "atlasSurveying", requirements: [{ type: "totalMirrorShards", amount: 5 }], effect: { type: "percentMapStreakReward", value: 0.05 } },
   { id: "routeCompass", category: "atlas", group: "Atlas Memory", name: "Route Compass", description: "Tier advantage grows as your atlas experience deepens.", baseCost: { regalOrb: 6, exaltedOrb: 1 }, costMultiplier: 1.48, prerequisite: "atlasTrails", requirements: [{ type: "totalMirrorShards", amount: 12 }], effect: { type: "percentMapRewardPerTier", value: 0.06 } },
   { id: "hazardSurveying", category: "atlas", group: "Atlas Memory", name: "Hazard Surveying", description: "Encounter runs become more reliable shard sources once your atlas deepens.", baseCost: { regalOrb: 6, exaltedOrb: 1 }, costMultiplier: 1.5, prerequisite: "routeCompass", requirements: [{ type: "totalMirrorShards", amount: 18 }], effect: { type: "flatEncounterShardChance", value: 0.003 } },
+  { id: "atlasStockpiles", category: "atlas", group: "Atlas Memory", name: "Atlas Stockpiles", description: "Lower map costs so the atlas keeps pace with the wider economy.", baseCost: { exaltedOrb: 2, divineOrb: 1 }, costMultiplier: 1.53, prerequisite: "hazardSurveying", requirements: [{ type: "totalMirrorShards", amount: 24 }], effect: { type: "percentMapCostReduction", value: 0.03 } },
   { id: "relicLattice", category: "relics", group: "Relic Echoes", name: "Relic Lattice", description: "Prestige yields more shards, strengthening long-term resets.", baseCost: { chaosOrb: 12, regalOrb: 4 }, costMultiplier: 1.5, requirements: [{ type: "prestigeCount", amount: 1 }], effect: { type: "percentPrestigeShards", value: 0.12 } },
   { id: "shardResonance", category: "relics", group: "Relic Echoes", name: "Shard Resonance", description: "Total shards feed back into map rewards, tying resets to active runs.", baseCost: { regalOrb: 8, exaltedOrb: 2 }, costMultiplier: 1.55, prerequisite: "relicLattice", requirements: [{ type: "totalMirrorShards", amount: 12 }], effect: { type: "percentMapRewardFromShards", value: 0.03, shardStep: 25, maxSteps: 8 } },
   { id: "heirloomSpark", category: "relics", group: "Relic Echoes", name: "Heirloom Spark", description: "Shard stockpiles also steady future shard drops inside maps.", baseCost: { exaltedOrb: 4, divineOrb: 1 }, costMultiplier: 1.6, prerequisite: "shardResonance", requirements: [{ type: "totalMirrorShards", amount: 30 }], effect: { type: "flatMapShardChanceFromShards", value: 0.0015, shardStep: 25, maxSteps: 8 } },
@@ -245,6 +252,7 @@ export function getUpgradeCategoryStats(state: UpgradeAvailabilityState, categor
   const categoryUpgrades = upgrades.filter((upgrade) => upgrade.category === category);
   const unlocked = categoryUpgrades.filter((upgrade) => isUpgradeUnlocked(state, upgrade.id as UpgradeId)).length;
   const affordable = categoryUpgrades.filter((upgrade) => canPurchaseUpgrade(state, upgrade.id as UpgradeId)).length;
+
   return {
     total: categoryUpgrades.length,
     unlocked,
@@ -289,6 +297,13 @@ export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState, br
 export function getConversionOutputUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "flatConversionOutput") return bonus;
+    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+  }, 0);
+}
+
+export function getGeneratorCostReductionUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+  return upgrades.reduce((bonus, upgrade) => {
+    if (upgrade.effect.type !== "percentGeneratorCostReduction") return bonus;
     return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
   }, 0);
 }
@@ -358,6 +373,20 @@ export function getMapShardChanceUpgradeBonus(
 export function getQueuedMapShardChanceUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "flatQueuedMapShardChance") return bonus;
+    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+  }, 0);
+}
+
+export function getMapSpeedUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+  return upgrades.reduce((bonus, upgrade) => {
+    if (upgrade.effect.type !== "percentMapSpeed") return bonus;
+    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+  }, 0);
+}
+
+export function getMapCostReductionUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
+  return upgrades.reduce((bonus, upgrade) => {
+    if (upgrade.effect.type !== "percentMapCostReduction") return bonus;
     return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
   }, 0);
 }
@@ -458,11 +487,11 @@ export function getUpgradeCategoryLabel(category: UpgradeCategory) {
 
 export function getUpgradeCategoryDescription(category: UpgradeCategory) {
   switch (category) {
-    case "generators": return "Immediate output boosts across currency lines.";
-    case "economy": return "Click and conversion tools for short-term pushes.";
-    case "maps": return "Active run value, encounter routing, and targeted map scaling.";
-    case "automation": return "Batching and queue-based leverage.";
-    case "atlas": return "Routing, streaks, and encounter reliability that build over time.";
+    case "generators": return "Immediate output boosts across currency lines, backed by stronger line breakpoints.";
+    case "economy": return "Click, conversion, and investment efficiency for keeping the core economy relevant.";
+    case "maps": return "Active run value, route speed, and targeted map scaling.";
+    case "automation": return "Batching and queue leverage that turn planning into momentum.";
+    case "atlas": return "Routing, streaks, cost pressure, and encounter reliability that build over time.";
     case "relics": return "Prestige-fed bonuses that echo back into live runs and encounter planning.";
   }
 }

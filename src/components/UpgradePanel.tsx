@@ -20,7 +20,7 @@ import {
   type UpgradeGroup,
   type UpgradeId,
 } from "../game/upgradeEngine";
-import FoldablePanel from "./FoldablePanel";
+import { FoldablePanel } from "./FoldablePanel";
 
 type UpgradePanelProps = {
   currenciesState: CurrencyState;
@@ -32,7 +32,7 @@ type UpgradePanelProps = {
 
 function formatCost(cost: Partial<Record<CurrencyId, number>>) {
   return Object.entries(cost)
-    .map(([cid, amount]) => `${formatCurrencyValue(amount ?? 0)} ${currencyMap[cid as CurrencyId].shortLabel}`)
+    .map(([currencyId, amount]) => `${formatCurrencyValue(amount ?? 0)} ${currencyMap[currencyId as CurrencyId].shortLabel}`)
     .join(", ");
 }
 
@@ -44,6 +44,8 @@ function describeEffect(upgrade: UpgradeDefinition, level: number, totalMirrorSh
       return `+${Math.round(upgrade.effect.value * 100 * level)}% click power`;
     case "flatConversionOutput":
       return `+${level * upgrade.effect.value} conversion output`;
+    case "percentGeneratorCostReduction":
+      return `-${Math.round(upgrade.effect.value * 100 * level)}% generator costs`;
     case "percentMapReward":
       return `+${Math.round(upgrade.effect.value * 100 * level)}% map reward value`;
     case "percentFocusedMapReward":
@@ -58,6 +60,10 @@ function describeEffect(upgrade: UpgradeDefinition, level: number, totalMirrorSh
       return `+${(upgrade.effect.value * 100 * level).toFixed(2)}% queued shard chance`;
     case "percentMapStreakReward":
       return `+${Math.round(upgrade.effect.value * 100 * level)}% reward per streak step`;
+    case "percentMapSpeed":
+      return `-${Math.round(upgrade.effect.value * 100 * level)}% map duration`;
+    case "percentMapCostReduction":
+      return `-${Math.round(upgrade.effect.value * 100 * level)}% map costs`;
     case "percentPrestigeShards":
       return `+${Math.round(upgrade.effect.value * 100 * level)}% prestige shards`;
     case "percentMapRewardFromShards": {
@@ -85,7 +91,7 @@ function startsOpen(group: UpgradeGroup) {
   return group === "Foundations" || group === "Reward Engines" || group === "Queue Control";
 }
 
-function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, prestige, onBuyUpgrade }: UpgradePanelProps) {
+export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, prestige, onBuyUpgrade }: UpgradePanelProps) {
   const [activeCategory, setActiveCategory] = useState<UpgradeCategory>("generators");
   const availabilityState: UpgradeAvailabilityState = {
     currencies: currenciesState,
@@ -115,7 +121,7 @@ function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, 
       <div className="upgrade-page-header">
         <div>
           <h2 className="upgrade-page-title">Upgrades</h2>
-          <p className="upgrade-page-subtitle">Build short-term power, map routing, automation, encounter specialization, and prestige-linked loops without crowding the play screen.</p>
+          <p className="upgrade-page-subtitle">Invest into output, routing speed, queue value, and long-term economy pressure without crowding the play screen.</p>
         </div>
         <div className="upgrade-page-stats">
           <div className="upgrade-stat-card">
@@ -222,5 +228,3 @@ function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, 
     </div>
   );
 }
-
-export default UpgradePanel;

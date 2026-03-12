@@ -1,4 +1,5 @@
 import {
+  getTotalCurrencyValue,
   initialCurrencies,
   initialCurrencyMultipliers,
   initialCurrencyProduction,
@@ -9,46 +10,52 @@ import {
   type CurrencyState,
   type UnlockedCurrencyState,
 } from "./currencies";
-import { generators, initialGeneratorsOwned, type GeneratorOwnedState } from "./generators";
+import {
+  generators,
+  getGeneratorOutputMultiplier,
+  initialGeneratorsOwned,
+  type GeneratorOwnedState,
+} from "./generators";
 import {
   applyUpgradeEffects,
   augmentDeviceEffectsForUpgrades,
   getBaseMapRewardUpgradeBonus,
   getMapShardChanceUpgradeBonus,
+  getMapSpeedUpgradeBonus,
   initialPurchasedUpgrades,
   initialUnlockedFeatures,
   type FeatureState,
   type PurchasedUpgradeState,
 } from "./upgradeEngine";
 import {
-  type ActiveMapState,
-  type MapCompletionResult,
-  type QueuedMapSetup,
-  type MapNotification,
-  isMapComplete,
+  applyMapRewards,
   baseMapMap,
   completeMap,
-  applyMapRewards,
-  getMapIncomeSnapshot,
-  startMap,
   getEncounterAdjustedStreak,
   getEncounterChain,
   getEncounterRewardTags,
+  getMapIncomeSnapshot,
   hasMapEncounter,
+  isMapComplete,
+  startMap,
+  type ActiveMapState,
+  type MapCompletionResult,
+  type MapNotification,
+  type QueuedMapSetup,
 } from "./maps";
+import { initialMapDeviceState, resolveLoadoutEffects, type MapDeviceState } from "./mapDevice";
 import { initialPrestigeState, type PrestigeState } from "./prestige";
 import {
-  initialTalentsPurchased,
-  getClickPowerBonus,
   getBreakpointBonus,
-  getMapRewardBonus,
-  getMapCostReduction,
-  getMapSpeedBonus,
+  getClickPowerBonus,
   getEncounterRewardBonus,
   getEncounterSpeedBonus,
+  getMapCostReduction,
+  getMapRewardBonus,
+  getMapSpeedBonus,
+  initialTalentsPurchased,
   type TalentPurchasedState,
 } from "./talents";
-import { initialMapDeviceState, resolveLoadoutEffects, type MapDeviceState } from "./mapDevice";
 
 export type GameSettings = {
   version: string;
@@ -83,7 +90,13 @@ export function calculateCurrencyProduction(generatorsOwned: GeneratorOwnedState
   const currencyProduction = { ...initialCurrencyProduction };
 
   generators.forEach((generator) => {
-    currencyProduction[generator.currency] += generatorsOwned[generator.id] * generator.baseRate * currencyMultipliers[generator.currency];
+    const owned = generatorsOwned[generator.id];
+    if (owned <= 0) return;
+
+    currencyProduction[generator.currency] += owned
+      * generator.baseRate
+      * currencyMultipliers[generator.currency]
+      * getGeneratorOutputMultiplier(generator, owned);
   });
 
   return currencyProduction;
@@ -122,7 +135,7 @@ export function getRunStartMapBonuses(
       hasEncounter,
     });
   const shardChanceBonus = getMapShardChanceUpgradeBonus(purchasedUpgrades, prestige.totalMirrorShards, hasEncounter) + expeditionChainShardBonus;
-  const speedBonus = getMapSpeedBonus(talentsPurchased) + getEncounterSpeedBonus(talentsPurchased, hasEncounter);
+  const speedBonus = getMapSpeedBonus(talentsPurchased) + getEncounterSpeedBonus(talentsPurchased, hasEncounter) + getMapSpeedUpgradeBonus(purchasedUpgrades);
 
   return { rewardBonus, shardChanceBonus, speedBonus, encounterChain };
 }
@@ -244,6 +257,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
           true,
         );
         const incomePerSecond = getMapIncomeSnapshot(state.currencyProduction);
+        const wealthValue = getTotalCurrencyValue(currencies);
         const startResult = startMap(
           currencies,
           queuedMapDef,
@@ -252,6 +266,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
           speedBonus,
           deviceEffects,
           incomePerSecond,
+          wealthValue,
           rewardBonus,
           shardChanceBonus,
           encounterChain,

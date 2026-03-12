@@ -11,7 +11,7 @@ import {
   type UpgradeDefinition,
   type UpgradeId,
 } from "../game/upgradeEngine";
-import FoldablePanel from "./FoldablePanel";
+import { FoldablePanel } from "./FoldablePanel";
 
 type OtherUpgradesBarProps = {
   currenciesState: CurrencyState;
@@ -102,3 +102,4 @@ function OtherUpgradesBar({ currenciesState, purchasedUpgrades, onBuyUpgrade }: 
 }
 
 export default OtherUpgradesBar;
+

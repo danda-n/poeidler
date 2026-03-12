@@ -5,7 +5,7 @@ type TooltipProps = {
   children: ReactNode;
 };
 
-function Tooltip({ content, children }: TooltipProps) {
+export function Tooltip({ content, children }: TooltipProps) {
   return (
     <span className="tooltip-wrapper">
       {children}
@@ -13,5 +13,3 @@ function Tooltip({ content, children }: TooltipProps) {
     </span>
   );
 }
-
-export default Tooltip;

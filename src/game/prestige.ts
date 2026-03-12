@@ -1,5 +1,6 @@
 import {
   currencies,
+  getTotalCurrencyValue,
   initialCurrencies,
   initialUnlockedCurrencies,
   type CurrencyId,
@@ -54,14 +55,10 @@ export const initialPrestigeState: PrestigeState = {
   lifetimeFragmentsProduced: 0,
 };
 
-export function getTotalCurrencyValue(currenciesState: CurrencyState): number {
-  return currencies.reduce((total, def) => total + currenciesState[def.id] * def.baseValue, 0);
-}
-
 export function getHighestUnlockedTier(unlockedCurrencies: UnlockedCurrencyState): number {
   let highest = 1;
-  currencies.forEach((def) => {
-    if (unlockedCurrencies[def.id] && def.tier > highest) highest = def.tier;
+  currencies.forEach((currency) => {
+    if (unlockedCurrencies[currency.id] && currency.tier > highest) highest = currency.tier;
   });
   return highest;
 }

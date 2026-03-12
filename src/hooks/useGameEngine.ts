@@ -1,33 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { convertCurrency } from "../game/conversionEngine";
-import { fragmentCurrencyId, type CurrencyId } from "../game/currencies";
-import { generatorMap, getMaxAffordableGeneratorPurchases, type GeneratorId } from "../game/generators";
+import { fragmentCurrencyId, getTotalCurrencyValue, type CurrencyId } from "../game/currencies";
+import { getGeneratorCost, getMaxAffordableGeneratorPurchases, generatorMap, type GeneratorId } from "../game/generators";
 import { createInitialGameState, getRunStartMapBonuses, startGameEngine, synchronizeGameState, type GameState } from "../game/gameEngine";
 import { AUTOSAVE_INTERVAL_MS, clearSavedGame, loadGameState, saveGameState } from "../game/saveSystem";
 import {
   augmentDeviceEffectsForUpgrades,
   getClickPower,
   getConversionOutputUpgradeBonus,
+  getGeneratorCostReductionUpgradeBonus,
+  getMapCostReductionUpgradeBonus,
   purchaseGenerator,
   purchaseUpgrade,
   type UpgradeId,
 } from "../game/upgradeEngine";
 import {
-  baseMapMap,
-  startMap,
-  isMapUnlocked,
-  canAffordCraft,
-  payCraftCost,
   applyCraftingAction,
+  baseMapMap,
+  canAffordCraft,
   getMapIncomeSnapshot,
+  isMapUnlocked,
+  payCraftCost,
+  startMap,
   type CraftedMap,
   type CraftingAction,
   type QueuedMapSetup,
 } from "../game/maps";
-import { resolveLoadoutEffects, payLoadoutCost, type DeviceLoadout } from "../game/mapDevice";
-import { performPrestige, canPrestige } from "../game/prestige";
-import { purchaseTalent as purchaseTalentFn, getConversionBonus, getGeneratorCostReduction, getMapCostReduction } from "../game/talents";
-import { getGeneratorCost } from "../game/generators";
+import { payLoadoutCost, resolveLoadoutEffects, type DeviceLoadout } from "../game/mapDevice";
+import { canPrestige, performPrestige } from "../game/prestige";
+import { getConversionBonus, getGeneratorCostReduction, getMapCostReduction, purchaseTalent as purchaseTalentFn } from "../game/talents";
 
 export function useGameEngine() {
   const [gameState, setGameState] = useState<GameState>(() => loadGameState());
@@ -103,7 +104,7 @@ export function useGameEngine() {
   function buyGenerator(generatorId: GeneratorId) {
     setGameState((currentState) => {
       const generator = generatorMap[generatorId];
-      const costReduction = getGeneratorCostReduction(currentState.talentsPurchased);
+      const costReduction = getGeneratorCostReduction(currentState.talentsPurchased) + getGeneratorCostReductionUpgradeBonus(currentState.purchasedUpgrades);
 
       if (currentState.unlockedFeatures.buyMax) {
         let quantity = 0;
@@ -113,7 +114,7 @@ export function useGameEngine() {
 
         while (true) {
           const rawCost = getGeneratorCost(generatorId, owned + quantity, 1);
-          const reducedCost = Math.ceil(rawCost * Math.max(0, 1 - costReduction));
+          const reducedCost = Math.ceil(rawCost * Math.max(0.2, 1 - costReduction));
           if (runningCost + reducedCost > available) break;
           runningCost += reducedCost;
           quantity += 1;
@@ -137,7 +138,7 @@ export function useGameEngine() {
       if (costReduction > 0) {
         const owned = currentState.generatorsOwned[generatorId];
         const rawCost = getGeneratorCost(generatorId, owned, 1);
-        const reducedCost = Math.ceil(rawCost * Math.max(0, 1 - costReduction));
+        const reducedCost = Math.ceil(rawCost * Math.max(0.2, 1 - costReduction));
 
         if (Math.floor(currentState.currencies[generator.costCurrency]) < reducedCost) {
           return currentState;
@@ -172,7 +173,7 @@ export function useGameEngine() {
     const newMap = applyCraftingAction(craftedMap, action);
     if (!newMap) return null;
 
-    setGameState((s) => ({ ...s, currencies: payCraftCost(s.currencies, action) }));
+    setGameState((state) => ({ ...state, currencies: payCraftCost(state.currencies, action) }));
     return newMap;
   }
 
@@ -183,29 +184,27 @@ export function useGameEngine() {
       if (currentState.activeMap) return currentState;
       if (!isMapUnlocked(mapDef, currentState.currencies)) return currentState;
 
-      const costReduction = getMapCostReduction(currentState.talentsPurchased);
+      const costReduction = getMapCostReduction(currentState.talentsPurchased) + getMapCostReductionUpgradeBonus(currentState.purchasedUpgrades);
       const { rewardBonus, shardChanceBonus, speedBonus, encounterChain } = getRunStartMapBonuses(
         craftedMap,
         currentState.prestige,
         currentState.talentsPurchased,
         currentState.purchasedUpgrades,
       );
-      const deviceEffects = augmentDeviceEffectsForUpgrades(
-        resolveLoadoutEffects(deviceLoadout),
-        currentState.purchasedUpgrades,
-        false,
-      );
+      const deviceEffects = augmentDeviceEffectsForUpgrades(resolveLoadoutEffects(deviceLoadout), currentState.purchasedUpgrades, false);
+      const currenciesAfterLoadout = payLoadoutCost(currentState.currencies, deviceLoadout);
       const incomePerSecond = getMapIncomeSnapshot(currentState.currencyProduction);
+      const wealthValue = getTotalCurrencyValue(currenciesAfterLoadout);
 
-      const currencies = payLoadoutCost(currentState.currencies, deviceLoadout);
       const result = startMap(
-        currencies,
+        currenciesAfterLoadout,
         mapDef,
         craftedMap,
         costReduction,
         speedBonus,
         deviceEffects,
         incomePerSecond,
+        wealthValue,
         rewardBonus,
         shardChanceBonus,
         encounterChain,

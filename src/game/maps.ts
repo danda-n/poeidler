@@ -14,7 +14,7 @@ import {
   affixMap,
   type ResolvedAffixStats,
 } from "./mapAffixes";
-import type { ResolvedDeviceEffects, DeviceLoadout } from "./mapDevice";
+import type { DeviceLoadout, ResolvedDeviceEffects } from "./mapDevice";
 
 export type MapFamily = "currency" | "focused" | "mirror";
 export type MapRarity = "normal" | "magic" | "rare";
@@ -41,6 +41,7 @@ export type BaseMapDefinition = {
   minRewardValue: number;
   contentTags: MapContentTag[];
   baseShardChance: number;
+  wealthScalingFactor: number;
   unlockRequirement: { currencyId: CurrencyId; amount: number };
 };
 
@@ -61,6 +62,7 @@ export type ActiveMapState = {
   durationMs: number;
   deviceEffects: ResolvedDeviceEffects;
   incomePerSecond: number;
+  wealthSnapshot: number;
   rewardBonus: number;
   shardChanceBonus: number;
   encounterChain: number;
@@ -94,6 +96,7 @@ export type MapNotification = {
 
 export type MapRewardPreview = {
   totalRewardValue: number;
+  economyFloorValue: number;
   rewards: MapReward;
   encounterNotes: string[];
   encounterChain: number;
@@ -217,6 +220,7 @@ export const baseMaps: BaseMapDefinition[] = [
     minRewardValue: 1400,
     contentTags: ["stash"],
     baseShardChance: MAP_BALANCE.baseShardChance,
+    wealthScalingFactor: 18,
     unlockRequirement: { currencyId: "alterationOrb", amount: 50 },
   },
   {
@@ -234,6 +238,7 @@ export const baseMaps: BaseMapDefinition[] = [
     minRewardValue: 3600,
     contentTags: ["workshop", "focused"],
     baseShardChance: MAP_BALANCE.baseShardChance,
+    wealthScalingFactor: 24,
     unlockRequirement: { currencyId: "jewellersOrb", amount: 20 },
   },
   {
@@ -251,12 +256,13 @@ export const baseMaps: BaseMapDefinition[] = [
     minRewardValue: 7200,
     contentTags: ["realm", "mirror"],
     baseShardChance: 0.03,
+    wealthScalingFactor: 30,
     unlockRequirement: { currencyId: "fusingOrb", amount: 15 },
   },
 ];
 
-export const baseMapMap: Record<string, BaseMapDefinition> = baseMaps.reduce((acc, m) => {
-  acc[m.id] = m;
+export const baseMapMap: Record<string, BaseMapDefinition> = baseMaps.reduce((acc, mapDef) => {
+  acc[mapDef.id] = mapDef;
   return acc;
 }, {} as Record<string, BaseMapDefinition>);
 
@@ -338,7 +344,7 @@ function updateCraftedMap(map: CraftedMap, updates: Partial<CraftedMap>): Crafte
 export function transmuteCraftedMap(map: CraftedMap): CraftedMap | null {
   if (map.rarity !== "normal") return null;
   const affixes = rollNormalAffixes(1 + Math.floor(Math.random() * 2));
-  return updateCraftedMap(map, { rarity: "magic", affixIds: affixes.map((a) => a.id) });
+  return updateCraftedMap(map, { rarity: "magic", affixIds: affixes.map((affix) => affix.id) });
 }
 
 export function augmentCraftedMap(map: CraftedMap): CraftedMap | null {
@@ -352,25 +358,25 @@ export function augmentCraftedMap(map: CraftedMap): CraftedMap | null {
 export function alterCraftedMap(map: CraftedMap): CraftedMap | null {
   if (map.rarity !== "magic") return null;
   const affixes = rollNormalAffixes(1 + Math.floor(Math.random() * 2));
-  return updateCraftedMap(map, { affixIds: affixes.map((a) => a.id) });
+  return updateCraftedMap(map, { affixIds: affixes.map((affix) => affix.id) });
 }
 
 export function regalCraftedMap(map: CraftedMap): CraftedMap | null {
   if (map.rarity !== "magic") return null;
   const added = rollNormalAffixes(1 + Math.floor(Math.random() * 2), new Set(map.affixIds));
-  return updateCraftedMap(map, { rarity: "rare", affixIds: [...map.affixIds, ...added.map((a) => a.id)] });
+  return updateCraftedMap(map, { rarity: "rare", affixIds: [...map.affixIds, ...added.map((affix) => affix.id)] });
 }
 
 export function chaosCraftedMap(map: CraftedMap): CraftedMap | null {
   if (map.rarity !== "rare") return null;
   const affixes = rollNormalAffixes(3 + Math.floor(Math.random() * 2));
-  return updateCraftedMap(map, { affixIds: affixes.map((a) => a.id) });
+  return updateCraftedMap(map, { affixIds: affixes.map((affix) => affix.id) });
 }
 
 export function alchemyCraftedMap(map: CraftedMap): CraftedMap | null {
   if (map.rarity !== "normal") return null;
   const affixes = rollNormalAffixes(3 + Math.floor(Math.random() * 2));
-  return updateCraftedMap(map, { rarity: "rare", affixIds: affixes.map((a) => a.id) });
+  return updateCraftedMap(map, { rarity: "rare", affixIds: affixes.map((affix) => affix.id) });
 }
 
 export function exaltCraftedMap(map: CraftedMap): CraftedMap | null {
@@ -398,13 +404,13 @@ export const craftingCosts: Record<CraftingAction, Partial<Record<CurrencyId, nu
 
 export function canAffordCraft(currencies: CurrencyState, action: CraftingAction): boolean {
   const cost = craftingCosts[action];
-  return Object.entries(cost).every(([cid, amount]) => Math.floor(currencies[cid as CurrencyId]) >= (amount ?? 0));
+  return Object.entries(cost).every(([currencyId, amount]) => Math.floor(currencies[currencyId as CurrencyId]) >= (amount ?? 0));
 }
 
 export function payCraftCost(currencies: CurrencyState, action: CraftingAction): CurrencyState {
   const next = { ...currencies };
-  Object.entries(craftingCosts[action]).forEach(([cid, amount]) => {
-    next[cid as CurrencyId] -= amount ?? 0;
+  Object.entries(craftingCosts[action]).forEach(([currencyId, amount]) => {
+    next[currencyId as CurrencyId] -= amount ?? 0;
   });
   return next;
 }
@@ -445,8 +451,8 @@ export const craftingActionDescriptions: Record<CraftingAction, string> = {
 };
 
 export function isMapUnlocked(mapDef: BaseMapDefinition, currencies: CurrencyState): boolean {
-  const req = mapDef.unlockRequirement;
-  return currencies[req.currencyId] >= req.amount || false;
+  const requirement = mapDef.unlockRequirement;
+  return currencies[requirement.currencyId] >= requirement.amount || false;
 }
 
 export function getMapEncounter(encounterId: MapEncounterId | null | undefined): MapEncounterDefinition | null {
@@ -555,7 +561,7 @@ export function getEncounterSpecialization(craftedMap: CraftedMap): MapEncounter
         shardChanceBonus,
         notes: [
           affixCount > 0 ? `Each affix adds +10% reward and +8% time` : "Craft affixes to deepen delirium payout",
-          rarityRank > 0 ? `Rarity pushes delirium shard odds` : "Magic and rare maps amplify delirium pressure",
+          rarityRank > 0 ? "Rarity pushes delirium shard odds" : "Magic and rare maps amplify delirium pressure",
         ],
       };
     }
@@ -612,14 +618,25 @@ function getFocusedValueMultiplier(craftedMap: CraftedMap, deviceEffects?: Resol
   return Math.max(0.25, 1 + totalBonus) * getEncounterFocusedRewardMultiplier(craftedMap);
 }
 
+function getWealthRewardFloor(mapDef: BaseMapDefinition, wealthValue: number) {
+  if (wealthValue <= 0) return mapDef.minRewardValue;
+  return Math.max(mapDef.minRewardValue, Math.floor(Math.sqrt(wealthValue) * mapDef.wealthScalingFactor));
+}
+
 function getBaseRewardValue(
   mapDef: BaseMapDefinition,
   craftedMap: CraftedMap,
   incomePerSecond: number,
+  wealthValue: number,
   rewardBonus: number,
   deviceEffects?: ResolvedDeviceEffects,
 ): number {
-  const baselineValue = Math.max(mapDef.minRewardValue, incomePerSecond * mapDef.baseRewardSeconds);
+  const baselineValue = Math.max(
+    mapDef.minRewardValue,
+    incomePerSecond * mapDef.baseRewardSeconds,
+    getWealthRewardFloor(mapDef, wealthValue),
+  );
+
   return baselineValue
     * getMapTierMultiplier(craftedMap.tier)
     * getMapQualityMultiplier(craftedMap)
@@ -646,11 +663,13 @@ function allocateRewardValue(weights: MapRewardWeights, totalValue: number): Map
 
 function mergeRewards(...rewardSets: MapReward[]): MapReward {
   const merged: MapReward = {};
+
   rewardSets.forEach((rewardSet) => {
     Object.entries(rewardSet).forEach(([currencyId, amount]) => {
       merged[currencyId as CurrencyId] = (merged[currencyId as CurrencyId] ?? 0) + (amount ?? 0);
     });
   });
+
   return merged;
 }
 
@@ -663,10 +682,12 @@ export function getResolvedMapCost(
   const costMult = (1 + craftedMap.resolvedStats.costMultiplier + (deviceEffects?.costMultiplier ?? 0))
     * getEncounterCostMultiplier(craftedMap);
   const resolved: MapCost = {};
-  Object.entries(mapDef.cost).forEach(([cid, amount]) => {
+
+  Object.entries(mapDef.cost).forEach(([currencyId, amount]) => {
     const adjusted = Math.ceil((amount ?? 0) * Math.max(0.1, costMult) * Math.max(0, 1 - costReduction));
-    resolved[cid as CurrencyId] = adjusted;
+    resolved[currencyId as CurrencyId] = adjusted;
   });
+
   return resolved;
 }
 
@@ -678,7 +699,7 @@ export function canAffordMap(
   deviceEffects?: ResolvedDeviceEffects,
 ): boolean {
   const resolved = getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects);
-  return Object.entries(resolved).every(([cid, amount]) => Math.floor(currencies[cid as CurrencyId]) >= (amount ?? 0));
+  return Object.entries(resolved).every(([currencyId, amount]) => Math.floor(currencies[currencyId as CurrencyId]) >= (amount ?? 0));
 }
 
 export function getResolvedMapDuration(
@@ -700,11 +721,13 @@ export function getMapRewardPreview(
   mapDef: BaseMapDefinition,
   craftedMap: CraftedMap,
   incomePerSecond: number,
+  wealthValue: number,
   rewardBonus: number,
   deviceEffects?: ResolvedDeviceEffects,
   encounterChain = 0,
 ): MapRewardPreview {
-  const baseRewardValue = getBaseRewardValue(mapDef, craftedMap, incomePerSecond, rewardBonus, deviceEffects);
+  const economyFloorValue = getWealthRewardFloor(mapDef, wealthValue);
+  const baseRewardValue = getBaseRewardValue(mapDef, craftedMap, incomePerSecond, wealthValue, rewardBonus, deviceEffects);
   const focusedValue = baseRewardValue * mapDef.focusedRewardShare * getFocusedValueMultiplier(craftedMap, deviceEffects);
   const rewards = mergeRewards(
     allocateRewardValue(mapDef.rewardWeights, baseRewardValue),
@@ -713,6 +736,7 @@ export function getMapRewardPreview(
 
   return {
     totalRewardValue: baseRewardValue + focusedValue,
+    economyFloorValue,
     rewards,
     encounterNotes: getEncounterSpecialization(craftedMap).notes,
     encounterChain,
@@ -727,6 +751,7 @@ export function startMap(
   speedBonus: number,
   deviceEffects: ResolvedDeviceEffects,
   incomePerSecond: number,
+  wealthValue: number,
   rewardBonus: number,
   shardChanceBonus: number,
   encounterChain: number,
@@ -734,19 +759,21 @@ export function startMap(
   if (!canAffordMap(mapDef, craftedMap, currencies, costReduction, deviceEffects)) return null;
 
   const cost = getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects);
-  const next = { ...currencies };
-  Object.entries(cost).forEach(([cid, amount]) => {
-    next[cid as CurrencyId] -= amount ?? 0;
+  const nextCurrencies = { ...currencies };
+
+  Object.entries(cost).forEach(([currencyId, amount]) => {
+    nextCurrencies[currencyId as CurrencyId] -= amount ?? 0;
   });
 
   return {
-    currencies: next,
+    currencies: nextCurrencies,
     activeMap: {
       craftedMap,
       startedAt: Date.now(),
       durationMs: getResolvedMapDuration(mapDef, craftedMap, speedBonus, deviceEffects),
       deviceEffects,
       incomePerSecond,
+      wealthSnapshot: wealthValue,
       rewardBonus,
       shardChanceBonus,
       encounterChain,
@@ -765,15 +792,13 @@ export function isMapComplete(activeMap: ActiveMapState, now: number): boolean {
   return now - activeMap.startedAt >= activeMap.durationMs;
 }
 
-export function completeMap(
-  mapDef: BaseMapDefinition,
-  activeMap: NonNullable<ActiveMapState>,
-): MapCompletionResult {
+export function completeMap(mapDef: BaseMapDefinition, activeMap: NonNullable<ActiveMapState>): MapCompletionResult {
   const specialization = getEncounterSpecialization(activeMap.craftedMap);
   const preview = getMapRewardPreview(
     mapDef,
     activeMap.craftedMap,
     activeMap.incomePerSecond,
+    activeMap.wealthSnapshot,
     activeMap.rewardBonus,
     activeMap.deviceEffects,
     activeMap.encounterChain,
@@ -782,11 +807,12 @@ export function completeMap(
   const bonusRewardChance = activeMap.deviceEffects.bonusRewardChance;
   const rewards = { ...preview.rewards };
   const bonusRewardTriggered = bonusRewardChance > 0 && Math.random() < bonusRewardChance;
+
   if (bonusRewardTriggered) {
     const rewardKeys = Object.keys(rewards) as CurrencyId[];
     if (rewardKeys.length > 0) {
-      const bonusCid = rewardKeys[Math.floor(Math.random() * rewardKeys.length)];
-      rewards[bonusCid] = Math.max(1, Math.floor((rewards[bonusCid] ?? 0) * 1.5));
+      const bonusCurrencyId = rewardKeys[Math.floor(Math.random() * rewardKeys.length)];
+      rewards[bonusCurrencyId] = Math.max(1, Math.floor((rewards[bonusCurrencyId] ?? 0) * 1.5));
     }
   }
 
@@ -818,11 +844,11 @@ export function completeMap(
 }
 
 export function applyMapRewards(currencies: CurrencyState, result: MapCompletionResult): CurrencyState {
-  const next = { ...currencies };
-  Object.entries(result.rewards).forEach(([cid, amount]) => {
-    next[cid as CurrencyId] += amount ?? 0;
+  const nextCurrencies = { ...currencies };
+  Object.entries(result.rewards).forEach(([currencyId, amount]) => {
+    nextCurrencies[currencyId as CurrencyId] += amount ?? 0;
   });
-  return next;
+  return nextCurrencies;
 }
 
 export function getMapTimeRemaining(activeMap: ActiveMapState, now: number): number {
@@ -849,3 +875,4 @@ export function applyCraftingAction(map: CraftedMap, action: CraftingAction): Cr
     case "exalt": return exaltCraftedMap(map);
   }
 }
+

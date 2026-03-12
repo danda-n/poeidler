@@ -1,37 +1,33 @@
 import { useState } from "react";
 import { ActiveMapBanner } from "./components/ActiveMapBanner";
 import ClickPanel from "./components/ClickPanel";
-import CurrencyPanel from "./components/CurrencyPanel";
+import { CurrencyPanel } from "./components/CurrencyPanel";
 import GameLayout from "./components/GameLayout";
 import ManualConversionRow from "./components/ManualConversionRow";
-import MapPanel from "./components/MapPanel";
+import { MapPanel } from "./components/MapPanel";
 import { MapToast } from "./components/MapToast";
 import MysteryRow from "./components/MysteryRow";
 import PrestigePanel from "./components/PrestigePanel";
 import SettingsPanel from "./components/SettingsPanel";
 import Sidebar, { type PageId, type PageMeta } from "./components/Sidebar";
 import TalentPanel from "./components/TalentPanel";
-import UpgradePanel from "./components/UpgradePanel";
+import { UpgradePanel } from "./components/UpgradePanel";
 import { fragmentCurrencyId, getNextLockedCurrencies } from "./game/currencies";
 import { generatorIds } from "./game/generators";
 import { canPrestige } from "./game/prestige";
 import { getAffordableUpgradeCount } from "./game/upgradeEngine";
 import { useGameEngine } from "./hooks/useGameEngine";
 
-function App() {
+export function App() {
   const { gameState, actions } = useGameEngine();
   const [activePage, setActivePage] = useState<PageId>("currency");
 
   const hasAnyGenerator = generatorIds.some((id) => gameState.generatorsOwned[id] > 0);
-  const hasNonFragmentCurrency = Object.entries(gameState.currencies).some(
-    ([id, amount]) => id !== fragmentCurrencyId && amount > 0,
-  );
+  const hasNonFragmentCurrency = Object.entries(gameState.currencies).some(([id, amount]) => id !== fragmentCurrencyId && amount > 0);
   const canAffordFirstGenerator = gameState.currencies[fragmentCurrencyId] >= 10;
   const showCurrencyList = hasAnyGenerator || hasNonFragmentCurrency || canAffordFirstGenerator;
 
-  const hasNonFragmentUnlocked = Object.entries(gameState.unlockedCurrencies).some(
-    ([id, unlocked]) => id !== fragmentCurrencyId && unlocked,
-  );
+  const hasNonFragmentUnlocked = Object.entries(gameState.unlockedCurrencies).some(([id, unlocked]) => id !== fragmentCurrencyId && unlocked);
   const nextLocked = getNextLockedCurrencies(gameState.unlockedCurrencies, 2);
   const showTeasers = hasNonFragmentUnlocked && nextLocked.length > 0;
 
@@ -57,7 +53,7 @@ function App() {
 
   const pageMeta: Partial<Record<PageId, PageMeta>> = {
     upgrades: affordableUpgradeCount > 0 ? { badge: String(affordableUpgradeCount), tone: "ready" } : undefined,
-    maps: gameState.activeMap ? { badge: "LIVE", tone: "active" } : gameState.queuedMap ? { badge: "Q", tone: "active" } : undefined,
+    maps: gameState.activeMap ? { badge: "LIVE", tone: "active" } : hasTier4 ? { badge: "ATLAS", tone: "active" } : undefined,
     prestige: hasPrestige && canPrestige(gameState.currencies) ? { badge: "READY", tone: "alert" } : undefined,
   };
 
@@ -69,18 +65,18 @@ function App() {
           <header className="game-header">
             <div className="header-left">
               <h1 className="game-title">PoE Idle</h1>
-              <span className="save-status">
-                {gameState.lastSaveTime ? `Saved ${new Date(gameState.lastSaveTime).toLocaleTimeString()}` : ""}
-              </span>
+              <span className="save-status">{gameState.lastSaveTime ? `Saved ${new Date(gameState.lastSaveTime).toLocaleTimeString()}` : ""}</span>
             </div>
-            <SettingsPanel
-              version={gameState.settings.version}
-              lastSaveTime={gameState.lastSaveTime}
-              onResetSave={actions.resetSave}
-            />
+            <SettingsPanel version={gameState.settings.version} lastSaveTime={gameState.lastSaveTime} onResetSave={actions.resetSave} />
           </header>
 
-          {hasTier4 && <ActiveMapBanner activeMap={gameState.activeMap} queuedMap={gameState.queuedMap} />}
+          <ActiveMapBanner
+            activeMap={gameState.activeMap}
+            queuedMap={gameState.queuedMap}
+            lastMapResult={gameState.lastMapResult}
+            prestige={gameState.prestige}
+            mapsUnlocked={hasTier4}
+          />
 
           {activePage === "currency" && (
             <>
@@ -186,5 +182,3 @@ function App() {
     </div>
   );
 }
-
-export default App;

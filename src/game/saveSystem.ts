@@ -1,9 +1,11 @@
+import { getTotalCurrencyValue } from "./currencies";
 import { applyPassiveGeneration, createInitialGameState, GAME_VERSION, getRunStartMapBonuses, synchronizeGameState, type GameState } from "./gameEngine";
-import { isMapComplete, baseMapMap, completeMap, applyMapRewards, startMap, hydrateCraftedMap, getMapIncomeSnapshot, type QueuedMapSetup } from "./maps";
+import { applyMapRewards, baseMapMap, completeMap, getMapIncomeSnapshot, hydrateCraftedMap, isMapComplete, startMap, type QueuedMapSetup } from "./maps";
+import { initialMapDeviceState, resolveLoadoutEffects, emptyDeviceLoadout, type MapDeviceState } from "./mapDevice";
 import { initialPrestigeState } from "./prestige";
-import { initialTalentsPurchased, getMapCostReduction } from "./talents";
-import { augmentDeviceEffectsForUpgrades } from "./upgradeEngine";
-import { initialMapDeviceState, type MapDeviceState, resolveLoadoutEffects, emptyDeviceLoadout } from "./mapDevice";
+import { getMapCostReduction } from "./talents";
+import { augmentDeviceEffectsForUpgrades, getMapCostReductionUpgradeBonus } from "./upgradeEngine";
+import { initialTalentsPurchased } from "./talents";
 
 export const SAVE_KEY = "poe-idle-save";
 export const AUTOSAVE_INTERVAL_MS = 5000;
@@ -27,10 +29,10 @@ function isSavePayload(payload: unknown): payload is SavePayload {
   if (!payload || typeof payload !== "object") return false;
   const candidate = payload as Record<string, unknown>;
   return (
-    typeof candidate.currencies === "object" && candidate.currencies !== null &&
-    typeof candidate.generatorsOwned === "object" && candidate.generatorsOwned !== null &&
-    typeof candidate.purchasedUpgrades === "object" && candidate.purchasedUpgrades !== null &&
-    typeof candidate.lastSaveTime === "number"
+    typeof candidate.currencies === "object" && candidate.currencies !== null
+    && typeof candidate.generatorsOwned === "object" && candidate.generatorsOwned !== null
+    && typeof candidate.purchasedUpgrades === "object" && candidate.purchasedUpgrades !== null
+    && typeof candidate.lastSaveTime === "number"
   );
 }
 
@@ -91,7 +93,7 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
   if (queuedMap) {
     const queuedMapDef = baseMapMap[queuedMap.baseMapId];
     if (queuedMapDef) {
-      const costReduction = getMapCostReduction(nextState.talentsPurchased);
+      const costReduction = getMapCostReduction(nextState.talentsPurchased) + getMapCostReductionUpgradeBonus(nextState.purchasedUpgrades);
       const { rewardBonus, shardChanceBonus, speedBonus, encounterChain } = getRunStartMapBonuses(
         queuedMap.craftedMap,
         updatedPrestige,
@@ -104,6 +106,7 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
         true,
       );
       const incomePerSecond = getMapIncomeSnapshot(nextState.currencyProduction);
+      const wealthValue = getTotalCurrencyValue(currencies);
       const startResult = startMap(
         currencies,
         queuedMapDef,
@@ -112,6 +115,7 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
         speedBonus,
         deviceEffects,
         incomePerSecond,
+        wealthValue,
         rewardBonus,
         shardChanceBonus,
         encounterChain,
@@ -123,18 +127,18 @@ function resolveLoadStateMapCompletion(nextState: ReturnType<typeof synchronizeG
         if (activeMap && isMapComplete(activeMap, now)) {
           const queuedDef = baseMapMap[activeMap.craftedMap.baseMapId];
           if (queuedDef) {
-            const qResult = completeMap(queuedDef, activeMap);
-            currencies = applyMapRewards(currencies, qResult);
-            const isSameFamilyQ = updatedPrestige.lastMapFamily === queuedDef.family;
-            const isSameEncounterQ = qResult.encounterId !== null && updatedPrestige.lastEncounterId === qResult.encounterId;
-            updatedPrestige.mirrorShards += qResult.shardAmount;
-            updatedPrestige.totalMirrorShards += qResult.shardAmount;
+            const queuedResult = completeMap(queuedDef, activeMap);
+            currencies = applyMapRewards(currencies, queuedResult);
+            const isSameFamilyQueued = updatedPrestige.lastMapFamily === queuedDef.family;
+            const isSameEncounterQueued = queuedResult.encounterId !== null && updatedPrestige.lastEncounterId === queuedResult.encounterId;
+            updatedPrestige.mirrorShards += queuedResult.shardAmount;
+            updatedPrestige.totalMirrorShards += queuedResult.shardAmount;
             updatedPrestige.mapsCompleted += 1;
-            updatedPrestige.encounterMapsCompleted += qResult.encounterId ? 1 : 0;
+            updatedPrestige.encounterMapsCompleted += queuedResult.encounterId ? 1 : 0;
             updatedPrestige.lastMapFamily = queuedDef.family;
-            updatedPrestige.lastMapFamilyStreak = isSameFamilyQ ? updatedPrestige.lastMapFamilyStreak + 1 : 1;
-            updatedPrestige.lastEncounterId = qResult.encounterId;
-            updatedPrestige.lastEncounterStreak = qResult.encounterId ? (isSameEncounterQ ? updatedPrestige.lastEncounterStreak + 1 : 1) : 0;
+            updatedPrestige.lastMapFamilyStreak = isSameFamilyQueued ? updatedPrestige.lastMapFamilyStreak + 1 : 1;
+            updatedPrestige.lastEncounterId = queuedResult.encounterId;
+            updatedPrestige.lastEncounterStreak = queuedResult.encounterId ? (isSameEncounterQueued ? updatedPrestige.lastEncounterStreak + 1 : 1) : 0;
             activeMap = null;
           }
         }
@@ -186,6 +190,7 @@ export function loadGameState() {
           craftedMap,
           deviceEffects: savedActiveMap.deviceEffects ?? emptyDeviceEffects,
           incomePerSecond: typeof savedActiveMap.incomePerSecond === "number" ? savedActiveMap.incomePerSecond : 0,
+          wealthSnapshot: typeof savedActiveMap.wealthSnapshot === "number" ? savedActiveMap.wealthSnapshot : getTotalCurrencyValue(savePayload.currencies),
           rewardBonus: typeof savedActiveMap.rewardBonus === "number" ? savedActiveMap.rewardBonus : 0,
           shardChanceBonus: typeof savedActiveMap.shardChanceBonus === "number" ? savedActiveMap.shardChanceBonus : 0,
           encounterChain: typeof savedActiveMap.encounterChain === "number" ? savedActiveMap.encounterChain : 0,

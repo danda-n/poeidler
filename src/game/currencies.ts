@@ -112,6 +112,10 @@ export function getCurrencyValue(currencyId: CurrencyId, amount: number) {
   return amount * currencyMap[currencyId].baseValue;
 }
 
+export function getTotalCurrencyValue(currenciesState: CurrencyState) {
+  return currencyIds.reduce((total, currencyId) => total + getCurrencyValue(currencyId, currenciesState[currencyId]), 0);
+}
+
 export function getTotalProductionValuePerSecond(currencyProduction: CurrencyProduction) {
   return currencyIds.reduce((total, currencyId) => total + getCurrencyValue(currencyId, currencyProduction[currencyId]), 0);
 }
