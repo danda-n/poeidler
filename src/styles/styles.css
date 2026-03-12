@@ -3891,3 +3891,25 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Upgrade screen performance pass */
+.upgrade-tree-shell {
+  contain: layout paint;
+}
+
+.upgrade-tree-board {
+  overscroll-behavior-x: contain;
+}
+
+.upgrade-tree-grid {
+  contain: layout paint;
+}
+
+.upgrade-node {
+  contain: layout paint style;
+}
+
+.upgrade-focus-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 640px;
+}

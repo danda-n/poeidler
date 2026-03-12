@@ -39,6 +39,18 @@ export type UpgradeTreeEdge = {
 export type UpgradeNodeViewModel = {
   definition: UpgradeDefinition;
   presentation: UpgradeNodePresentation;
+  gridColumn: number;
+  gridRow: number;
+};
+
+export type UpgradeTreeModel = {
+  nodes: UpgradeNodeViewModel[];
+  lanes: UpgradeTreeLane[];
+  edges: UpgradeTreeEdge[];
+  tierCount: number;
+  gridTemplateColumns: string;
+  gridTemplateRows: string;
+  nodeMap: Record<UpgradeId, UpgradeNodeViewModel>;
 };
 
 const upgradePresentationMap: Record<UpgradeId, UpgradeNodePresentation> = {
@@ -76,13 +88,28 @@ const upgradePresentationMap: Record<UpgradeId, UpgradeNodePresentation> = {
   echoArchive: { shortLabel: "Echo Archive", shortEffect: "+20% encounter prestige", kind: "keystone", tier: 4, lane: "Relic echoes", laneOrder: 1, visualParents: ["heirloomSpark"] },
 };
 
+const upgradeTreeCache = new Map<UpgradeCategory, UpgradeTreeModel>();
+
 export function getUpgradePresentation(upgradeId: UpgradeId) {
   return upgradePresentationMap[upgradeId];
 }
 
-export function getUpgradeTree(category: UpgradeCategory) {
+export function getUpgradeTree(category: UpgradeCategory): UpgradeTreeModel {
+  const cachedTree = upgradeTreeCache.get(category);
+  if (cachedTree) {
+    return cachedTree;
+  }
+
   const nodes: UpgradeNodeViewModel[] = getUpgradesByCategory(category)
-    .map((definition) => ({ definition, presentation: getUpgradePresentation(definition.id as UpgradeId) }))
+    .map((definition) => {
+      const presentation = getUpgradePresentation(definition.id as UpgradeId);
+      return {
+        definition,
+        presentation,
+        gridColumn: presentation.tier + 1,
+        gridRow: presentation.laneOrder,
+      };
+    })
     .sort((left, right) => {
       if (left.presentation.tier !== right.presentation.tier) return left.presentation.tier - right.presentation.tier;
       if (left.presentation.laneOrder !== right.presentation.laneOrder) return left.presentation.laneOrder - right.presentation.laneOrder;
@@ -105,8 +132,21 @@ export function getUpgradeTree(category: UpgradeCategory) {
   );
 
   const tierCount = nodes.reduce((max, node) => Math.max(max, node.presentation.tier), 1);
+  const tree = {
+    nodes,
+    lanes,
+    edges,
+    tierCount,
+    gridTemplateColumns: `160px repeat(${tierCount}, minmax(180px, 1fr))`,
+    gridTemplateRows: `repeat(${lanes.length}, minmax(148px, auto))`,
+    nodeMap: nodes.reduce((acc, node) => {
+      acc[node.definition.id as UpgradeId] = node;
+      return acc;
+    }, {} as Record<UpgradeId, UpgradeNodeViewModel>),
+  } satisfies UpgradeTreeModel;
 
-  return { nodes, lanes, edges, tierCount };
+  upgradeTreeCache.set(category, tree);
+  return tree;
 }
 
 export function getUpgradeNodeState(state: UpgradeAvailabilityState, upgradeId: UpgradeId): UpgradeNodeState {

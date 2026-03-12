@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "../game/currencies";
-import type { PrestigeState } from "../game/prestige";
+import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "@/game/currencies";
+import type { PrestigeState } from "@/game/prestige";
 import {
   canPurchaseUpgrade,
   getAffordableUpgradeCount,
@@ -13,16 +13,17 @@ import {
   type UpgradeCategory,
   type UpgradeId,
   upgradeCategories,
-} from "../game/upgradeEngine";
+} from "@/game/upgradeEngine";
 import {
   describeUpgradeEffect,
   formatUpgradeCost,
   getUpgradeNodeRequirementText,
   getUpgradeNodeState,
   getUpgradeNodeStateLabel,
-  getUpgradePresentation,
   getUpgradeTree,
-} from "../game/upgradeTree";
+  type UpgradeNodeState,
+  type UpgradeTreeModel,
+} from "@/game/upgradeTree";
 
 type UpgradePanelProps = {
   currenciesState: CurrencyState;
@@ -32,10 +33,30 @@ type UpgradePanelProps = {
   onBuyUpgrade: (upgradeId: UpgradeId) => void;
 };
 
-type GraphPath = {
+type GraphPathGeometry = {
   key: string;
   d: string;
-  tone: string;
+  toId: UpgradeId;
+};
+
+type UpgradeTone = "ready" | "owned" | "open" | "locked";
+
+type UpgradeNodeRuntime = {
+  id: UpgradeId;
+  level: number;
+  state: UpgradeNodeState;
+  tone: UpgradeTone;
+  costLabel: string;
+  canBuy: boolean;
+};
+
+type UpgradeTreeNodeCardProps = {
+  node: UpgradeTreeModel["nodes"][number];
+  runtime: UpgradeNodeRuntime;
+  isSelected: boolean;
+  onSelect: (upgradeId: UpgradeId) => void;
+  onKeySelect: (event: KeyboardEvent<HTMLDivElement>, upgradeId: UpgradeId) => void;
+  nodeRefs: React.MutableRefObject<Partial<Record<UpgradeId, HTMLDivElement | null>>>;
 };
 
 function pickSelectedUpgradeId(category: UpgradeCategory, availabilityState: UpgradeAvailabilityState) {
@@ -52,7 +73,7 @@ function pickSelectedUpgradeId(category: UpgradeCategory, availabilityState: Upg
   return tree.nodes[0]?.definition.id as UpgradeId;
 }
 
-function getKindLabel(kind: ReturnType<typeof getUpgradePresentation>["kind"]) {
+function getKindLabel(kind: UpgradeTreeModel["nodes"][number]["presentation"]["kind"]) {
   switch (kind) {
     case "minor":
       return "Minor";
@@ -63,7 +84,7 @@ function getKindLabel(kind: ReturnType<typeof getUpgradePresentation>["kind"]) {
   }
 }
 
-function getStateTone(nodeState: ReturnType<typeof getUpgradeNodeState>) {
+function getStateTone(nodeState: UpgradeNodeState): UpgradeTone {
   switch (nodeState) {
     case "available":
       return "ready";
@@ -77,43 +98,128 @@ function getStateTone(nodeState: ReturnType<typeof getUpgradeNodeState>) {
   }
 }
 
+const laneCopyByOrder: Record<number, string> = {
+  1: "Primary route",
+  2: "Branch route",
+  3: "Late route",
+};
+
+const UpgradeTreeNodeCard = memo(function UpgradeTreeNodeCard({
+  node,
+  runtime,
+  isSelected,
+  onSelect,
+  onKeySelect,
+  nodeRefs,
+}: UpgradeTreeNodeCardProps) {
+  return (
+    <div
+      ref={(element) => {
+        nodeRefs.current[node.definition.id as UpgradeId] = element;
+      }}
+      role="button"
+      tabIndex={0}
+      className={`upgrade-node upgrade-node-${node.presentation.kind} upgrade-node-${runtime.state}${isSelected ? " upgrade-node-selected" : ""}`}
+      style={{ gridColumn: node.gridColumn, gridRow: node.gridRow }}
+      onClick={() => onSelect(node.definition.id as UpgradeId)}
+      onKeyDown={(event) => onKeySelect(event, node.definition.id as UpgradeId)}
+    >
+      <div className="upgrade-node-topline">
+        <span className="upgrade-node-kind">{getKindLabel(node.presentation.kind)}</span>
+        <span className="upgrade-node-level">Lv {runtime.level}</span>
+      </div>
+      <div className="upgrade-node-title">{node.presentation.shortLabel}</div>
+      <div className="upgrade-node-effect">{node.presentation.shortEffect}</div>
+      <div className="upgrade-node-footer">
+        <span className={`upgrade-node-state upgrade-node-state-${runtime.tone}`}>{getUpgradeNodeStateLabel(runtime.state)}</span>
+        <span className={`upgrade-node-cost${runtime.canBuy ? " upgrade-node-cost-ready" : ""}`}>{runtime.costLabel}</span>
+      </div>
+    </div>
+  );
+});
+
+const UpgradeConnectionLayer = memo(function UpgradeConnectionLayer({
+  paths,
+}: {
+  paths: Array<{ key: string; d: string; tone: UpgradeTone }>;
+}) {
+  return (
+    <svg className="upgrade-tree-lines" aria-hidden="true">
+      {paths.map((path) => (
+        <path key={path.key} d={path.d} className={`upgrade-tree-path upgrade-tree-path-${path.tone}`} />
+      ))}
+    </svg>
+  );
+});
+
 export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, prestige, onBuyUpgrade }: UpgradePanelProps) {
   const [activeCategory, setActiveCategory] = useState<UpgradeCategory>("generators");
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<UpgradeId | null>(null);
-  const [paths, setPaths] = useState<GraphPath[]>([]);
+  const [pathGeometry, setPathGeometry] = useState<GraphPathGeometry[]>([]);
   const boardRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef<Partial<Record<UpgradeId, HTMLDivElement | null>>>({});
 
-  const availabilityState: UpgradeAvailabilityState = {
-    currencies: currenciesState,
-    purchasedUpgrades,
-    unlockedCurrencies,
-    prestige,
-  };
+  const availabilityState = useMemo<UpgradeAvailabilityState>(
+    () => ({
+      currencies: currenciesState,
+      purchasedUpgrades,
+      unlockedCurrencies,
+      prestige,
+    }),
+    [currenciesState, prestige, purchasedUpgrades, unlockedCurrencies],
+  );
 
-  const categoryStats = Object.fromEntries(
-    upgradeCategories.map((category) => [category, getUpgradeCategoryStats(availabilityState, category)]),
-  ) as Record<UpgradeCategory, ReturnType<typeof getUpgradeCategoryStats>>;
+  const tree = useMemo(() => getUpgradeTree(activeCategory), [activeCategory]);
+  const categoryStats = useMemo(
+    () =>
+      Object.fromEntries(
+        upgradeCategories.map((category) => [category, getUpgradeCategoryStats(availabilityState, category)]),
+      ) as Record<UpgradeCategory, ReturnType<typeof getUpgradeCategoryStats>>,
+    [availabilityState],
+  );
+  const totalAffordable = useMemo(() => getAffordableUpgradeCount(availabilityState), [availabilityState]);
+  const purchasedCount = useMemo(
+    () => Object.values(purchasedUpgrades).filter((level) => level > 0).length,
+    [purchasedUpgrades],
+  );
 
-  const tree = getUpgradeTree(activeCategory);
-  const totalAffordable = getAffordableUpgradeCount(availabilityState);
-  const purchasedCount = Object.values(purchasedUpgrades).filter((level) => level > 0).length;
-  const selectedNode = tree.nodes.find((node) => node.definition.id === selectedUpgradeId) ?? tree.nodes[0] ?? null;
-  const selectionSignature = `${activeCategory}:${Object.values(purchasedUpgrades).join(",")}:${Object.values(unlockedCurrencies).map((value) => (value ? 1 : 0)).join("")}:${prestige.mapsCompleted}:${prestige.prestigeCount}:${prestige.totalMirrorShards}`;
-  const pathSignature = `${selectionSignature}:${Object.values(currenciesState).map((value) => Math.floor(value)).join(",")}`;
+  const nodeRuntimeById = useMemo(() => {
+    const nextRuntime = {} as Record<UpgradeId, UpgradeNodeRuntime>;
+
+    tree.nodes.forEach((node) => {
+      const upgradeId = node.definition.id as UpgradeId;
+      const level = purchasedUpgrades[upgradeId];
+      const state = getUpgradeNodeState(availabilityState, upgradeId);
+      const cost = getUpgradeCost(upgradeId, level);
+
+      nextRuntime[upgradeId] = {
+        id: upgradeId,
+        level,
+        state,
+        tone: getStateTone(state),
+        costLabel: formatUpgradeCost(cost),
+        canBuy: canPurchaseUpgrade(availabilityState, upgradeId),
+      };
+    });
+
+    return nextRuntime;
+  }, [availabilityState, purchasedUpgrades, tree.nodes]);
+
+  const selectedNode = (selectedUpgradeId ? tree.nodeMap[selectedUpgradeId] : undefined) ?? tree.nodes[0] ?? null;
+  const selectedId = selectedNode?.definition.id as UpgradeId | undefined;
 
   useEffect(() => {
     const nextSelectedId = pickSelectedUpgradeId(activeCategory, availabilityState);
-    if (!selectedUpgradeId || !tree.nodes.some((node) => node.definition.id === selectedUpgradeId)) {
+    if (!selectedUpgradeId || !tree.nodeMap[selectedUpgradeId]) {
       setSelectedUpgradeId(nextSelectedId);
     }
-  }, [selectionSignature, selectedUpgradeId, tree.nodes, activeCategory]);
+  }, [activeCategory, availabilityState, selectedUpgradeId, tree.nodeMap]);
 
   useEffect(() => {
-    function measurePaths() {
+    function measurePathGeometry() {
       if (!boardRef.current) return;
       const boardRect = boardRef.current.getBoundingClientRect();
-      const nextPaths: GraphPath[] = tree.edges.flatMap((edge) => {
+      const nextGeometry: GraphPathGeometry[] = tree.edges.flatMap((edge) => {
         const fromEl = nodeRefs.current[edge.fromId];
         const toEl = nodeRefs.current[edge.toId];
         if (!fromEl || !toEl) return [];
@@ -125,31 +231,35 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
         const endX = toRect.left - boardRect.left;
         const endY = toRect.top + toRect.height / 2 - boardRect.top;
         const bend = Math.max(28, Math.abs(endX - startX) * 0.35);
-        const targetState = getUpgradeNodeState(availabilityState, edge.toId);
 
         return [{
           key: `${edge.fromId}-${edge.toId}`,
+          toId: edge.toId,
           d: `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`,
-          tone: getStateTone(targetState),
         }];
       });
 
-      setPaths(nextPaths);
+      setPathGeometry(nextGeometry);
     }
 
-    const frame = window.requestAnimationFrame(measurePaths);
-    const observer = typeof ResizeObserver !== "undefined" && boardRef.current ? new ResizeObserver(measurePaths) : null;
+    const frame = window.requestAnimationFrame(measurePathGeometry);
+    const observer = typeof ResizeObserver !== "undefined" && boardRef.current ? new ResizeObserver(measurePathGeometry) : null;
     if (observer && boardRef.current) {
       observer.observe(boardRef.current);
     }
 
-    window.addEventListener("resize", measurePaths);
+    window.addEventListener("resize", measurePathGeometry);
     return () => {
       window.cancelAnimationFrame(frame);
       observer?.disconnect();
-      window.removeEventListener("resize", measurePaths);
+      window.removeEventListener("resize", measurePathGeometry);
     };
-  }, [pathSignature, tree.edges]);
+  }, [tree]);
+
+  const renderedPaths = useMemo(
+    () => pathGeometry.map((path) => ({ ...path, tone: nodeRuntimeById[path.toId]?.tone ?? "locked" })),
+    [nodeRuntimeById, pathGeometry],
+  );
 
   function handleNodeKeyDown(event: KeyboardEvent<HTMLDivElement>, upgradeId: UpgradeId) {
     if (event.key === "Enter" || event.key === " ") {
@@ -158,22 +268,18 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
     }
   }
 
-  if (!selectedNode) {
+  if (!selectedNode || !selectedId) {
     return null;
   }
 
   const selectedDefinition = selectedNode.definition;
-  const selectedId = selectedDefinition.id as UpgradeId;
-  const selectedPresentation = selectedNode.presentation;
-  const selectedLevel = purchasedUpgrades[selectedId];
-  const selectedCost = getUpgradeCost(selectedId, selectedLevel);
-  const selectedState = getUpgradeNodeState(availabilityState, selectedId);
-  const selectedCanBuy = canPurchaseUpgrade(availabilityState, selectedId);
-  const selectedCurrentEffect = selectedLevel > 0 ? describeUpgradeEffect(selectedDefinition, selectedLevel, prestige.totalMirrorShards) : "Not active yet";
+  const selectedRuntime = nodeRuntimeById[selectedId];
+  const selectedCurrentEffect =
+    selectedRuntime.level > 0 ? describeUpgradeEffect(selectedDefinition, selectedRuntime.level, prestige.totalMirrorShards) : "Not active yet";
   const selectedNextEffect =
-    selectedDefinition.maxLevel !== undefined && selectedLevel >= selectedDefinition.maxLevel
+    selectedDefinition.maxLevel !== undefined && selectedRuntime.level >= selectedDefinition.maxLevel
       ? "Already maxed"
-      : describeUpgradeEffect(selectedDefinition, selectedLevel + 1, prestige.totalMirrorShards);
+      : describeUpgradeEffect(selectedDefinition, selectedRuntime.level + 1, prestige.totalMirrorShards);
 
   return (
     <div className="upgrade-page upgrade-tree-page">
@@ -249,55 +355,27 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
           </div>
 
           <div className="upgrade-tree-board" ref={boardRef}>
-            <svg className="upgrade-tree-lines" aria-hidden="true">
-              {paths.map((path) => (
-                <path key={path.key} d={path.d} className={`upgrade-tree-path upgrade-tree-path-${path.tone}`} />
-              ))}
-            </svg>
+            <UpgradeConnectionLayer paths={renderedPaths} />
 
-            <div className="upgrade-tree-grid" style={{ gridTemplateColumns: `160px repeat(${tree.tierCount}, minmax(180px, 1fr))`, gridTemplateRows: `repeat(${tree.lanes.length}, minmax(148px, auto))` }}>
+            <div className="upgrade-tree-grid" style={{ gridTemplateColumns: tree.gridTemplateColumns, gridTemplateRows: tree.gridTemplateRows }}>
               {tree.lanes.map((lane) => (
                 <div key={lane.label} className="upgrade-tree-lane-label" style={{ gridColumn: 1, gridRow: lane.order }}>
                   <span className="upgrade-tree-lane-name">{lane.label}</span>
-                  <span className="upgrade-tree-lane-copy">{lane.order === 1 ? "Primary route" : lane.order === 2 ? "Branch route" : "Late route"}</span>
+                  <span className="upgrade-tree-lane-copy">{laneCopyByOrder[lane.order] ?? "Late route"}</span>
                 </div>
               ))}
 
-              {tree.nodes.map((node) => {
-                const upgradeId = node.definition.id as UpgradeId;
-                const nodeState = getUpgradeNodeState(availabilityState, upgradeId);
-                const level = purchasedUpgrades[upgradeId];
-                const cost = getUpgradeCost(upgradeId, level);
-                const affordable = canPurchaseUpgrade(availabilityState, upgradeId);
-                const presentation = node.presentation;
-                const isSelected = upgradeId === selectedId;
-
-                return (
-                  <div
-                    key={upgradeId}
-                    ref={(element) => {
-                      nodeRefs.current[upgradeId] = element;
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    className={`upgrade-node upgrade-node-${presentation.kind} upgrade-node-${nodeState}${isSelected ? " upgrade-node-selected" : ""}`}
-                    style={{ gridColumn: presentation.tier + 1, gridRow: presentation.laneOrder }}
-                    onClick={() => setSelectedUpgradeId(upgradeId)}
-                    onKeyDown={(event) => handleNodeKeyDown(event, upgradeId)}
-                  >
-                    <div className="upgrade-node-topline">
-                      <span className="upgrade-node-kind">{getKindLabel(presentation.kind)}</span>
-                      <span className="upgrade-node-level">Lv {level}</span>
-                    </div>
-                    <div className="upgrade-node-title">{presentation.shortLabel}</div>
-                    <div className="upgrade-node-effect">{presentation.shortEffect}</div>
-                    <div className="upgrade-node-footer">
-                      <span className={`upgrade-node-state upgrade-node-state-${getStateTone(nodeState)}`}>{getUpgradeNodeStateLabel(nodeState)}</span>
-                      <span className={`upgrade-node-cost${affordable ? " upgrade-node-cost-ready" : ""}`}>{formatUpgradeCost(cost)}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {tree.nodes.map((node) => (
+                <UpgradeTreeNodeCard
+                  key={node.definition.id}
+                  node={node}
+                  runtime={nodeRuntimeById[node.definition.id as UpgradeId]}
+                  isSelected={node.definition.id === selectedId}
+                  onSelect={setSelectedUpgradeId}
+                  onKeySelect={handleNodeKeyDown}
+                  nodeRefs={nodeRefs}
+                />
+              ))}
             </div>
           </div>
         </section>
@@ -306,9 +384,9 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
           <div className="upgrade-focus-header">
             <div>
               <p className="shell-card-eyebrow">Selected node</p>
-              <h3 className="upgrade-focus-title">{selectedPresentation.shortLabel}</h3>
+              <h3 className="upgrade-focus-title">{selectedNode.presentation.shortLabel}</h3>
             </div>
-            <span className={`upgrade-focus-kind upgrade-focus-kind-${selectedPresentation.kind}`}>{getKindLabel(selectedPresentation.kind)}</span>
+            <span className={`upgrade-focus-kind upgrade-focus-kind-${selectedNode.presentation.kind}`}>{getKindLabel(selectedNode.presentation.kind)}</span>
           </div>
 
           <p className="upgrade-focus-copy">{selectedDefinition.description}</p>
@@ -316,7 +394,7 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
           <div className="upgrade-focus-stats">
             <div className="upgrade-focus-stat">
               <span className="upgrade-focus-stat-label">State</span>
-              <span className={`upgrade-focus-stat-value upgrade-focus-stat-value-${getStateTone(selectedState)}`}>{getUpgradeNodeStateLabel(selectedState)}</span>
+              <span className={`upgrade-focus-stat-value upgrade-focus-stat-value-${selectedRuntime.tone}`}>{getUpgradeNodeStateLabel(selectedRuntime.state)}</span>
             </div>
             <div className="upgrade-focus-stat">
               <span className="upgrade-focus-stat-label">Current</span>
@@ -328,7 +406,7 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
             </div>
             <div className="upgrade-focus-stat">
               <span className="upgrade-focus-stat-label">Cost</span>
-              <span className="upgrade-focus-stat-value">{formatUpgradeCost(selectedCost)}</span>
+              <span className="upgrade-focus-stat-value">{selectedRuntime.costLabel}</span>
             </div>
           </div>
 
@@ -337,8 +415,8 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
             <span className="upgrade-focus-requirement">{getUpgradeNodeRequirementText(availabilityState, selectedId)}</span>
           </div>
 
-          <button className="btn upgrade-focus-buy" type="button" onClick={() => onBuyUpgrade(selectedId)} disabled={!selectedCanBuy}>
-            {selectedState === "maxed" ? "Maxed" : selectedCanBuy ? `Buy for ${formatUpgradeCost(selectedCost)}` : `Need ${formatUpgradeCost(selectedCost)}`}
+          <button className="btn upgrade-focus-buy" type="button" onClick={() => onBuyUpgrade(selectedId)} disabled={!selectedRuntime.canBuy}>
+            {selectedRuntime.state === "maxed" ? "Maxed" : selectedRuntime.canBuy ? `Buy for ${selectedRuntime.costLabel}` : `Need ${selectedRuntime.costLabel}`}
           </button>
         </aside>
       </div>
