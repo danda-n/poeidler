@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { type PageId, type PageMeta } from "@/components/Sidebar";
 import {
   fragmentCurrencyId,
@@ -115,8 +115,16 @@ function getPageMeta(
   };
 }
 
+const BADGE_THROTTLE_MS = 1000;
+
 export function useAppViewModel(gameState: GameState): AppViewModel {
-  return useMemo(() => {
+  const badgeCacheRef = useRef<{ count: number; lastComputedAt: number; purchasedUpgrades: unknown }>({
+    count: 0,
+    lastComputedAt: 0,
+    purchasedUpgrades: null,
+  });
+
+  const flags = useMemo(() => {
     const hasAnyGenerator = generatorIds.some((id) => gameState.generatorsOwned[id] > 0);
     const hasTier4 = gameState.unlockedCurrencies.alterationOrb;
     const hasPrestige =
@@ -124,18 +132,50 @@ export function useAppViewModel(gameState: GameState): AppViewModel {
       (gameState.prestige.prestigeCount > 0 || gameState.prestige.mapsCompleted >= 1 || gameState.currencies.jewellersOrb >= 1);
     const hasTalents = gameState.prestige.totalMirrorShards > 0;
     const canPrestigeNow = canPrestige(gameState.currencies);
-    const unlockedPages = getUnlockedPages(gameState, hasAnyGenerator, hasTier4, hasPrestige, hasTalents);
+    return { hasAnyGenerator, hasTier4, hasPrestige, hasTalents, canPrestigeNow };
+  }, [gameState.generatorsOwned, gameState.unlockedCurrencies, gameState.prestige, gameState.currencies]);
+
+  const topStripState = useMemo(
+    () => getTopStripState(gameState),
+    [gameState.currencies, gameState.currencyProduction, gameState.unlockedCurrencies],
+  );
+
+  const pageMeta = useMemo(() => {
+    const now = Date.now();
+    const cache = badgeCacheRef.current;
+    const upgradesChanged = cache.purchasedUpgrades !== gameState.purchasedUpgrades;
+    const throttleExpired = now - cache.lastComputedAt >= BADGE_THROTTLE_MS;
+
+    let affordableUpgradeCount = cache.count;
+    if (upgradesChanged || throttleExpired) {
+      affordableUpgradeCount = getAffordableUpgradeCount({
+        currencies: gameState.currencies,
+        purchasedUpgrades: gameState.purchasedUpgrades,
+        unlockedCurrencies: gameState.unlockedCurrencies,
+        prestige: gameState.prestige,
+      });
+      badgeCacheRef.current = { count: affordableUpgradeCount, lastComputedAt: now, purchasedUpgrades: gameState.purchasedUpgrades };
+    }
 
     return {
-      hasAnyGenerator,
-      hasTier4,
-      hasPrestige,
-      hasTalents,
-      canPrestigeNow,
-      unlockedPages,
-      pageMeta: getPageMeta(gameState, hasTier4, hasTalents, canPrestigeNow),
-      topStripState: getTopStripState(gameState),
-      mapStatusLabel: gameState.activeMap ? "Map running" : hasTier4 ? "Map device unlocked" : "Atlas locked",
+      upgrades: affordableUpgradeCount > 0 ? { badge: String(affordableUpgradeCount), tone: "ready" as const } : undefined,
+      mapDevice: gameState.activeMap ? { badge: "Live", tone: "active" as const } : flags.hasTier4 ? { badge: "Ready", tone: "active" as const } : undefined,
+      progress: flags.canPrestigeNow ? { badge: "Ready", tone: "alert" as const } : flags.hasTalents ? { badge: "Talents", tone: "active" as const } : undefined,
     };
-  }, [gameState]);
+  }, [gameState.currencies, gameState.purchasedUpgrades, gameState.unlockedCurrencies, gameState.prestige, gameState.activeMap, flags.hasTier4, flags.hasTalents, flags.canPrestigeNow]);
+
+  const unlockedPages = useMemo(
+    () => getUnlockedPages(gameState, flags.hasAnyGenerator, flags.hasTier4, flags.hasPrestige, flags.hasTalents),
+    [gameState, flags.hasAnyGenerator, flags.hasTier4, flags.hasPrestige, flags.hasTalents],
+  );
+
+  const mapStatusLabel = gameState.activeMap ? "Map running" : flags.hasTier4 ? "Map device unlocked" : "Atlas locked";
+
+  return {
+    ...flags,
+    unlockedPages,
+    pageMeta,
+    topStripState,
+    mapStatusLabel,
+  };
 }

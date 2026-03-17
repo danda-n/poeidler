@@ -15,7 +15,7 @@ export function FoldablePanel({ title, defaultOpen = true, children }: FoldableP
         <span className="foldable-icon">{isOpen ? "\u25BE" : "\u25B8"}</span>
         <span>{title}</span>
       </button>
-      {isOpen ? <div className="foldable-content">{children}</div> : null}
+      <div className="foldable-content" style={{ display: isOpen ? "block" : "none" }} aria-hidden={!isOpen}>{children}</div>
     </section>
   );
 }

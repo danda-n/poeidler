@@ -3121,11 +3121,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
   cursor: pointer;
-  transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
-}
-
-.upgrade-node:hover {
-  transform: translateY(-2px);
+  transition: background-color 140ms ease, border-color 140ms ease;
 }
 
 .upgrade-node-selected {
@@ -4009,11 +4005,10 @@ body {
   background: rgba(255, 255, 255, 0.03);
   color: #dce5f2;
   text-align: left;
-  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease;
 }
 
 .upgrade-category-button:hover {
-  transform: translateY(-1px);
   border-color: rgba(244, 213, 140, 0.18);
   background: rgba(255, 255, 255, 0.045);
 }

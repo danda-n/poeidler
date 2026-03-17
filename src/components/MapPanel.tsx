@@ -71,7 +71,7 @@ export const MapPanel = memo(function MapPanel({
 
   useEffect(() => {
     if (!activeMap) return;
-    const id = window.setInterval(() => setNow(Date.now()), 100);
+    const id = window.setInterval(() => setNow(Date.now()), 500);
     return () => window.clearInterval(id);
   }, [activeMap]);
 

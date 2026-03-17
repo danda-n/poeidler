@@ -140,7 +140,38 @@ export function getRunStartMapBonuses(
   return { rewardBonus, shardChanceBonus, speedBonus, encounterChain };
 }
 
+type SyncCache = {
+  purchasedUpgrades: PurchasedUpgradeState;
+  generatorsOwned: GeneratorOwnedState;
+  talentsPurchased: TalentPurchasedState;
+  unlockedCurrenciesIn: UnlockedCurrencyState;
+  currencyMultipliers: CurrencyMultipliers;
+  unlockedFeatures: FeatureState;
+  clickMultiplier: number;
+  currencyProduction: CurrencyProduction;
+  unlockedCurrencies: UnlockedCurrencyState;
+};
+
+let syncCache: SyncCache | null = null;
+
 export function synchronizeGameState(gameState: GameState) {
+  if (
+    syncCache
+    && syncCache.purchasedUpgrades === gameState.purchasedUpgrades
+    && syncCache.generatorsOwned === gameState.generatorsOwned
+    && syncCache.talentsPurchased === gameState.talentsPurchased
+    && syncCache.unlockedCurrenciesIn === gameState.unlockedCurrencies
+  ) {
+    return {
+      ...gameState,
+      currencyMultipliers: syncCache.currencyMultipliers,
+      unlockedFeatures: syncCache.unlockedFeatures,
+      clickMultiplier: syncCache.clickMultiplier,
+      currencyProduction: syncCache.currencyProduction,
+      unlockedCurrencies: syncCache.unlockedCurrencies,
+    };
+  }
+
   const { currencyMultipliers, unlockedFeatures, clickMultiplier } = applyUpgradeEffects(
     gameState.purchasedUpgrades,
     getBreakpointBonus(gameState.talentsPurchased),
@@ -150,6 +181,18 @@ export function synchronizeGameState(gameState: GameState) {
   const adjustedClickMultiplier = clickMultiplier * (1 + talentClickBonus);
   const currencyProduction = calculateCurrencyProduction(gameState.generatorsOwned, currencyMultipliers);
   const unlockedCurrencies = unlockCurrencies(gameState.unlockedCurrencies, currencyProduction);
+
+  syncCache = {
+    purchasedUpgrades: gameState.purchasedUpgrades,
+    generatorsOwned: gameState.generatorsOwned,
+    talentsPurchased: gameState.talentsPurchased,
+    unlockedCurrenciesIn: gameState.unlockedCurrencies,
+    currencyMultipliers,
+    unlockedFeatures,
+    clickMultiplier: adjustedClickMultiplier,
+    currencyProduction,
+    unlockedCurrencies,
+  };
 
   return {
     ...gameState,
@@ -288,7 +331,6 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     lastMapResult,
     queuedMap,
     mapNotification,
-    unlockedCurrencies: unlockCurrencies(state.unlockedCurrencies, state.currencyProduction),
   };
 }
 

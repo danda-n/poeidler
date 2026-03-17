@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "@/game/currencies";
 import type { PrestigeState } from "@/game/prestige";
 import {
@@ -37,6 +37,19 @@ type UpgradePanelProps = {
 };
 
 type UpgradeTone = "ready" | "owned" | "open" | "locked";
+
+type StructuralRow = {
+  id: UpgradeId;
+  definition: UpgradeDefinition;
+  level: number;
+  tier: number;
+  lane: string;
+  kind: UpgradeNodeKind;
+  costLabel: string;
+  currentEffect: string;
+  nextEffect: string;
+  isMaxed: boolean;
+};
 
 type UpgradeRowViewModel = {
   id: UpgradeId;
@@ -100,7 +113,7 @@ function groupUpgradeRows(rows: UpgradeRowViewModel[]) {
   }));
 }
 
-export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, prestige, onBuyUpgrade }: UpgradePanelProps) {
+export const UpgradePanel = memo(function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, prestige, onBuyUpgrade }: UpgradePanelProps) {
   const [activeCategory, setActiveCategory] = useState<UpgradeCategory>("generators");
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<UpgradeId | null>(null);
 
@@ -114,7 +127,7 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
     [currenciesState, prestige, purchasedUpgrades, unlockedCurrencies],
   );
 
-  const rowsByCategory = useMemo(() => {
+  const structuralRowsByCategory = useMemo(() => {
     return Object.fromEntries(
       upgradeCategories.map((category) => {
         const rows = getUpgradesByCategory(category)
@@ -122,7 +135,6 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
             const upgradeId = definition.id as UpgradeId;
             const presentation = getUpgradePresentation(upgradeId);
             const level = purchasedUpgrades[upgradeId];
-            const state = getUpgradeNodeState(availabilityState, upgradeId);
             const nextLevel = definition.maxLevel !== undefined && level >= definition.maxLevel ? level : level + 1;
 
             return {
@@ -132,19 +144,14 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
               tier: presentation.tier,
               lane: presentation.lane,
               kind: presentation.kind,
-              state,
-              tone: getStateTone(state),
-              statusLabel: getUpgradeNodeStateLabel(state),
               costLabel: formatUpgradeCost(getUpgradeCost(upgradeId, level)),
-              canBuy: canPurchaseUpgrade(availabilityState, upgradeId),
-              requirementText: getUpgradeNodeRequirementText(availabilityState, upgradeId),
               currentEffect: level > 0 ? describeUpgradeEffect(definition, level, prestige.totalMirrorShards) : "Not active yet",
               nextEffect:
                 definition.maxLevel !== undefined && level >= definition.maxLevel
                   ? "Already maxed"
                   : describeUpgradeEffect(definition, nextLevel, prestige.totalMirrorShards),
               isMaxed: definition.maxLevel !== undefined && level >= definition.maxLevel,
-            } satisfies UpgradeRowViewModel;
+            };
           })
           .sort((left, right) => {
             if (left.tier !== right.tier) return left.tier - right.tier;
@@ -154,17 +161,66 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
 
         return [category, rows];
       }),
-    ) as Record<UpgradeCategory, UpgradeRowViewModel[]>;
-  }, [availabilityState, prestige.totalMirrorShards, purchasedUpgrades]);
+    ) as Record<UpgradeCategory, StructuralRow[]>;
+  }, [purchasedUpgrades, prestige.totalMirrorShards]);
 
-  const categoryStats = useMemo(
-    () =>
-      Object.fromEntries(
-        upgradeCategories.map((category) => [category, getUpgradeCategoryStats(availabilityState, category)]),
-      ) as Record<UpgradeCategory, ReturnType<typeof getUpgradeCategoryStats>>,
-    [availabilityState],
-  );
-  const totalAffordable = useMemo(() => getAffordableUpgradeCount(availabilityState), [availabilityState]);
+  const rowsByCategory = useMemo(() => {
+    return Object.fromEntries(
+      upgradeCategories.map((category) => {
+        const isActive = category === activeCategory;
+        const rows = structuralRowsByCategory[category].map((base) => {
+          if (!isActive) {
+            const level = base.level;
+            const fallbackState: UpgradeNodeState = base.isMaxed ? "maxed" : level > 0 ? "purchased" : "locked";
+            return {
+              ...base,
+              state: fallbackState,
+              tone: getStateTone(fallbackState),
+              statusLabel: getUpgradeNodeStateLabel(fallbackState),
+              canBuy: false,
+              requirementText: "",
+            } satisfies UpgradeRowViewModel;
+          }
+          const state = getUpgradeNodeState(availabilityState, base.id);
+          return {
+            ...base,
+            state,
+            tone: getStateTone(state),
+            statusLabel: getUpgradeNodeStateLabel(state),
+            canBuy: canPurchaseUpgrade(availabilityState, base.id),
+            requirementText: getUpgradeNodeRequirementText(availabilityState, base.id),
+          } satisfies UpgradeRowViewModel;
+        });
+        return [category, rows];
+      }),
+    ) as Record<UpgradeCategory, UpgradeRowViewModel[]>;
+  }, [activeCategory, availabilityState, structuralRowsByCategory]);
+
+  const statsThrottleRef = useRef<{ stats: Record<UpgradeCategory, ReturnType<typeof getUpgradeCategoryStats>>; total: number; lastAt: number; purchasedUpgrades: unknown }>({
+    stats: {} as Record<UpgradeCategory, ReturnType<typeof getUpgradeCategoryStats>>,
+    total: 0,
+    lastAt: 0,
+    purchasedUpgrades: null,
+  });
+
+  const { categoryStats, totalAffordable } = useMemo(() => {
+    const now = Date.now();
+    const cache = statsThrottleRef.current;
+    const upgradesChanged = cache.purchasedUpgrades !== purchasedUpgrades;
+    const throttleExpired = now - cache.lastAt >= 1000;
+
+    if (!upgradesChanged && !throttleExpired && cache.lastAt > 0) {
+      return { categoryStats: cache.stats, totalAffordable: cache.total };
+    }
+
+    const stats = Object.fromEntries(
+      upgradeCategories.map((category) => [category, getUpgradeCategoryStats(availabilityState, category)]),
+    ) as Record<UpgradeCategory, ReturnType<typeof getUpgradeCategoryStats>>;
+    const total = getAffordableUpgradeCount(availabilityState);
+
+    statsThrottleRef.current = { stats, total, lastAt: now, purchasedUpgrades };
+    return { categoryStats: stats, totalAffordable: total };
+  }, [availabilityState, purchasedUpgrades]);
   const purchasedCount = useMemo(
     () => Object.values(purchasedUpgrades).filter((level) => level > 0).length,
     [purchasedUpgrades],
@@ -439,4 +495,4 @@ export function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurre
       </div>
     </div>
   );
-}
+});
