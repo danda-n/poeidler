@@ -10,12 +10,12 @@ type ShellHeaderProps = {
 export function ShellHeader({ brandTitle, statusText, headerActions, topBar }: ShellHeaderProps) {
   return (
     <header className="shell-topbar">
-      <div className="shell-brand-row">
-        <div className="shell-brand-copy">
+      <div className="flex items-start justify-between gap-4">
+        <div className="grid gap-[3px]">
           <h1 className="shell-brand-title">{brandTitle}</h1>
           <span className="shell-brand-status">{statusText}</span>
         </div>
-        <div className="shell-brand-actions">{headerActions}</div>
+        <div className="shrink-0">{headerActions}</div>
       </div>
       {topBar}
     </header>

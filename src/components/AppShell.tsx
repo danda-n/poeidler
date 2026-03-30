@@ -31,10 +31,10 @@ export const AppShell = forwardRef<HTMLElement, AppShellProps>(function AppShell
   ref,
 ) {
   return (
-    <div className="shell-root">
+    <div className="flex flex-col h-screen overflow-hidden">
       <ShellHeader brandTitle={brandTitle} statusText={statusText} headerActions={headerActions} topBar={topBar} />
 
-      <div className="shell-body">
+      <div className="flex flex-1 overflow-hidden">
         <aside className="shell-sidebar-frame">{sidebar}</aside>
         <main ref={ref} className="shell-main">
           <div className={`shell-main-inner${contentWidth === "wide" ? " shell-main-inner-wide" : ""}`}>

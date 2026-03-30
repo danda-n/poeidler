@@ -2452,13 +2452,6 @@ body {
   overflow: hidden;
 }
 
-.shell-root {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
-
 .shell-topbar {
   position: relative;
   z-index: 5;
@@ -2469,18 +2462,6 @@ body {
   background: rgba(8, 11, 16, 0.92);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(18px);
-}
-
-.shell-brand-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.shell-brand-copy {
-  display: grid;
-  gap: 3px;
 }
 
 .shell-brand-title {
@@ -2494,10 +2475,6 @@ body {
 .shell-brand-status {
   font-size: 0.78rem;
   color: #93a0b4;
-}
-
-.shell-brand-actions {
-  flex-shrink: 0;
 }
 
 .wealth-bar {
