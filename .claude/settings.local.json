@@ -14,7 +14,8 @@
       "Bash(git pull --rebase origin master)",
       "Bash(git stash)",
       "Bash(git stash pop)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
