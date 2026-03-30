@@ -103,8 +103,8 @@ export const upgrades: UpgradeDefinition[] = [
   { id: "echoArchive", category: "relics", group: "Relic Echoes", name: "Echo Archive", description: "Encounter-heavy runs cash out for better prestige rewards.", baseCost: { exaltedOrb: 3, divineOrb: 1 }, costMultiplier: 1.65, prerequisite: "heirloomSpark", requirements: [{ type: "prestigeCount", amount: 2 }], effect: { type: "percentEncounterPrestigeShards", value: 0.2 } },
 ];
 
-export type UpgradeId = (typeof upgrades)[number]["id"];
-export type PurchasedUpgradeState = Record<UpgradeId, number>;
+export type UpgradeId = string;
+export type PurchasedUpgradeState = Record<string, number>;
 export type FeatureState = Record<FeatureId, boolean>;
 
 export type UpgradeAvailabilityState = {
@@ -128,15 +128,9 @@ export type MapUpgradeContext = {
   hasEncounter: boolean;
 };
 
-export const upgradeMap: Record<UpgradeId, UpgradeDefinition> = upgrades.reduce((acc, upgrade) => {
-  acc[upgrade.id as UpgradeId] = upgrade;
-  return acc;
-}, {} as Record<UpgradeId, UpgradeDefinition>);
+export const upgradeMap: Record<string, UpgradeDefinition> = Object.fromEntries(upgrades.map((u) => [u.id, u]));
 
-export const initialPurchasedUpgrades: PurchasedUpgradeState = upgrades.reduce((acc, upgrade) => {
-  acc[upgrade.id as UpgradeId] = 0;
-  return acc;
-}, {} as PurchasedUpgradeState);
+export const initialPurchasedUpgrades: PurchasedUpgradeState = Object.fromEntries(upgrades.map((u) => [u.id, 0]));
 
 export const initialUnlockedFeatures: FeatureState = {
   buyMax: false,
@@ -163,7 +157,7 @@ function getRequirementProgress(state: UpgradeAvailabilityState, requirement: Up
     case "totalMirrorShards":
       return state.prestige.totalMirrorShards;
     case "upgradeLevel":
-      return state.purchasedUpgrades[requirement.upgradeId as UpgradeId] ?? 0;
+      return state.purchasedUpgrades[requirement.upgradeId] ?? 0;
   }
 }
 
@@ -194,20 +188,20 @@ function formatRequirement(requirement: UpgradeRequirement) {
     case "totalMirrorShards":
       return `Reach ${requirement.amount} total shards`;
     case "upgradeLevel":
-      return `${upgradeMap[requirement.upgradeId as UpgradeId]?.name ?? requirement.upgradeId} Lv ${requirement.amount}`;
+      return `${upgradeMap[requirement.upgradeId]?.name ?? requirement.upgradeId} Lv ${requirement.amount}`;
   }
 }
 
 export function getUpgradeCost(upgradeId: UpgradeId, level: number) {
   const upgrade = upgradeMap[upgradeId];
   return Object.entries(upgrade.baseCost).reduce((acc, [currencyId, amount]) => {
-    acc[currencyId as CurrencyId] = scaleCost(amount ?? 0, upgrade.costMultiplier, level);
+    acc[currencyId] = scaleCost(amount ?? 0, upgrade.costMultiplier, level);
     return acc;
   }, {} as UpgradeCost);
 }
 
 export function canAffordCost(currenciesState: CurrencyState, cost: UpgradeCost) {
-  return Object.entries(cost).every(([currencyId, amount]) => Math.floor(currenciesState[currencyId as CurrencyId]) >= (amount ?? 0));
+  return Object.entries(cost).every(([currencyId, amount]) => Math.floor(currenciesState[currencyId]) >= (amount ?? 0));
 }
 
 export function getUpgradeBreakpointMultiplier(level: number) {
@@ -218,7 +212,7 @@ export function isUpgradeUnlocked(state: UpgradeAvailabilityState, upgradeId: Up
   const upgrade = upgradeMap[upgradeId];
 
   if (upgrade.prerequisite) {
-    const prereqLevel = state.purchasedUpgrades[upgrade.prerequisite as UpgradeId] ?? 0;
+    const prereqLevel = state.purchasedUpgrades[upgrade.prerequisite] ?? 0;
     if (prereqLevel <= 0) return false;
   }
 
@@ -229,8 +223,8 @@ export function getUpgradeUnlockText(state: UpgradeAvailabilityState, upgradeId:
   const upgrade = upgradeMap[upgradeId];
 
   if (upgrade.prerequisite) {
-    const prereq = upgradeMap[upgrade.prerequisite as UpgradeId];
-    const prereqLevel = state.purchasedUpgrades[upgrade.prerequisite as UpgradeId] ?? 0;
+    const prereq = upgradeMap[upgrade.prerequisite];
+    const prereqLevel = state.purchasedUpgrades[upgrade.prerequisite] ?? 0;
     if (prereqLevel <= 0) return `Requires ${prereq?.name ?? upgrade.prerequisite}`;
   }
 
@@ -250,8 +244,8 @@ export function canPurchaseUpgrade(state: UpgradeAvailabilityState, upgradeId: U
 
 export function getUpgradeCategoryStats(state: UpgradeAvailabilityState, category: UpgradeCategory) {
   const categoryUpgrades = upgrades.filter((upgrade) => upgrade.category === category);
-  const unlocked = categoryUpgrades.filter((upgrade) => isUpgradeUnlocked(state, upgrade.id as UpgradeId)).length;
-  const affordable = categoryUpgrades.filter((upgrade) => canPurchaseUpgrade(state, upgrade.id as UpgradeId)).length;
+  const unlocked = categoryUpgrades.filter((upgrade) => isUpgradeUnlocked(state, upgrade.id)).length;
+  const affordable = categoryUpgrades.filter((upgrade) => canPurchaseUpgrade(state, upgrade.id)).length;
 
   return {
     total: categoryUpgrades.length,
@@ -261,7 +255,7 @@ export function getUpgradeCategoryStats(state: UpgradeAvailabilityState, categor
 }
 
 export function getAffordableUpgradeCount(state: UpgradeAvailabilityState) {
-  return upgrades.filter((upgrade) => canPurchaseUpgrade(state, upgrade.id as UpgradeId)).length;
+  return upgrades.filter((upgrade) => canPurchaseUpgrade(state, upgrade.id)).length;
 }
 
 export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState, breakpointBonus = 0) {
@@ -270,7 +264,7 @@ export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState, br
   let clickMultiplier = 1;
 
   upgrades.forEach((upgrade) => {
-    const level = purchasedUpgrades[upgrade.id as UpgradeId];
+    const level = purchasedUpgrades[upgrade.id];
     if (level <= 0) return;
 
     if (upgrade.effect.type === "percentProduction") {
@@ -297,20 +291,20 @@ export function applyUpgradeEffects(purchasedUpgrades: PurchasedUpgradeState, br
 export function getConversionOutputUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "flatConversionOutput") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
 export function getGeneratorCostReductionUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "percentGeneratorCostReduction") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
 export function getBaseMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState, context: MapUpgradeContext) {
   return upgrades.reduce((bonus, upgrade) => {
-    const level = purchasedUpgrades[upgrade.id as UpgradeId];
+    const level = purchasedUpgrades[upgrade.id];
     if (level <= 0) return bonus;
 
     switch (upgrade.effect.type) {
@@ -335,14 +329,14 @@ export function getBaseMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgrade
 export function getFocusedMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "percentFocusedMapReward") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
 export function getQueuedMapRewardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "percentQueuedMapReward") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
@@ -352,7 +346,7 @@ export function getMapShardChanceUpgradeBonus(
   hasEncounter = false,
 ) {
   return upgrades.reduce((bonus, upgrade) => {
-    const level = purchasedUpgrades[upgrade.id as UpgradeId];
+    const level = purchasedUpgrades[upgrade.id];
     if (level <= 0) return bonus;
 
     switch (upgrade.effect.type) {
@@ -373,35 +367,35 @@ export function getMapShardChanceUpgradeBonus(
 export function getQueuedMapShardChanceUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "flatQueuedMapShardChance") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
 export function getMapSpeedUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "percentMapSpeed") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
 export function getMapCostReductionUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "percentMapCostReduction") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
 export function getPrestigeShardUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "percentPrestigeShards") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
 export function getEncounterPrestigeUpgradeBonus(purchasedUpgrades: PurchasedUpgradeState) {
   return upgrades.reduce((bonus, upgrade) => {
     if (upgrade.effect.type !== "percentEncounterPrestigeShards") return bonus;
-    return bonus + purchasedUpgrades[upgrade.id as UpgradeId] * upgrade.effect.value;
+    return bonus + purchasedUpgrades[upgrade.id] * upgrade.effect.value;
   }, 0);
 }
 
@@ -426,7 +420,7 @@ export function getClickPower(fragmentProductionRate: number, clickMultiplier: n
 function payCost(currenciesState: CurrencyState, cost: UpgradeCost) {
   const nextCurrencies = { ...currenciesState };
   Object.entries(cost).forEach(([currencyId, amount]) => {
-    nextCurrencies[currencyId as CurrencyId] -= amount ?? 0;
+    nextCurrencies[currencyId] -= amount ?? 0;
   });
   return nextCurrencies;
 }

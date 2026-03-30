@@ -206,7 +206,7 @@ export function getLoadoutTotalCost(loadout: DeviceLoadout): Partial<Record<Curr
   for (const modId of loadout.modIds) {
     const cost = getModLoadoutCost(modId);
     for (const [currencyId, amount] of Object.entries(cost)) {
-      total[currencyId as CurrencyId] = (total[currencyId as CurrencyId] ?? 0) + (amount ?? 0);
+      total[currencyId] = (total[currencyId] ?? 0) + (amount ?? 0);
     }
   }
   return total;
@@ -214,14 +214,14 @@ export function getLoadoutTotalCost(loadout: DeviceLoadout): Partial<Record<Curr
 
 export function canAffordLoadout(currencies: CurrencyState, loadout: DeviceLoadout): boolean {
   const cost = getLoadoutTotalCost(loadout);
-  return Object.entries(cost).every(([currencyId, amount]) => Math.floor(currencies[currencyId as CurrencyId]) >= (amount ?? 0));
+  return Object.entries(cost).every(([currencyId, amount]) => Math.floor(currencies[currencyId]) >= (amount ?? 0));
 }
 
 export function payLoadoutCost(currencies: CurrencyState, loadout: DeviceLoadout): CurrencyState {
   const cost = getLoadoutTotalCost(loadout);
   const next = { ...currencies };
   for (const [currencyId, amount] of Object.entries(cost)) {
-    next[currencyId as CurrencyId] -= amount ?? 0;
+    next[currencyId] -= amount ?? 0;
   }
   return next;
 }

@@ -6,7 +6,15 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(gh run list --limit 3)",
       "Bash(where gh)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(node -e \":*)",
+      "Bash(npx tsc -b)",
+      "Bash(git push origin master)",
+      "Bash(git pull --rebase origin master)",
+      "Bash(git stash)",
+      "Bash(git stash pop)",
+      "Bash(git add:*)"
     ]
   }
 }

@@ -404,13 +404,13 @@ export const craftingCosts: Record<CraftingAction, Partial<Record<CurrencyId, nu
 
 export function canAffordCraft(currencies: CurrencyState, action: CraftingAction): boolean {
   const cost = craftingCosts[action];
-  return Object.entries(cost).every(([currencyId, amount]) => Math.floor(currencies[currencyId as CurrencyId]) >= (amount ?? 0));
+  return Object.entries(cost).every(([currencyId, amount]) => Math.floor(currencies[currencyId]) >= (amount ?? 0));
 }
 
 export function payCraftCost(currencies: CurrencyState, action: CraftingAction): CurrencyState {
   const next = { ...currencies };
   Object.entries(craftingCosts[action]).forEach(([currencyId, amount]) => {
-    next[currencyId as CurrencyId] -= amount ?? 0;
+    next[currencyId] -= amount ?? 0;
   });
   return next;
 }
@@ -666,7 +666,7 @@ function mergeRewards(...rewardSets: MapReward[]): MapReward {
 
   rewardSets.forEach((rewardSet) => {
     Object.entries(rewardSet).forEach(([currencyId, amount]) => {
-      merged[currencyId as CurrencyId] = (merged[currencyId as CurrencyId] ?? 0) + (amount ?? 0);
+      merged[currencyId] = (merged[currencyId] ?? 0) + (amount ?? 0);
     });
   });
 
@@ -685,7 +685,7 @@ export function getResolvedMapCost(
 
   Object.entries(mapDef.cost).forEach(([currencyId, amount]) => {
     const adjusted = Math.ceil((amount ?? 0) * Math.max(0.1, costMult) * Math.max(0, 1 - costReduction));
-    resolved[currencyId as CurrencyId] = adjusted;
+    resolved[currencyId] = adjusted;
   });
 
   return resolved;
@@ -699,7 +699,7 @@ export function canAffordMap(
   deviceEffects?: ResolvedDeviceEffects,
 ): boolean {
   const resolved = getResolvedMapCost(mapDef, craftedMap, costReduction, deviceEffects);
-  return Object.entries(resolved).every(([currencyId, amount]) => Math.floor(currencies[currencyId as CurrencyId]) >= (amount ?? 0));
+  return Object.entries(resolved).every(([currencyId, amount]) => Math.floor(currencies[currencyId]) >= (amount ?? 0));
 }
 
 export function getResolvedMapDuration(
@@ -762,7 +762,7 @@ export function startMap(
   const nextCurrencies = { ...currencies };
 
   Object.entries(cost).forEach(([currencyId, amount]) => {
-    nextCurrencies[currencyId as CurrencyId] -= amount ?? 0;
+    nextCurrencies[currencyId] -= amount ?? 0;
   });
 
   return {
@@ -809,7 +809,7 @@ export function completeMap(mapDef: BaseMapDefinition, activeMap: NonNullable<Ac
   const bonusRewardTriggered = bonusRewardChance > 0 && Math.random() < bonusRewardChance;
 
   if (bonusRewardTriggered) {
-    const rewardKeys = Object.keys(rewards) as CurrencyId[];
+    const rewardKeys = Object.keys(rewards);
     if (rewardKeys.length > 0) {
       const bonusCurrencyId = rewardKeys[Math.floor(Math.random() * rewardKeys.length)];
       rewards[bonusCurrencyId] = Math.max(1, Math.floor((rewards[bonusCurrencyId] ?? 0) * 1.5));
@@ -846,7 +846,7 @@ export function completeMap(mapDef: BaseMapDefinition, activeMap: NonNullable<Ac
 export function applyMapRewards(currencies: CurrencyState, result: MapCompletionResult): CurrencyState {
   const nextCurrencies = { ...currencies };
   Object.entries(result.rewards).forEach(([currencyId, amount]) => {
-    nextCurrencies[currencyId as CurrencyId] += amount ?? 0;
+    nextCurrencies[currencyId] += amount ?? 0;
   });
   return nextCurrencies;
 }

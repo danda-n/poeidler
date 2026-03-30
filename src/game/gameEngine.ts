@@ -29,7 +29,6 @@ import {
 } from "./upgradeEngine";
 import {
   applyMapRewards,
-  baseMapMap,
   completeMap,
   getEncounterAdjustedStreak,
   getEncounterChain,
@@ -43,6 +42,7 @@ import {
   type MapNotification,
   type QueuedMapSetup,
 } from "./maps";
+import { getBaseMap } from "./registry";
 import { initialMapDeviceState, resolveLoadoutEffects, type MapDeviceState } from "./mapDevice";
 import { initialPrestigeState, type PrestigeState } from "./prestige";
 import {
@@ -108,7 +108,7 @@ export function getRunStartMapBonuses(
   talentsPurchased: TalentPurchasedState,
   purchasedUpgrades: PurchasedUpgradeState,
 ) {
-  const mapDef = baseMapMap[craftedMap.baseMapId];
+  const mapDef = getBaseMap(craftedMap.baseMapId);
   if (!mapDef) return { rewardBonus: 0, shardChanceBonus: 0, speedBonus: 0, encounterChain: 0 };
 
   const streakAtStart = prestige.lastMapFamily === mapDef.family ? prestige.lastMapFamilyStreak : 0;
@@ -231,7 +231,7 @@ export function applyPassiveGeneration(currenciesState: CurrencyState, currencyP
 
   Object.entries(currencyProduction).forEach(([currencyId, rate]) => {
     if (rate <= 0) return;
-    nextCurrencies[currencyId as keyof CurrencyState] += rate * deltaTimeSeconds;
+    nextCurrencies[currencyId] += rate * deltaTimeSeconds;
   });
 
   return nextCurrencies;
@@ -261,7 +261,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
   }
 
   if (activeMap && isMapComplete(activeMap, now)) {
-    const mapDef = baseMapMap[activeMap.craftedMap.baseMapId];
+    const mapDef = getBaseMap(activeMap.craftedMap.baseMapId);
     if (mapDef) {
       const result = completeMap(mapDef, activeMap);
       currencies = applyMapRewards(currencies, result);
@@ -285,7 +285,7 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     activeMap = null;
 
     if (queuedMap) {
-      const queuedMapDef = baseMapMap[queuedMap.baseMapId];
+      const queuedMapDef = getBaseMap(queuedMap.baseMapId);
       if (queuedMapDef) {
         const costReduction = getMapCostReduction(state.talentsPurchased);
         const { rewardBonus, shardChanceBonus, speedBonus, encounterChain } = getRunStartMapBonuses(

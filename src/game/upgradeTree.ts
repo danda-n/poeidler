@@ -102,7 +102,7 @@ export function getUpgradeTree(category: UpgradeCategory): UpgradeTreeModel {
 
   const nodes: UpgradeNodeViewModel[] = getUpgradesByCategory(category)
     .map((definition) => {
-      const presentation = getUpgradePresentation(definition.id as UpgradeId);
+      const presentation = getUpgradePresentation(definition.id);
       return {
         definition,
         presentation,
@@ -128,7 +128,7 @@ export function getUpgradeTree(category: UpgradeCategory): UpgradeTreeModel {
     .sort((left, right) => left.order - right.order);
 
   const edges: UpgradeTreeEdge[] = nodes.flatMap((node) =>
-    (node.presentation.visualParents ?? []).map((fromId) => ({ fromId, toId: node.definition.id as UpgradeId })),
+    (node.presentation.visualParents ?? []).map((fromId) => ({ fromId, toId: node.definition.id })),
   );
 
   const tierCount = nodes.reduce((max, node) => Math.max(max, node.presentation.tier), 1);
@@ -140,7 +140,7 @@ export function getUpgradeTree(category: UpgradeCategory): UpgradeTreeModel {
     gridTemplateColumns: `160px repeat(${tierCount}, minmax(180px, 1fr))`,
     gridTemplateRows: `repeat(${lanes.length}, minmax(148px, auto))`,
     nodeMap: nodes.reduce((acc, node) => {
-      acc[node.definition.id as UpgradeId] = node;
+      acc[node.definition.id] = node;
       return acc;
     }, {} as Record<UpgradeId, UpgradeNodeViewModel>),
   } satisfies UpgradeTreeModel;
@@ -177,7 +177,7 @@ export function getUpgradeNodeStateLabel(nodeState: UpgradeNodeState) {
 
 export function formatUpgradeCost(cost: Partial<Record<CurrencyId, number>>) {
   return Object.entries(cost)
-    .map(([currencyId, amount]) => `${formatCurrencyValue(amount ?? 0)} ${currencyMap[currencyId as CurrencyId].shortLabel}`)
+    .map(([currencyId, amount]) => `${formatCurrencyValue(amount ?? 0)} ${currencyMap[currencyId].shortLabel}`)
     .join(", ");
 }
 
@@ -228,7 +228,7 @@ export function describeUpgradeEffect(upgrade: UpgradeDefinition, level: number,
     case "percentEncounterPrestigeShards":
       return `+${Math.round(upgrade.effect.value * 100 * level)}% encounter prestige value`;
     case "unlockFeature":
-      return level > 0 ? "Unlocked" : getUpgradePresentation(upgrade.id as UpgradeId).shortEffect;
+      return level > 0 ? "Unlocked" : getUpgradePresentation(upgrade.id).shortEffect;
   }
 }
 

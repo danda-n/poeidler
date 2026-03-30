@@ -132,7 +132,7 @@ export const UpgradePanel = memo(function UpgradePanel({ currenciesState, purcha
       upgradeCategories.map((category) => {
         const rows = getUpgradesByCategory(category)
           .map((definition) => {
-            const upgradeId = definition.id as UpgradeId;
+            const upgradeId = definition.id;
             const presentation = getUpgradePresentation(upgradeId);
             const level = purchasedUpgrades[upgradeId];
             const nextLevel = definition.maxLevel !== undefined && level >= definition.maxLevel ? level : level + 1;

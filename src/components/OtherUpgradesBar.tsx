@@ -21,7 +21,7 @@ type OtherUpgradesBarProps = {
 
 function formatCost(cost: Partial<Record<CurrencyId, number>>) {
   return Object.entries(cost)
-    .map(([cid, amount]) => `${formatCurrencyValue(amount ?? 0)} ${currencyMap[cid as CurrencyId].shortLabel}`)
+    .map(([cid, amount]) => `${formatCurrencyValue(amount ?? 0)} ${currencyMap[cid].shortLabel}`)
     .join(", ");
 }
 
@@ -61,8 +61,8 @@ function OtherUpgradesBar({ currenciesState, purchasedUpgrades, onBuyUpgrade }: 
             ) : (
               <div className="upgrade-category-list">
                 {categoryUpgrades.map((upgrade) => {
-                  const level = purchasedUpgrades[upgrade.id as UpgradeId];
-                  const cost = getUpgradeCost(upgrade.id as UpgradeId, level);
+                  const level = purchasedUpgrades[upgrade.id];
+                  const cost = getUpgradeCost(upgrade.id, level);
                   const affordable = canAffordCost(currenciesState, cost);
                   const isCapped = upgrade.maxLevel !== undefined && level >= upgrade.maxLevel;
 
@@ -83,7 +83,7 @@ function OtherUpgradesBar({ currenciesState, purchasedUpgrades, onBuyUpgrade }: 
                         <button
                           className="btn btn-sm"
                           type="button"
-                          onClick={() => onBuyUpgrade(upgrade.id as UpgradeId)}
+                          onClick={() => onBuyUpgrade(upgrade.id)}
                           disabled={!affordable}
                         >
                           Buy

@@ -10,18 +10,7 @@ import regalIcon from "../assets/icons/regal.png";
 import exaltedIcon from "../assets/icons/exalted.png";
 import divineIcon from "../assets/icons/divine.png";
 
-export type CurrencyId =
-  | "fragmentOfWisdom"
-  | "transmutationOrb"
-  | "augmentationOrb"
-  | "alterationOrb"
-  | "jewellersOrb"
-  | "fusingOrb"
-  | "alchemyOrb"
-  | "chaosOrb"
-  | "regalOrb"
-  | "exaltedOrb"
-  | "divineOrb";
+export type CurrencyId = string;
 
 export type UnlockRequirement = {
   currencyId: CurrencyId;
@@ -38,10 +27,10 @@ export type CurrencyDefinition = {
   unlockRequirement?: UnlockRequirement;
 };
 
-export type CurrencyState = Record<CurrencyId, number>;
-export type CurrencyProduction = Record<CurrencyId, number>;
-export type CurrencyMultipliers = Record<CurrencyId, number>;
-export type UnlockedCurrencyState = Record<CurrencyId, boolean>;
+export type CurrencyState = Record<string, number>;
+export type CurrencyProduction = Record<string, number>;
+export type CurrencyMultipliers = Record<string, number>;
+export type UnlockedCurrencyState = Record<string, boolean>;
 
 export const currencies: CurrencyDefinition[] = [
   { id: "fragmentOfWisdom", label: "Fragment of Wisdom", shortLabel: "Fragment", tier: 1, baseValue: 1, icon: fragmentIcon },
@@ -57,33 +46,20 @@ export const currencies: CurrencyDefinition[] = [
   { id: "divineOrb", label: "Divine Orb", shortLabel: "Divine", tier: 11, baseValue: 4096, icon: divineIcon, unlockRequirement: { currencyId: "exaltedOrb", productionPerSecond: 0.08 } },
 ];
 
-export const currencyIds = currencies.map((currency) => currency.id) as CurrencyId[];
+export const currencyIds = currencies.map((currency) => currency.id);
 export const fragmentCurrencyId: CurrencyId = "fragmentOfWisdom";
 
-export const currencyMap: Record<CurrencyId, CurrencyDefinition> = currencies.reduce((acc, currency) => {
-  acc[currency.id] = currency;
-  return acc;
-}, {} as Record<CurrencyId, CurrencyDefinition>);
+export const currencyMap: Record<string, CurrencyDefinition> = Object.fromEntries(currencies.map((c) => [c.id, c]));
 
-export const initialCurrencies: CurrencyState = currencyIds.reduce((acc, currencyId) => {
-  acc[currencyId] = 0;
-  return acc;
-}, {} as CurrencyState);
+export const initialCurrencies: CurrencyState = Object.fromEntries(currencies.map((c) => [c.id, 0]));
 
-export const initialCurrencyProduction: CurrencyProduction = currencyIds.reduce((acc, currencyId) => {
-  acc[currencyId] = 0;
-  return acc;
-}, {} as CurrencyProduction);
+export const initialCurrencyProduction: CurrencyProduction = Object.fromEntries(currencies.map((c) => [c.id, 0]));
 
-export const initialCurrencyMultipliers: CurrencyMultipliers = currencyIds.reduce((acc, currencyId) => {
-  acc[currencyId] = 1;
-  return acc;
-}, {} as CurrencyMultipliers);
+export const initialCurrencyMultipliers: CurrencyMultipliers = Object.fromEntries(currencies.map((c) => [c.id, 1]));
 
-export const initialUnlockedCurrencies: UnlockedCurrencyState = currencyIds.reduce((acc, currencyId) => {
-  acc[currencyId] = currencyId === fragmentCurrencyId;
-  return acc;
-}, {} as UnlockedCurrencyState);
+export const initialUnlockedCurrencies: UnlockedCurrencyState = Object.fromEntries(
+  currencies.map((c) => [c.id, c.id === fragmentCurrencyId]),
+);
 
 export const orderedCurrencies = [...currencies].sort((left, right) => left.tier - right.tier);
 

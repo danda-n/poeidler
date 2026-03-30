@@ -15,27 +15,18 @@ export const generators = [
 ] as const;
 
 export type GeneratorDefinition = (typeof generators)[number];
-export type GeneratorId = GeneratorDefinition["id"];
-export type GeneratorOwnedState = Record<GeneratorId, number>;
+export type GeneratorId = string;
+export type GeneratorOwnedState = Record<string, number>;
 
-export const generatorIds = generators.map((generator) => generator.id) as GeneratorId[];
+export const generatorIds = generators.map((generator) => generator.id);
 
-export const generatorMap: Record<GeneratorId, GeneratorDefinition> = generators.reduce((accumulator, generator) => {
-  accumulator[generator.id] = generator;
-  return accumulator;
-}, {} as Record<GeneratorId, GeneratorDefinition>);
+export const generatorMap: Record<string, GeneratorDefinition> = Object.fromEntries(generators.map((g) => [g.id, g]));
 
-export const generatorByCurrency: Partial<Record<string, GeneratorDefinition>> = generators.reduce((accumulator, generator) => {
-  accumulator[generator.currency] = generator;
-  return accumulator;
-}, {} as Record<string, GeneratorDefinition>);
+export const generatorByCurrency: Record<string, GeneratorDefinition> = Object.fromEntries(generators.map((g) => [g.currency, g]));
 
-export const initialGeneratorsOwned: GeneratorOwnedState = generatorIds.reduce((accumulator, generatorId) => {
-  accumulator[generatorId] = 0;
-  return accumulator;
-}, {} as GeneratorOwnedState);
+export const initialGeneratorsOwned: GeneratorOwnedState = Object.fromEntries(generators.map((g) => [g.id, 0]));
 
-export function getGeneratorCost(generatorId: GeneratorId, owned: number, quantity = 1) {
+export function getGeneratorCost(generatorId: string, owned: number, quantity = 1) {
   const generator = generatorMap[generatorId];
   let totalCost = 0;
 
@@ -46,7 +37,7 @@ export function getGeneratorCost(generatorId: GeneratorId, owned: number, quanti
   return totalCost;
 }
 
-export function getMaxAffordableGeneratorPurchases(generatorId: GeneratorId, owned: number, availableCurrency: number) {
+export function getMaxAffordableGeneratorPurchases(generatorId: string, owned: number, availableCurrency: number) {
   let quantity = 0;
   let runningCost = 0;
 
