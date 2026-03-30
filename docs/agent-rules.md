@@ -22,21 +22,39 @@ Stack:
 - React 18
 - TypeScript
 - Vite
+- Zustand (state management)
+- Tailwind CSS (alongside legacy `styles.css`)
 
 Project type:
 - Idle / incremental game themed around Path of Exile currency
 
 Code structure:
 - `src/game/` - pure game logic, no React imports
+- `src/game/registry.ts` - centralized content registry with lookup helpers
+- `src/store/gameStore.ts` - Zustand store with all game state and actions
+- `src/store/useGameStore.ts` - React hook for store access with selectors
 - `src/components/` - React UI
-- `src/hooks/useGameEngine.ts` - connects UI and game engine
 - `src/game/saveSystem.ts` - persistence and offline progress
 
 State rules:
-- `GameState` is the single source of truth
-- Keep state updates predictable and reducer-like
-- Recompute derived values after mutations instead of storing duplicated truth
-- Keep game logic in `src/game/`, not inside React components
+- Zustand store is the single source of truth (replaces the old `useGameEngine` hook)
+- Game loop runs outside React via `startStoreGameLoop()`, calling `runGameTick` every 100ms
+- Components read state via `useGameStore(selector)` (currently through App.tsx props)
+- Keep state updates predictable; use `synchronizeGameState` after mutations to recompute derived values
+- Keep game logic in `src/game/`, not inside React components or the store
+
+Content extensibility:
+- `CurrencyId`, `GeneratorId`, `UpgradeId` are plain `string` types
+- Content is defined as data arrays in `src/game/` modules (currencies, generators, upgrades, maps, talents, etc.)
+- Initial state derives automatically from the data arrays
+- Adding new content = adding an entry to the appropriate data array
+- Use registry helpers (`getCurrency(id)`, `getGenerator(id)`, `getBaseMap(id)`) for cross-module lookups
+
+Styling:
+- Tailwind CSS utilities for new and migrated components
+- Design tokens (colors, spacing) in `src/styles/tailwind.css` `@theme` block
+- Legacy component styles in `src/styles/styles.css` (being migrated incrementally)
+- Preserve the dark color scheme and visual identity
 
 Design rules:
 - Prefer extending existing systems over adding one-off logic
