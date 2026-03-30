@@ -10,14 +10,22 @@ import { TopStatusStrip } from "@/components/TopStatusStrip";
 import { UpgradePanel } from "@/components/UpgradePanel";
 import { CurrencyScreen } from "@/components/screens/CurrencyScreen";
 import { MapsScreen } from "@/components/screens/MapsScreen";
-import { useGameEngine } from "@/hooks/useGameEngine";
+import { useGameStore } from "@/store/useGameStore";
+import { startStoreGameLoop, startStoreAutosave, stopStoreGameLoop } from "@/store/gameStore";
 
 export function App() {
-  const { gameState, actions } = useGameEngine();
+  const gameState = useGameStore((s) => s);
+  const actions = useGameStore((s) => s.actions);
   const [activePage, setActivePage] = useState<PageId>("home");
   const appView = useAppViewModel(gameState);
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const hasScrolledBetweenPagesRef = useRef(false);
+
+  useEffect(() => {
+    startStoreGameLoop();
+    startStoreAutosave();
+    return () => stopStoreGameLoop();
+  }, []);
 
   useEffect(() => {
     if (activePage !== "home" && !appView.unlockedPages[activePage]) {
