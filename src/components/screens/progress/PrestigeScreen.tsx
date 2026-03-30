@@ -1,25 +1,14 @@
 import { memo } from "react";
 import { PrestigePanel } from "@/components/PrestigePanel";
-import type { CurrencyState, UnlockedCurrencyState } from "@/game/currencies";
-import type { PrestigeState } from "@/game/prestige";
-import type { TalentPurchasedState } from "@/game/talents";
 
-type PrestigeScreenProps = {
-  currencies: CurrencyState;
-  unlockedCurrencies: UnlockedCurrencyState;
-  prestige: PrestigeState;
-  talentsPurchased: TalentPurchasedState;
-  onPrestige: () => void;
-};
-
-export const PrestigeScreen = memo(function PrestigeScreen(props: PrestigeScreenProps) {
+export const PrestigeScreen = memo(function PrestigeScreen() {
   return (
-    <section className="shell-card progress-panel-card">
-      <div className="screen-section-heading">
-        <p className="shell-card-eyebrow">Prestige</p>
-        <h3 className="screen-section-title">Reset when the shard swing is worth it</h3>
+    <section className="grid gap-3 p-4 rounded-[20px] bg-[rgba(255,255,255,0.035)] border border-[rgba(255,255,255,0.08)] shadow-[0_18px_50px_rgba(0,0,0,0.16)] content-start">
+      <div className="grid gap-1">
+        <p className="m-0 mb-[5px] text-[0.68rem] font-extrabold uppercase tracking-[0.1em] text-[#7f8ca3]">Prestige</p>
+        <h3 className="m-0 text-[0.95rem] font-extrabold text-[#f7f3e8]">Reset when the shard swing is worth it</h3>
       </div>
-      <PrestigePanel {...props} />
+      <PrestigePanel />
     </section>
   );
 });

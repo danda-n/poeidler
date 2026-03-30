@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from "react";
 import { MapBaseSelector } from "@/components/maps/MapBaseSelector";
 import { MapPreparationPanel } from "@/components/maps/MapPreparationPanel";
 import { MapRunStatus } from "@/components/maps/MapRunStatus";
-import { currencyMap, type CurrencyProduction, type CurrencyState } from "@/game/currencies";
+import { currencyMap } from "@/game/currencies";
 import { getRunStartMapBonuses } from "@/game/gameEngine";
 import {
   MAP_BALANCE,
@@ -17,11 +17,8 @@ import {
   getMapRewardPreview,
   getResolvedMapCost,
   getResolvedMapDuration,
-  type ActiveMapState,
   type CraftedMap,
   type CraftingAction,
-  type MapCompletionResult,
-  type QueuedMapSetup,
 } from "@/game/maps";
 import {
   addModToLoadout,
@@ -31,39 +28,22 @@ import {
   resolveLoadoutEffects,
   type DeviceLoadout,
 } from "@/game/mapDevice";
-import type { PrestigeState } from "@/game/prestige";
-import { getMapCostReduction, type TalentPurchasedState } from "@/game/talents";
-import { augmentDeviceEffectsForUpgrades, getMapCostReductionUpgradeBonus, type PurchasedUpgradeState } from "@/game/upgradeEngine";
+import { getMapCostReduction } from "@/game/talents";
+import { augmentDeviceEffectsForUpgrades, getMapCostReductionUpgradeBonus } from "@/game/upgradeEngine";
+import { useGameStore } from "@/store/useGameStore";
+import { useActions } from "@/store/selectors/useActions";
+import type { CurrencyState } from "@/game/currencies";
 
-type MapPanelProps = {
-  currencies: CurrencyState;
-  currencyProduction: CurrencyProduction;
-  activeMap: ActiveMapState;
-  lastMapResult: MapCompletionResult | null;
-  prestige: PrestigeState;
-  talentsPurchased: TalentPurchasedState;
-  purchasedUpgrades: PurchasedUpgradeState;
-  queuedMap: QueuedMapSetup | null;
-  onCraftMap: (craftedMap: CraftedMap, action: CraftingAction) => CraftedMap | null;
-  onStartMap: (baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) => void;
-  onQueueMap: (baseMapId: string, craftedMap: CraftedMap, deviceLoadout: DeviceLoadout) => void;
-  onCancelQueue: () => void;
-};
-
-export const MapPanel = memo(function MapPanel({
-  currencies,
-  currencyProduction,
-  activeMap,
-  lastMapResult,
-  prestige,
-  talentsPurchased,
-  purchasedUpgrades,
-  queuedMap,
-  onCraftMap,
-  onStartMap,
-  onQueueMap,
-  onCancelQueue,
-}: MapPanelProps) {
+export const MapPanel = memo(function MapPanel() {
+  const currencies = useGameStore((s) => s.currencies);
+  const currencyProduction = useGameStore((s) => s.currencyProduction);
+  const activeMap = useGameStore((s) => s.activeMap);
+  const lastMapResult = useGameStore((s) => s.lastMapResult);
+  const prestige = useGameStore((s) => s.prestige);
+  const talentsPurchased = useGameStore((s) => s.talentsPurchased);
+  const purchasedUpgrades = useGameStore((s) => s.purchasedUpgrades);
+  const queuedMap = useGameStore((s) => s.queuedMap);
+  const { craftMap: onCraftMap, startMap: onStartMap, queueMap: onQueueMap, cancelQueue: onCancelQueue } = useActions();
   const [selectedBaseMapId, setSelectedBaseMapId] = useState<string | null>(null);
   const [craftedMap, setCraftedMap] = useState<CraftedMap | null>(null);
   const [preparingLoadout, setPreparingLoadout] = useState<DeviceLoadout>({ modIds: [] });
@@ -211,7 +191,7 @@ export const MapPanel = memo(function MapPanel({
   }
 
   return (
-    <div className="map-panel">
+    <div className="grid gap-3.5">
       <MapRunStatus
         activeMap={activeMap}
         queuedMap={queuedMap}
@@ -223,11 +203,11 @@ export const MapPanel = memo(function MapPanel({
 
       {showPrepArea && (
         <>
-          <section className="shell-card map-selector-shell">
-            <div className="shell-card-header">
+          <section className="grid gap-3.5 p-4 rounded-[20px] bg-[rgba(255,255,255,0.035)] border border-[rgba(255,255,255,0.08)] shadow-[0_18px_50px_rgba(0,0,0,0.16)]">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="shell-card-eyebrow">Step 0</p>
-                <h3 className="shell-card-title">Select the base map</h3>
+                <p className="m-0 mb-[5px] text-[0.68rem] font-extrabold uppercase tracking-[0.1em] text-[#7f8ca3]">Step 0</p>
+                <h3 className="m-0 text-[clamp(1.2rem,1.8vw,1.6rem)] font-extrabold tracking-tight text-[#f7f3e8]">Select the base map</h3>
               </div>
             </div>
             <MapBaseSelector currencies={currencies} selectedBaseMapId={selectedBaseMapId} onSelectBase={handleSelectBase} />
@@ -261,8 +241,8 @@ export const MapPanel = memo(function MapPanel({
             />
           )}
 
-          {!selectedBaseMapId && !activeMap && <p className="map-select-hint">Select a base map to start the setup flow, then choose an encounter, craft the route, socket device mods, and launch the run.</p>}
-          {!selectedBaseMapId && activeMap && !queuedMap && <p className="map-select-hint">Select a base map to prepare the next route while the current one is still running.</p>}
+          {!selectedBaseMapId && !activeMap && <p className="m-0 text-[0.75rem] text-text-muted text-center py-2">Select a base map to start the setup flow, then choose an encounter, craft the route, socket device mods, and launch the run.</p>}
+          {!selectedBaseMapId && activeMap && !queuedMap && <p className="m-0 text-[0.75rem] text-text-muted text-center py-2">Select a base map to prepare the next route while the current one is still running.</p>}
         </>
       )}
     </div>

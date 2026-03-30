@@ -14,12 +14,12 @@ import { useGameStore } from "@/store/useGameStore";
 import { startStoreGameLoop, startStoreAutosave, stopStoreGameLoop } from "@/store/gameStore";
 
 export function App() {
-  const gameState = useGameStore((s) => s);
-  const actions = useGameStore((s) => s.actions);
   const [activePage, setActivePage] = useState<PageId>("home");
-  const appView = useAppViewModel(gameState);
+  const appView = useAppViewModel(useGameStore((s) => s));
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const hasScrolledBetweenPagesRef = useRef(false);
+  const lastSaveTime = useGameStore((s) => s.lastSaveTime);
+  const version = useGameStore((s) => s.settings.version);
 
   useEffect(() => {
     startStoreGameLoop();
@@ -47,81 +47,33 @@ export function App() {
   const activePageContent = useMemo(() => {
     if (activePage === "upgrades" && appView.hasAnyGenerator) {
       return (
-        <div className="section-enter">
-          <UpgradePanel
-            currenciesState={gameState.currencies}
-            purchasedUpgrades={gameState.purchasedUpgrades}
-            unlockedCurrencies={gameState.unlockedCurrencies}
-            prestige={gameState.prestige}
-            onBuyUpgrade={actions.buyUpgrade}
-          />
+        <div className="animate-[section-enter_350ms_ease-out]">
+          <UpgradePanel />
         </div>
       );
     }
 
     if (activePage === "mapDevice" && appView.hasTier4) {
-      return (
-        <MapsScreen
-          currencies={gameState.currencies}
-          currencyProduction={gameState.currencyProduction}
-          activeMap={gameState.activeMap}
-          lastMapResult={gameState.lastMapResult}
-          prestige={gameState.prestige}
-          talentsPurchased={gameState.talentsPurchased}
-          purchasedUpgrades={gameState.purchasedUpgrades}
-          queuedMap={gameState.queuedMap}
-          onCraftMap={actions.craftMap}
-          onStartMap={actions.startMap}
-          onQueueMap={actions.queueMap}
-          onCancelQueue={actions.cancelQueue}
-        />
-      );
+      return <MapsScreen />;
     }
 
     if (activePage === "progress" && (appView.hasPrestige || appView.hasTalents)) {
-      return (
-        <ProgressScreen
-          currencies={gameState.currencies}
-          unlockedCurrencies={gameState.unlockedCurrencies}
-          prestige={gameState.prestige}
-          talentsPurchased={gameState.talentsPurchased}
-          onPrestige={actions.prestige}
-          onPurchaseTalent={actions.purchaseTalent}
-        />
-      );
+      return <ProgressScreen />;
     }
 
-    return (
-      <CurrencyScreen
-        currencies={gameState.currencies}
-        currencyProduction={gameState.currencyProduction}
-        clickMultiplier={gameState.clickMultiplier}
-        generatorsOwned={gameState.generatorsOwned}
-        unlockedCurrencies={gameState.unlockedCurrencies}
-        buyMaxEnabled={gameState.unlockedFeatures.buyMax}
-        prestige={gameState.prestige}
-        activeMapLabel={appView.mapStatusLabel}
-        totalProductionValue={appView.topStripState.totalProductionValue}
-        onGenerateFragment={actions.generateFragment}
-        onBuyGenerator={actions.buyGenerator}
-        onConvertCurrency={actions.manualConvert}
-        onNavigate={setActivePage}
-      />
-    );
-  }, [activePage, actions, appView.hasAnyGenerator, appView.hasPrestige, appView.hasTalents, appView.hasTier4, appView.mapStatusLabel, appView.topStripState.totalProductionValue, gameState]);
+    return <CurrencyScreen onNavigate={setActivePage} />;
+  }, [activePage, appView.hasAnyGenerator, appView.hasPrestige, appView.hasTalents, appView.hasTier4]);
 
   return (
     <>
       <AppShell
         ref={mainScrollRef}
         brandTitle="PoE Idle"
-        statusText={gameState.lastSaveTime ? `Saved ${new Date(gameState.lastSaveTime).toLocaleTimeString()}` : "Autosave active"}
+        statusText={lastSaveTime ? `Saved ${new Date(lastSaveTime).toLocaleTimeString()}` : "Autosave active"}
         pageTitle={activePageCopy.title}
         pageDescription={activePageCopy.description}
         contentWidth={activeContentWidth}
-        headerActions={
-          <SettingsPanel version={gameState.settings.version} lastSaveTime={gameState.lastSaveTime} onResetSave={actions.resetSave} />
-        }
+        headerActions={<SettingsPanel />}
         topBar={
           <TopStatusStrip
             items={appView.topStripState.items}
@@ -131,19 +83,13 @@ export function App() {
           />
         }
         sidebar={<Sidebar activePage={activePage} unlockedPages={appView.unlockedPages} pageMeta={appView.pageMeta} onNavigate={setActivePage} />}
-        footer={<footer className="game-footer">v{gameState.settings.version}</footer>}
+        footer={<footer className="mt-1.5 flex items-center justify-start gap-4 pl-0.5 text-[0.68rem] text-[#667389]">v{version}</footer>}
       >
-        <ActiveMapBanner
-          activeMap={gameState.activeMap}
-          queuedMap={gameState.queuedMap}
-          lastMapResult={gameState.lastMapResult}
-          prestige={gameState.prestige}
-          mapsUnlocked={appView.hasTier4}
-        />
+        <ActiveMapBanner mapsUnlocked={appView.hasTier4} />
         {activePageContent}
       </AppShell>
 
-      <MapToast notification={gameState.mapNotification} />
+      <MapToast />
     </>
   );
 }

@@ -1,6 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { formatCurrencyValue, type CurrencyState, type UnlockedCurrencyState } from "@/game/currencies";
-import type { PrestigeState } from "@/game/prestige";
+import { formatCurrencyValue } from "@/game/currencies";
 import {
   canPurchaseUpgrade,
   getAffordableUpgradeCount,
@@ -9,7 +8,6 @@ import {
   getUpgradeCategoryStats,
   getUpgradeCost,
   getUpgradesByCategory,
-  type PurchasedUpgradeState,
   type UpgradeAvailabilityState,
   type UpgradeCategory,
   type UpgradeDefinition,
@@ -27,14 +25,8 @@ import {
   type UpgradeNodeKind,
   type UpgradeNodeState,
 } from "@/game/upgradeTree";
-
-type UpgradePanelProps = {
-  currenciesState: CurrencyState;
-  purchasedUpgrades: PurchasedUpgradeState;
-  unlockedCurrencies: UnlockedCurrencyState;
-  prestige: PrestigeState;
-  onBuyUpgrade: (upgradeId: UpgradeId) => void;
-};
+import { useGameStore } from "@/store/useGameStore";
+import { useActions } from "@/store/selectors/useActions";
 
 type UpgradeTone = "ready" | "owned" | "open" | "locked";
 
@@ -113,7 +105,12 @@ function groupUpgradeRows(rows: UpgradeRowViewModel[]) {
   }));
 }
 
-export const UpgradePanel = memo(function UpgradePanel({ currenciesState, purchasedUpgrades, unlockedCurrencies, prestige, onBuyUpgrade }: UpgradePanelProps) {
+export const UpgradePanel = memo(function UpgradePanel() {
+  const currenciesState = useGameStore((s) => s.currencies);
+  const purchasedUpgrades = useGameStore((s) => s.purchasedUpgrades);
+  const unlockedCurrencies = useGameStore((s) => s.unlockedCurrencies);
+  const prestige = useGameStore((s) => s.prestige);
+  const { buyUpgrade: onBuyUpgrade } = useActions();
   const [activeCategory, setActiveCategory] = useState<UpgradeCategory>("generators");
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<UpgradeId | null>(null);
 
@@ -265,40 +262,64 @@ export const UpgradePanel = memo(function UpgradePanel({ currenciesState, purcha
 
   const selectedCostLabel = selectedUpgrade.isMaxed ? "Maxed" : selectedUpgrade.costLabel;
 
+  const shellCard = "grid gap-3 p-4 rounded-[20px] bg-[rgba(255,255,255,0.035)] border border-[rgba(255,255,255,0.08)] shadow-[0_18px_50px_rgba(0,0,0,0.16)]";
+  const eyebrow = "m-0 mb-[5px] text-[0.68rem] font-extrabold uppercase tracking-[0.1em] text-[#7f8ca3]";
+  const cardTitle = "m-0 text-[clamp(1.2rem,1.8vw,1.6rem)] font-extrabold tracking-tight text-[#f7f3e8]";
+  const pill = "inline-flex items-center px-[9px] py-1 rounded-full text-[0.64rem] font-extrabold tracking-[0.04em] bg-[rgba(255,255,255,0.05)] text-[#b6c4d7]";
+  const subcopy = "m-0 text-[0.74rem] leading-[1.5] text-[#95a3b9]";
+  const metricLabel = "text-[0.66rem] font-extrabold tracking-[0.08em] uppercase text-[#75839a]";
+  const metricValue = "text-[0.74rem] leading-[1.45] text-[#edf0f6]";
+  const btn = "px-3 py-1.5 border border-[rgba(255,211,106,0.2)] rounded-md text-[0.78rem] font-semibold text-accent-gold bg-transparent cursor-pointer whitespace-nowrap transition-all duration-100 hover:not-disabled:bg-[rgba(255,211,106,0.1)] hover:not-disabled:border-[rgba(255,211,106,0.35)] active:not-disabled:scale-[0.97] disabled:opacity-35 disabled:cursor-not-allowed min-w-[78px]";
+  const btnPrimary = "px-3 py-1.5 border border-transparent rounded-md text-[0.78rem] font-bold text-bg-surface bg-gradient-to-b from-gradient-gold-start to-gradient-gold-end cursor-pointer whitespace-nowrap transition-all duration-100 hover:not-disabled:from-[#ffe08a] hover:not-disabled:to-[#ebb730] active:not-disabled:scale-[0.97] disabled:opacity-35 disabled:cursor-not-allowed min-w-[78px]";
+  const detailCard = "grid gap-1.5 px-3 py-2.5 rounded-[14px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)]";
+
+  const kindColors: Record<UpgradeNodeKind, string> = {
+    minor: "bg-[rgba(107,194,255,0.14)] !text-[#9cd8ff]",
+    unlock: "bg-[rgba(241,204,116,0.14)] !text-[#f5d98f]",
+    keystone: "bg-[rgba(239,156,95,0.14)] !text-[#ffbf90]",
+  };
+
+  const toneColors: Record<UpgradeTone, string> = {
+    ready: "bg-[rgba(88,217,139,0.16)] !text-[#9ef0bf]",
+    owned: "bg-[rgba(241,204,116,0.14)] !text-[#f5d98f]",
+    open: "bg-[rgba(107,194,255,0.14)] !text-[#9cd8ff]",
+    locked: "bg-[rgba(108,118,136,0.16)] !text-[#a1acbc]",
+  };
+
   return (
-    <div className="upgrade-page upgrade-structured-page">
-      <div className="upgrade-page-header">
+    <div className="grid gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="upgrade-page-title">Upgrades</h2>
-          <p className="upgrade-page-subtitle">
+          <h2 className="m-0 text-base font-bold text-accent-gold">Upgrades</h2>
+          <p className="mt-1 mb-0 max-w-[680px] text-[0.74rem] text-[#8c8c94]">
             Browse one category at a time, compare clean rows, and use the detail panel for the deeper read before you commit currency.
           </p>
         </div>
-        <div className="upgrade-page-stats">
-          <div className="upgrade-stat-card">
-            <span className="upgrade-stat-value">{totalAffordable}</span>
-            <span className="upgrade-stat-label">Ready now</span>
+        <div className="grid grid-cols-[repeat(3,minmax(86px,1fr))] gap-2">
+          <div className="grid gap-0.5 px-2.5 py-2 rounded-[10px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] text-right">
+            <span className="text-[0.88rem] font-bold text-text-bright">{totalAffordable}</span>
+            <span className="text-[0.66rem] text-[#777] uppercase tracking-[0.05em]">Ready now</span>
           </div>
-          <div className="upgrade-stat-card">
-            <span className="upgrade-stat-value">{purchasedCount}</span>
-            <span className="upgrade-stat-label">Owned</span>
+          <div className="grid gap-0.5 px-2.5 py-2 rounded-[10px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] text-right">
+            <span className="text-[0.88rem] font-bold text-text-bright">{purchasedCount}</span>
+            <span className="text-[0.66rem] text-[#777] uppercase tracking-[0.05em]">Owned</span>
           </div>
-          <div className="upgrade-stat-card">
-            <span className="upgrade-stat-value">{formatCurrencyValue(prestige.totalMirrorShards)}</span>
-            <span className="upgrade-stat-label">Total shards</span>
+          <div className="grid gap-0.5 px-2.5 py-2 rounded-[10px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] text-right">
+            <span className="text-[0.88rem] font-bold text-text-bright">{formatCurrencyValue(prestige.totalMirrorShards)}</span>
+            <span className="text-[0.66rem] text-[#777] uppercase tracking-[0.05em]">Total shards</span>
           </div>
         </div>
       </div>
 
-      <div className="upgrade-structured-layout">
-        <aside className="shell-card upgrade-category-rail">
-          <div className="upgrade-category-rail-header">
-            <p className="shell-card-eyebrow">Categories</p>
-            <h3 className="shell-card-title">Choose a progression track</h3>
-            <p className="upgrade-category-rail-copy">Each category keeps its own upgrade lane and affordability summary so you can spot your next spend faster.</p>
+      <div className="grid grid-cols-[minmax(220px,260px)_minmax(0,1fr)_minmax(320px,360px)] gap-4 items-start">
+        <aside className={`${shellCard} sticky top-0 content-start !gap-3.5`}>
+          <div>
+            <p className={eyebrow}>Categories</p>
+            <h3 className={cardTitle}>Choose a progression track</h3>
+            <p className={subcopy}>Each category keeps its own upgrade lane and affordability summary so you can spot your next spend faster.</p>
           </div>
 
-          <div className="upgrade-category-list">
+          <div className="grid gap-3">
             {upgradeCategories.map((category) => {
               const stats = categoryStats[category];
               const active = category === activeCategory;
@@ -306,20 +327,20 @@ export const UpgradePanel = memo(function UpgradePanel({ currenciesState, purcha
                 <button
                   key={category}
                   type="button"
-                  className={`upgrade-category-button${active ? " upgrade-category-button-active" : ""}`}
+                  className={`grid gap-2 w-full p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-150${active ? " border-[rgba(244,213,140,0.3)] bg-gradient-to-b from-[rgba(244,213,140,0.1)] to-[rgba(255,255,255,0.03)] text-[#f4d58c]" : " border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] text-[#dce5f2] hover:border-[rgba(244,213,140,0.18)] hover:bg-[rgba(255,255,255,0.045)]"}`}
                   onClick={() => {
                     setActiveCategory(category);
                     setSelectedUpgradeId(pickSelectedUpgradeId(rowsByCategory[category]));
                   }}
                 >
-                  <div className="upgrade-category-button-topline">
-                    <span className="upgrade-category-button-name">{getUpgradeCategoryLabel(category)}</span>
-                    {stats.affordable > 0 ? <span className="upgrade-category-button-badge">{stats.affordable}</span> : null}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-[0.82rem] font-extrabold text-[#f7f3e8]">{getUpgradeCategoryLabel(category)}</span>
+                    {stats.affordable > 0 ? <span className={`${pill} !bg-[rgba(88,217,139,0.16)] !text-[#9ef0bf]`}>{stats.affordable}</span> : null}
                   </div>
-                  <span className="upgrade-category-button-copy">{getUpgradeCategoryDescription(category)}</span>
-                  <div className="upgrade-category-button-metrics">
-                    <span>{stats.unlocked}/{stats.total} unlocked</span>
-                    <span>{stats.affordable} ready</span>
+                  <span className={subcopy}>{getUpgradeCategoryDescription(category)}</span>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className={pill}>{stats.unlocked}/{stats.total} unlocked</span>
+                    <span className={pill}>{stats.affordable} ready</span>
                   </div>
                 </button>
               );
@@ -327,86 +348,86 @@ export const UpgradePanel = memo(function UpgradePanel({ currenciesState, purcha
           </div>
         </aside>
 
-        <section className="upgrade-main-column">
-          <section className="shell-card upgrade-category-summary-card">
-            <div className="upgrade-category-summary-header">
+        <section className="grid gap-3">
+          <section className={`${shellCard} !gap-3.5`}>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
-                <p className="shell-card-eyebrow">Selected category</p>
-                <h3 className="shell-card-title">{getUpgradeCategoryLabel(activeCategory)}</h3>
-                <p className="upgrade-category-summary-copy">{getUpgradeCategoryDescription(activeCategory)}</p>
+                <p className={eyebrow}>Selected category</p>
+                <h3 className={cardTitle}>{getUpgradeCategoryLabel(activeCategory)}</h3>
+                <p className={subcopy}>{getUpgradeCategoryDescription(activeCategory)}</p>
               </div>
-              <div className="upgrade-category-summary-stats">
-                <span>{categoryStats[activeCategory].unlocked} unlocked</span>
-                <span>{categoryStats[activeCategory].affordable} affordable</span>
-                <span>{groupedRows.length} groups</span>
+              <div className="flex flex-wrap gap-2 text-[0.68rem] text-text-secondary">
+                <span className={pill}>{categoryStats[activeCategory].unlocked} unlocked</span>
+                <span className={pill}>{categoryStats[activeCategory].affordable} affordable</span>
+                <span className={pill}>{groupedRows.length} groups</span>
               </div>
             </div>
           </section>
 
-          <div className="upgrade-group-stack">
+          <div className="grid gap-3">
             {groupedRows.map((group) => (
-              <section key={group.groupName} className="shell-card upgrade-group-card">
-                <div className="upgrade-group-header">
+              <section key={group.groupName} className={`${shellCard} !gap-3.5`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
-                    <p className="shell-card-eyebrow">{group.rows[0]?.lane ?? "Track"}</p>
-                    <h3 className="upgrade-group-title">{group.groupName}</h3>
+                    <p className={eyebrow}>{group.rows[0]?.lane ?? "Track"}</p>
+                    <h3 className="m-0 text-base font-extrabold text-[#f7f3e8]">{group.groupName}</h3>
                   </div>
-                  <div className="upgrade-group-meta">
-                    <span>{group.rows.filter((row) => row.level > 0).length} owned</span>
-                    <span>{group.rows.filter((row) => row.canBuy).length} ready</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={pill}>{group.rows.filter((row) => row.level > 0).length} owned</span>
+                    <span className={pill}>{group.rows.filter((row) => row.canBuy).length} ready</span>
                   </div>
                 </div>
 
-                <div className="upgrade-row-list">
+                <div className="grid gap-3">
                   {group.rows.map((row) => (
                     <div
                       key={row.id}
-                      className={`upgrade-row${row.id === selectedUpgrade.id ? " upgrade-row-selected" : ""}${row.canBuy ? " upgrade-row-ready" : ""}`}
+                      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-3 p-3 rounded-[18px] border bg-[rgba(255,255,255,0.03)]${row.id === selectedUpgrade.id ? " border-[rgba(244,213,140,0.24)] bg-gradient-to-b from-[rgba(244,213,140,0.08)] to-[rgba(255,255,255,0.03)]" : row.canBuy ? " border-[rgba(88,217,139,0.22)]" : " border-[rgba(255,255,255,0.08)]"}`}
                     >
                       <button
                         type="button"
-                        className="upgrade-row-select"
+                        className="grid gap-2.5 w-full p-0 border-0 bg-transparent text-inherit text-left cursor-pointer"
                         aria-pressed={row.id === selectedUpgrade.id}
                         onClick={() => setSelectedUpgradeId(row.id)}
                       >
-                        <div className="upgrade-row-primary">
-                          <div className="upgrade-row-title-line">
-                            <span className="upgrade-row-title">{row.definition.name}</span>
-                            <span className={`upgrade-kind-chip upgrade-kind-chip-${row.kind}`}>{getKindLabel(row.kind)}</span>
-                            <span className="upgrade-tier-chip">Tier {row.tier}</span>
+                        <div className="grid gap-1.5">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-[0.82rem] font-extrabold text-[#f7f3e8]">{row.definition.name}</span>
+                            <span className={`${pill} ${kindColors[row.kind]}`}>{getKindLabel(row.kind)}</span>
+                            <span className={pill}>Tier {row.tier}</span>
                           </div>
-                          <p className="upgrade-row-description">{row.definition.description}</p>
+                          <p className={subcopy}>{row.definition.description}</p>
                         </div>
 
-                        <div className="upgrade-row-summary">
-                          <span className="upgrade-row-metric">Lv {row.level}</span>
-                          <span className={`upgrade-row-status upgrade-row-status-${row.tone}`}>{row.statusLabel}</span>
-                          <span className="upgrade-row-cost">{row.isMaxed ? "Maxed" : row.costLabel}</span>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className={pill}>Lv {row.level}</span>
+                          <span className={`${pill} ${toneColors[row.tone]}`}>{row.statusLabel}</span>
+                          <span className={metricValue}>{row.isMaxed ? "Maxed" : row.costLabel}</span>
                         </div>
 
-                        <div className="upgrade-row-effects">
-                          <div className="upgrade-row-effect-block">
-                            <span className="upgrade-row-effect-label">Current</span>
-                            <span className="upgrade-row-effect-value">{row.currentEffect}</span>
+                        <div className="grid gap-1.5 grid-cols-[repeat(2,minmax(0,1fr))]">
+                          <div className="grid gap-[3px] min-w-0">
+                            <span className={metricLabel}>Current</span>
+                            <span className="text-[0.74rem] leading-[1.45]">{row.currentEffect}</span>
                           </div>
-                          <div className="upgrade-row-effect-block">
-                            <span className="upgrade-row-effect-label">Next</span>
-                            <span className="upgrade-row-effect-value">{row.nextEffect}</span>
+                          <div className="grid gap-[3px] min-w-0">
+                            <span className={metricLabel}>Next</span>
+                            <span className="text-[0.74rem] leading-[1.45]">{row.nextEffect}</span>
                           </div>
                         </div>
 
-                        <div className="upgrade-row-footnote">
+                        <div className={subcopy}>
                           {row.state === "locked" ? `Locked: ${row.requirementText}` : row.canBuy ? "Affordable now" : "Available once you can afford the cost"}
                         </div>
                       </button>
 
-                      <div className="upgrade-row-actions">
-                        <button type="button" className="btn" onClick={() => setSelectedUpgradeId(row.id)}>
+                      <div className="flex items-center justify-end gap-2 flex-wrap content-start min-w-[118px]">
+                        <button type="button" className={btn} onClick={() => setSelectedUpgradeId(row.id)}>
                           Details
                         </button>
                         <button
                           type="button"
-                          className="btn btn-primary"
+                          className={btnPrimary}
                           onClick={() => onBuyUpgrade(row.id)}
                           disabled={!row.canBuy}
                         >
@@ -421,74 +442,74 @@ export const UpgradePanel = memo(function UpgradePanel({ currenciesState, purcha
           </div>
         </section>
 
-        <aside className="shell-card upgrade-detail-panel">
-          <div className="upgrade-detail-header">
+        <aside className={`${shellCard} sticky top-0 content-start !gap-3.5`}>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
-              <p className="shell-card-eyebrow">Selected upgrade</p>
-              <h3 className="upgrade-detail-title">{selectedUpgrade.definition.name}</h3>
+              <p className={eyebrow}>Selected upgrade</p>
+              <h3 className="m-0 text-base font-extrabold text-[#f7f3e8]">{selectedUpgrade.definition.name}</h3>
             </div>
-            <span className={`upgrade-kind-chip upgrade-kind-chip-${selectedUpgrade.kind}`}>{getKindLabel(selectedUpgrade.kind)}</span>
+            <span className={`${pill} ${kindColors[selectedUpgrade.kind]}`}>{getKindLabel(selectedUpgrade.kind)}</span>
           </div>
 
-          <p className="upgrade-detail-copy">{selectedUpgrade.definition.description}</p>
+          <p className={subcopy}>{selectedUpgrade.definition.description}</p>
 
-          <div className="upgrade-detail-metrics">
-            <div className="upgrade-detail-metric">
-              <span className="upgrade-detail-label">Status</span>
-              <span className={`upgrade-detail-value upgrade-detail-value-${selectedUpgrade.tone}`}>{selectedUpgrade.statusLabel}</span>
+          <div className="grid gap-3">
+            <div className={detailCard}>
+              <span className={metricLabel}>Status</span>
+              <span className={metricValue}>{selectedUpgrade.statusLabel}</span>
             </div>
-            <div className="upgrade-detail-metric">
-              <span className="upgrade-detail-label">Level</span>
-              <span className="upgrade-detail-value">Lv {selectedUpgrade.level}</span>
+            <div className={detailCard}>
+              <span className={metricLabel}>Level</span>
+              <span className={metricValue}>Lv {selectedUpgrade.level}</span>
             </div>
-            <div className="upgrade-detail-metric">
-              <span className="upgrade-detail-label">Current effect</span>
-              <span className="upgrade-detail-value">{selectedUpgrade.currentEffect}</span>
+            <div className={detailCard}>
+              <span className={metricLabel}>Current effect</span>
+              <span className={metricValue}>{selectedUpgrade.currentEffect}</span>
             </div>
-            <div className="upgrade-detail-metric">
-              <span className="upgrade-detail-label">Next effect</span>
-              <span className="upgrade-detail-value">{selectedUpgrade.nextEffect}</span>
+            <div className={detailCard}>
+              <span className={metricLabel}>Next effect</span>
+              <span className={metricValue}>{selectedUpgrade.nextEffect}</span>
             </div>
-            <div className="upgrade-detail-metric">
-              <span className="upgrade-detail-label">Cost</span>
-              <span className="upgrade-detail-value">{selectedCostLabel}</span>
+            <div className={detailCard}>
+              <span className={metricLabel}>Cost</span>
+              <span className={metricValue}>{selectedCostLabel}</span>
             </div>
-            <div className="upgrade-detail-metric">
-              <span className="upgrade-detail-label">Prerequisite</span>
-              <span className="upgrade-detail-value">{selectedUpgrade.requirementText}</span>
+            <div className={detailCard}>
+              <span className={metricLabel}>Prerequisite</span>
+              <span className={metricValue}>{selectedUpgrade.requirementText}</span>
             </div>
           </div>
 
-          <button type="button" className="btn btn-primary upgrade-detail-buy" onClick={() => onBuyUpgrade(selectedUpgrade.id)} disabled={!selectedUpgrade.canBuy}>
+          <button type="button" className={`w-full ${btnPrimary}`} onClick={() => onBuyUpgrade(selectedUpgrade.id)} disabled={!selectedUpgrade.canBuy}>
             {selectedUpgrade.isMaxed ? "Maxed" : selectedUpgrade.canBuy ? `Buy for ${selectedUpgrade.costLabel}` : "Not affordable yet"}
           </button>
 
-          <div className="upgrade-detail-section">
-            <span className="upgrade-detail-section-title">Unlocks next</span>
+          <div className="grid gap-1.5">
+            <span className={metricLabel}>Unlocks next</span>
             {selectedUnlocksNext.length > 0 ? (
-              <div className="upgrade-token-list">
+              <div className="flex items-center justify-start gap-2 flex-wrap">
                 {selectedUnlocksNext.map((name) => (
-                  <span key={name} className="upgrade-token">{name}</span>
+                  <span key={name} className={pill}>{name}</span>
                 ))}
               </div>
             ) : (
-              <p className="upgrade-detail-note">This upgrade is currently a leaf in the visible chain.</p>
+              <p className={subcopy}>This upgrade is currently a leaf in the visible chain.</p>
             )}
           </div>
 
-          <div className="upgrade-detail-section">
-            <span className="upgrade-detail-section-title">What unlocks soon</span>
+          <div className="grid gap-1.5">
+            <span className={metricLabel}>What unlocks soon</span>
             {upcomingUnlocks.length > 0 ? (
-              <div className="upgrade-upcoming-list">
+              <div className="grid gap-3">
                 {upcomingUnlocks.map((upgrade) => (
-                  <div key={upgrade.id} className="upgrade-upcoming-item">
-                    <span className="upgrade-upcoming-name">{upgrade.name}</span>
-                    <span className="upgrade-upcoming-requirement">{upgrade.requirementText}</span>
+                  <div key={upgrade.id} className={detailCard}>
+                    <span className={metricValue}>{upgrade.name}</span>
+                    <span className={subcopy}>{upgrade.requirementText}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="upgrade-detail-note">Everything in this category is already open or owned.</p>
+              <p className={subcopy}>Everything in this category is already open or owned.</p>
             )}
           </div>
         </aside>

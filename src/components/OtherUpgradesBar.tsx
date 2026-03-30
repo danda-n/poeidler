@@ -46,7 +46,7 @@ function categoryStartsOpen(category: UpgradeCategory) {
 
 function OtherUpgradesBar({ currenciesState, purchasedUpgrades, onBuyUpgrade }: OtherUpgradesBarProps) {
   return (
-    <div className="upgrade-panel-stack">
+    <div className="grid gap-2.5">
       {upgradeCategories.map((category) => {
         const categoryUpgrades = getUpgradesByCategory(category);
         return (
@@ -55,11 +55,11 @@ function OtherUpgradesBar({ currenciesState, purchasedUpgrades, onBuyUpgrade }: 
             title={`${getUpgradeCategoryLabel(category)} (${categoryUpgrades.length})`}
             defaultOpen={categoryStartsOpen(category)}
           >
-            <div className="upgrade-category-copy">{getUpgradeCategoryDescription(category)}</div>
+            <div className="text-[0.74rem] text-text-secondary mb-2">{getUpgradeCategoryDescription(category)}</div>
             {categoryUpgrades.length === 0 ? (
-              <div className="upgrade-placeholder">No upgrades in this category yet.</div>
+              <div className="text-[0.7rem] text-text-secondary">No upgrades in this category yet.</div>
             ) : (
-              <div className="upgrade-category-list">
+              <div className="grid gap-1.5">
                 {categoryUpgrades.map((upgrade) => {
                   const level = purchasedUpgrades[upgrade.id];
                   const cost = getUpgradeCost(upgrade.id, level);
@@ -67,21 +67,21 @@ function OtherUpgradesBar({ currenciesState, purchasedUpgrades, onBuyUpgrade }: 
                   const isCapped = upgrade.maxLevel !== undefined && level >= upgrade.maxLevel;
 
                   return (
-                    <div key={upgrade.id} className={`upgrade-card${isCapped ? " upgrade-card-complete" : ""}`}>
-                      <div className="upgrade-card-copy">
-                        <div className="upgrade-card-header">
-                          <span className="upgrade-card-name">{upgrade.name}</span>
-                          <span className="upgrade-card-level">Lv {level}</span>
+                    <div key={upgrade.id} className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-[rgba(255,255,255,0.03)] border border-border-subtle${isCapped ? " !border-[rgba(80,250,123,0.2)] !bg-[rgba(80,250,123,0.04)]" : ""}`}>
+                      <div className="grid gap-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[0.82rem] font-semibold text-text-bright">{upgrade.name}</span>
+                          <span className="text-[0.68rem] text-text-secondary px-[5px] py-px rounded-full bg-[rgba(255,255,255,0.05)]">Lv {level}</span>
                         </div>
-                        <p className="upgrade-card-desc">{upgrade.description}</p>
-                        <div className="upgrade-card-meta">{getUpgradeSummary(upgrade, level)}</div>
-                        {!isCapped && <div className="upgrade-card-cost">Next: {formatCost(cost)}</div>}
+                        <p className="m-0 text-[0.72rem] text-[#a0a0a0]">{upgrade.description}</p>
+                        <div className="text-[0.7rem] text-text-secondary">{getUpgradeSummary(upgrade, level)}</div>
+                        {!isCapped && <div className="text-[0.7rem] text-text-secondary">Next: {formatCost(cost)}</div>}
                       </div>
                       {isCapped ? (
-                        <span className="upgrade-card-maxed">MAX</span>
+                        <span className="text-[0.7rem] font-bold text-accent-green uppercase tracking-[0.04em]">MAX</span>
                       ) : (
                         <button
-                          className="btn btn-sm"
+                          className="px-2 py-1 border border-[rgba(255,211,106,0.2)] rounded-md text-[0.72rem] font-semibold text-accent-gold bg-transparent cursor-pointer whitespace-nowrap transition-all duration-100 hover:not-disabled:bg-[rgba(255,211,106,0.1)] hover:not-disabled:border-[rgba(255,211,106,0.35)] active:not-disabled:scale-[0.97] disabled:opacity-35 disabled:cursor-not-allowed"
                           type="button"
                           onClick={() => onBuyUpgrade(upgrade.id)}
                           disabled={!affordable}

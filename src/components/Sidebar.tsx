@@ -38,30 +38,31 @@ type SidebarProps = {
 
 export const Sidebar = memo(function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }: SidebarProps) {
   return (
-    <nav className="sidebar">
+    <nav className="w-full h-full grid content-start gap-[18px] p-0 bg-transparent">
       {navGroups.map((group) => {
         const items = navItems.filter((item) => item.group === group.id);
         return (
-          <div key={group.id} className="sidebar-group">
-            <div className="sidebar-group-label">{group.label}</div>
-            <div className="sidebar-group-items">
+          <div key={group.id} className="grid gap-2">
+            <div className="px-2.5 text-[0.68rem] font-extrabold tracking-[0.1em] uppercase text-[#667389]">{group.label}</div>
+            <div className="grid gap-2">
               {items.map((item) => {
                 const locked = item.unlockKey ? !unlockedPages[item.unlockKey] : false;
                 const meta = pageMeta[item.id];
+                const isActive = item.id === activePage;
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    className={`sidebar-item${item.id === activePage ? " sidebar-item-active" : ""}${locked ? " sidebar-item-locked" : ""}`}
+                    className={`relative w-full flex items-start justify-between gap-2.5 py-3.5 pr-11 pl-3.5 border border-border-subtle border-l-[3px] border-l-transparent rounded-2xl bg-[rgba(255,255,255,0.03)] text-[#dfe6f2] text-left cursor-pointer transition-colors duration-150 hover:not-disabled:bg-[rgba(255,255,255,0.06)] hover:not-disabled:border-[rgba(255,255,255,0.1)] hover:not-disabled:text-white${isActive ? " !border-l-[#f4d58c] !bg-gradient-to-b !from-[rgba(244,213,140,0.16)] !to-bg-overlay !border-[rgba(244,213,140,0.22)]" : ""}${locked ? " opacity-45" : ""}`}
                     disabled={locked}
                     onClick={() => !locked && onNavigate(item.id)}
                   >
-                    <div className="sidebar-item-copy">
-                      <span className="sidebar-item-label">{item.label}</span>
-                      <span className="sidebar-item-description">{locked ? "Unlock later" : item.description}</span>
+                    <div className="min-w-0 grid gap-[3px]">
+                      <span className="text-[0.92rem] font-bold text-inherit">{item.label}</span>
+                      <span className="text-[0.72rem] leading-[1.35] text-[#93a0b4]">{locked ? "Unlock later" : item.description}</span>
                     </div>
                     {meta?.badge && (
-                      <span className={`sidebar-item-badge sidebar-item-badge-${meta.tone ?? "ready"}`}>
+                      <span className={`absolute top-3 right-3 min-w-[22px] px-[7px] py-0.5 rounded-full text-[0.62rem] font-extrabold text-center${meta.tone === "active" ? " text-[#0e1a1f] bg-accent-cyan" : meta.tone === "alert" ? " text-[#220f12] bg-[#ff8b8b]" : " text-bg-surface bg-accent-gold"}`}>
                         {meta.badge}
                       </span>
                     )}

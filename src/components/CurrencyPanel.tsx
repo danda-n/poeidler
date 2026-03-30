@@ -62,7 +62,7 @@ export const CurrencyPanel = memo(function CurrencyPanel({
   );
 
   return (
-    <div className="currency-list">
+    <div className="grid gap-[3px]">
       {rowModels.map((row) => (
         <CurrencyRow
           key={row.id}

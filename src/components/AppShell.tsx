@@ -35,9 +35,9 @@ export const AppShell = forwardRef<HTMLElement, AppShellProps>(function AppShell
       <ShellHeader brandTitle={brandTitle} statusText={statusText} headerActions={headerActions} topBar={topBar} />
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="shell-sidebar-frame">{sidebar}</aside>
-        <main ref={ref} className="shell-main">
-          <div className={`shell-main-inner${contentWidth === "wide" ? " shell-main-inner-wide" : ""}`}>
+        <aside className="w-[280px] shrink-0 px-3.5 pt-[18px] pb-[18px] pl-[18px] border-r border-border-subtle bg-[rgba(7,10,14,0.82)]">{sidebar}</aside>
+        <main ref={ref} className="flex-1 min-w-0 overflow-y-auto overscroll-y-contain scroll-smooth px-5 pt-4 pb-5" style={{ scrollbarGutter: "stable" }}>
+          <div className={`mx-auto grid gap-3.5 pb-4${contentWidth === "wide" ? " w-full max-w-[1680px]" : " w-[min(1280px,100%)]"}`}>
             <ShellPageHeader title={pageTitle} description={pageDescription} />
 
             {children}
