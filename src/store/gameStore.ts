@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import { type GameState, createInitialGameState, runGameTick, TICK_RATE_MS } from "@/game/gameEngine";
+import { type GameState, runGameTick, TICK_RATE_MS } from "@/game/gameEngine";
 import { loadGameState, saveGameState, AUTOSAVE_INTERVAL_MS } from "@/game/saveSystem";
 import { createCurrencySlice, type CurrencyActions } from "@/store/slices/currencySlice";
 import { createEconomySlice, type EconomyActions } from "@/store/slices/economySlice";
@@ -12,7 +12,6 @@ export type GameActions = CurrencyActions & EconomyActions & MapActions & Presti
 export type GameStore = GameState & { actions: GameActions };
 
 export const gameStore = createStore<GameStore>()((...args) => {
-  const [, get] = args;
 
   const currency = createCurrencySlice(...args);
   const economy = createEconomySlice(...args);

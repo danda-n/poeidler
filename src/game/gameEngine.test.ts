@@ -110,6 +110,7 @@ describe("runGameTick", () => {
 
   it("clears stale map notifications", () => {
     const state = createInitialGameState();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture shortcut
     (state as any).mapNotification = {
       result: {},
       mapName: "test",
