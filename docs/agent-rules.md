@@ -7,8 +7,8 @@ Shared project rules for repository agents.
 - `npm run dev` - start Vite dev server
 - `npm run build` - type-check and production build
 - `npm run preview` - serve production build locally
-- No test framework is configured
-- No linter is configured
+- `npm run test` - run Vitest test suite (58 tests covering core game logic)
+- `npm run lint` - run ESLint across `src/`
 
 ## Deployment
 
@@ -23,7 +23,7 @@ Stack:
 - TypeScript
 - Vite
 - Zustand (state management)
-- Tailwind CSS (alongside legacy `styles.css`)
+- Tailwind CSS v4
 
 Project type:
 - Idle / incremental game themed around Path of Exile currency
@@ -31,15 +31,20 @@ Project type:
 Code structure:
 - `src/game/` - pure game logic, no React imports
 - `src/game/registry.ts` - centralized content registry with lookup helpers
-- `src/store/gameStore.ts` - Zustand store with all game state and actions
-- `src/store/useGameStore.ts` - React hook for store access with selectors
-- `src/components/` - React UI
+- `src/store/gameStore.ts` - Zustand vanilla store with game state, 5 action slices, game loop, and autosave
+- `src/store/slices/` - action slices (currency, economy, map, prestige, system)
+- `src/store/useGameStore.ts` - React hook wrapping all selectors with `useShallow` to prevent re-render loops
+- `src/store/selectors/` - reusable selector hooks (`useActions`, `useSettings`)
+- `src/components/` - React UI components
+- `src/components/app/useAppViewModel.ts` - page-level derived state (unlock flags, badge counts, prestige readiness)
 - `src/game/saveSystem.ts` - persistence and offline progress
+- `src/styles/tailwind.css` - Tailwind design tokens (colors, spacing, fonts)
+- `src/styles/styles.css` - global resets and keyframe animations only
 
 State rules:
-- Zustand store is the single source of truth (replaces the old `useGameEngine` hook)
+- Zustand store is the single source of truth
 - Game loop runs outside React via `startStoreGameLoop()`, calling `runGameTick` every 100ms
-- Components read state via `useGameStore(selector)` (currently through App.tsx props)
+- Components read state via `useGameStore(selector)` — selectors are auto-wrapped with `useShallow`
 - Keep state updates predictable; use `synchronizeGameState` after mutations to recompute derived values
 - Keep game logic in `src/game/`, not inside React components or the store
 
@@ -51,10 +56,12 @@ Content extensibility:
 - Use registry helpers (`getCurrency(id)`, `getGenerator(id)`, `getBaseMap(id)`) for cross-module lookups
 
 Styling:
-- Tailwind CSS utilities for new and migrated components
+- Tailwind CSS utilities for all components
 - Design tokens (colors, spacing) in `src/styles/tailwind.css` `@theme` block
-- Legacy component styles in `src/styles/styles.css` (being migrated incrementally)
+- `src/styles/styles.css` contains only global resets and keyframe animations
 - Preserve the dark color scheme and visual identity
+- Responsive breakpoints: `sm` (640px), `md` (768px), `lg` (1024px), `xl` (1280px)
+- Sidebar collapses to mobile drawer below `lg`; grids adapt column count per breakpoint
 
 Design rules:
 - Prefer extending existing systems over adding one-off logic
@@ -87,7 +94,7 @@ Types:
 
 Use `docs/current-state.md` as the shared compact handoff document.
 
-Update it only when a meaningful implementation step changes:
+Update it after every push and when a meaningful implementation step changes:
 - Current systems
 - Known issues
 - Next 3 priorities
@@ -110,3 +117,4 @@ Handoff rules:
 - Do not leave `console.log` in committed code
 - Do not hardcode env-specific values
 - Do not install a package before checking if the project already covers the need
+- Do not use `useGameStore((s) => s)` — always select specific slices to avoid re-render loops
