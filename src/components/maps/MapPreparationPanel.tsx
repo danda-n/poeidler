@@ -113,13 +113,13 @@ export const MapPreparationPanel = memo(function MapPreparationPanel({
 }: MapPreparationPanelProps) {
   const [activeCategory, setActiveCategory] = useState<DeviceModCategory>("reward");
   const encounter = getMapEncounter(craftedMap.encounterId);
-  const appliedMods = loadout.modIds.map((modId) => deviceModMap[modId]).filter(Boolean);
+  const appliedMods = useMemo(() => loadout.modIds.map((modId) => deviceModMap[modId]).filter(Boolean), [loadout.modIds]);
   const openSlots = LOADOUT_MAX_SLOTS - loadout.modIds.length;
-  const mapCostRows = resolvedCost ? formatCostEntries(resolvedCost, currencies) : [];
-  const loadoutCostRows = formatCostEntries(loadoutCost, currencies);
+  const mapCostRows = useMemo(() => resolvedCost ? formatCostEntries(resolvedCost, currencies) : [], [resolvedCost, currencies]);
+  const loadoutCostRows = useMemo(() => formatCostEntries(loadoutCost, currencies), [loadoutCost, currencies]);
   const availableMods = useMemo(() => deviceModPool.filter((definition) => definition.category === activeCategory), [activeCategory]);
 
-  const summaryRows = [
+  const summaryRows = useMemo(() => [
     { label: "Base rewards", value: formatSignedPercent(rewardMult - 1), tone: rewardMult >= 1 ? "good" : "bad" },
     {
       label: "Focused rewards",
@@ -128,7 +128,7 @@ export const MapPreparationPanel = memo(function MapPreparationPanel({
     },
     { label: "Shard chance", value: formatPercent(shardChance), tone: shardChance >= 0.02 ? "good" : "neutral" },
     { label: "Run time", value: resolvedDuration ? formatMs(resolvedDuration) : "-", tone: "neutral" },
-  ] as const;
+  ] as const, [rewardMult, focusedRewardMult, shardChance, resolvedDuration, mapDef.focusedRewardWeights]);
 
   const panelCard = "grid gap-2 p-3.5 rounded-2xl bg-[rgba(255,255,255,0.03)] border border-border-subtle";
   const shellCard = "grid gap-4 p-4 rounded-[20px] bg-[rgba(255,255,255,0.035)] border border-[rgba(255,255,255,0.08)] shadow-[0_18px_50px_rgba(0,0,0,0.16)]";
