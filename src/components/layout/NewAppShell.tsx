@@ -14,11 +14,18 @@ export function NewAppShell({ activePage, onNavigate, children }: NewAppShellPro
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-bg-base">
       <ResourceBar />
-      <div className="flex flex-1 overflow-hidden">
-        <NavRail activePage={activePage} onNavigate={onNavigate} />
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        {/* Desktop: left rail */}
+        <div className="hidden lg:flex">
+          <NavRail activePage={activePage} onNavigate={onNavigate} layout="rail" />
+        </div>
         <CenterStage>{children}</CenterStage>
       </div>
       <FooterBar />
+      {/* Mobile: bottom tab bar */}
+      <div className="lg:hidden">
+        <NavRail activePage={activePage} onNavigate={onNavigate} layout="bar" />
+      </div>
     </div>
   );
 }

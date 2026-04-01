@@ -75,9 +75,10 @@ const navItems: NavItem[] = [
 type NavRailProps = {
   activePage: PageId;
   onNavigate: (page: PageId) => void;
+  layout?: "rail" | "bar";
 };
 
-export const NavRail = memo(function NavRail({ activePage, onNavigate }: NavRailProps) {
+export const NavRail = memo(function NavRail({ activePage, onNavigate, layout = "rail" }: NavRailProps) {
   const { unlockedPages, pageMeta } = useAppViewModel();
   const prevUnlockedRef = useRef<Set<string>>(new Set(["home"]));
 
@@ -97,6 +98,57 @@ export const NavRail = memo(function NavRail({ activePage, onNavigate }: NavRail
   });
   prevUnlockedRef.current = currentUnlocked;
 
+  const allVisibleItems = [...topItems, ...bottomItems].filter((item) => {
+    if (item.unlockKey) return !!unlockedPages[item.unlockKey];
+    return true;
+  });
+
+  const btnBase = "relative flex items-center justify-center rounded-lg transition-colors duration-150";
+  const btnActive = "bg-[rgba(244,213,140,0.16)] text-accent-gold border border-[rgba(244,213,140,0.22)]";
+  const btnInactive = "text-[#8090a6] hover:text-white hover:bg-[rgba(255,255,255,0.08)] border border-transparent";
+
+  function renderBadge(item: NavItem) {
+    const meta = pageMeta[item.id];
+    if (!meta?.badge) return null;
+    return (
+      <span
+        className={`absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 rounded-full text-[0.5rem] font-extrabold flex items-center justify-center ${
+          meta.tone === "active"
+            ? "text-[#0e1a1f] bg-accent-cyan"
+            : meta.tone === "alert"
+              ? "text-[#220f12] bg-[#ff8b8b]"
+              : "text-bg-surface bg-accent-gold"
+        }`}
+      >
+        {meta.badge.length <= 3 ? meta.badge : "•"}
+      </span>
+    );
+  }
+
+  // Mobile bottom bar
+  if (layout === "bar") {
+    return (
+      <nav className="flex items-center justify-around h-12 border-t border-border-subtle bg-[rgba(7,10,14,0.92)]">
+        {allVisibleItems.map((item) => {
+          const isActive = item.id === activePage;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              title={item.label}
+              className={`${btnBase} w-10 h-10 ${isActive ? btnActive : btnInactive}`}
+              onClick={() => onNavigate(item.id)}
+            >
+              {item.icon}
+              {renderBadge(item)}
+            </button>
+          );
+        })}
+      </nav>
+    );
+  }
+
+  // Desktop left rail
   return (
     <nav className="flex flex-col items-center w-12 shrink-0 py-3 gap-1 border-r border-border-subtle bg-[rgba(7,10,14,0.82)]">
       <div className="flex flex-col items-center gap-1">
@@ -105,7 +157,6 @@ export const NavRail = memo(function NavRail({ activePage, onNavigate }: NavRail
           if (locked) return null;
 
           const isActive = item.id === activePage;
-          const meta = pageMeta[item.id];
           const isNew = newlyUnlocked.has(item.id);
 
           return (
@@ -113,27 +164,11 @@ export const NavRail = memo(function NavRail({ activePage, onNavigate }: NavRail
               key={item.id}
               type="button"
               title={item.label}
-              className={`relative flex items-center justify-center w-9 h-9 rounded-lg transition-colors duration-150 ${isNew ? "animate-[pop-in_300ms_ease-out] " : ""}${
-                isActive
-                  ? "bg-[rgba(244,213,140,0.16)] text-accent-gold border border-[rgba(244,213,140,0.22)]"
-                  : "text-[#8090a6] hover:text-white hover:bg-[rgba(255,255,255,0.08)] border border-transparent"
-              }`}
+              className={`${btnBase} w-9 h-9 ${isNew ? "animate-[pop-in_300ms_ease-out] " : ""}${isActive ? btnActive : btnInactive}`}
               onClick={() => onNavigate(item.id)}
             >
               {item.icon}
-              {meta?.badge && (
-                <span
-                  className={`absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 rounded-full text-[0.5rem] font-extrabold flex items-center justify-center ${
-                    meta.tone === "active"
-                      ? "text-[#0e1a1f] bg-accent-cyan"
-                      : meta.tone === "alert"
-                        ? "text-[#220f12] bg-[#ff8b8b]"
-                        : "text-bg-surface bg-accent-gold"
-                  }`}
-                >
-                  {meta.badge.length <= 3 ? meta.badge : "•"}
-                </span>
-              )}
+              {renderBadge(item)}
             </button>
           );
         })}
@@ -147,11 +182,7 @@ export const NavRail = memo(function NavRail({ activePage, onNavigate }: NavRail
               key={item.id}
               type="button"
               title={item.label}
-              className={`flex items-center justify-center w-9 h-9 rounded-lg transition-colors duration-150 ${
-                isActive
-                  ? "bg-[rgba(244,213,140,0.16)] text-accent-gold border border-[rgba(244,213,140,0.22)]"
-                  : "text-[#8090a6] hover:text-white hover:bg-[rgba(255,255,255,0.08)] border border-transparent"
-              }`}
+              className={`${btnBase} w-9 h-9 ${isActive ? btnActive : btnInactive}`}
               onClick={() => onNavigate(item.id)}
             >
               {item.icon}
