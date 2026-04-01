@@ -68,6 +68,7 @@ Design rules:
 - Keep currency, generator, upgrade, and conversion systems scalable
 - Preserve progressive disclosure in the UI
 - Keep the layout simple and readable in a single main column unless there is a strong reason to change it
+- Data over prose: default to labels, numbers, and controls — not explanatory sentences or flavor text. If text doesn't help the player decide or act, leave it out. Brief tooltips are fine when a mechanic is genuinely non-obvious.
 
 ## Git
 

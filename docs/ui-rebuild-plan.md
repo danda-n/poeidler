@@ -161,18 +161,9 @@ Root enforces `h-screen overflow-hidden`. No page-level scrolling anywhere.
 
 ---
 
-## Cross-Cutting: Strip Flavor Text
+## Design Principle: Data Over Prose
 
-Applies across all phases. Remove all "tutorial-style" descriptive text that adds no actionable value:
-
-- **Nav rail**: no subtitles under icons (old sidebar had "Core loop and stash", "Economy and system boosts", etc.)
-- **Page headers**: no instructional descriptions ("Browse one category at a time...")
-- **Upgrade categories**: no prose descriptions on category cards ("Immediate output boosts across currency lines..."). Keep only: category name + counts (unlocked/ready)
-- **Upgrade rows**: no flavor text descriptions ("Scale fragment production for the opening loop."). Keep only: name, tier badge, level, cost, current/next effect values
-- **Selected upgrade detail panel**: no description paragraph. Keep only: status, level, effects, cost, prerequisite, buy button
-- **Category selection panel**: no instructional text ("Choose a progression track", "Each category keeps its own upgrade lane..."). Just show the selectable categories
-
-**Principle**: every piece of text on screen should be either a label, a number, or an actionable control. If it's a sentence explaining what the user is looking at, remove it.
+Default to showing **labels, numbers, and controls** — not explanatory sentences. If text doesn't help the player make a decision or take an action, it shouldn't be on screen. Descriptions, instructions, and flavor text are noise in an idle game where the UI should speak for itself. Exception: a brief tooltip or one-liner is fine when a mechanic is genuinely non-obvious, but this should be rare.
 
 ## Key Decisions
 
