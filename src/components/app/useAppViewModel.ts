@@ -1,28 +1,9 @@
 import { useMemo, useRef } from "react";
-import { type PageId, type PageMeta } from "@/components/Sidebar";
+import { type PageId, type PageMeta } from "@/components/layout/NavRail";
 import { generatorIds } from "@/game/generators";
 import { canPrestige } from "@/game/prestige";
 import { getAffordableUpgradeCount } from "@/game/upgradeEngine";
 import { useGameStore } from "@/store/useGameStore";
-
-export const pageCopy: Record<PageId, { title: string; description: string }> = {
-  home: {
-    title: "Currency",
-    description: "Run the core loop, monitor your stash, and keep the next few economy actions in one focused screen.",
-  },
-  upgrades: {
-    title: "Upgrades",
-    description: "Spend into production, routing, and long-term value once the base economy is online.",
-  },
-  mapDevice: {
-    title: "Maps",
-    description: "Choose a map, tune the device, and queue runs without crowding the rest of the game.",
-  },
-  progress: {
-    title: "Progress",
-    description: "Check run milestones, prestige readiness, and talent investments in one long-term screen.",
-  },
-};
 
 type AppViewModel = {
   hasAnyGenerator: boolean;
