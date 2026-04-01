@@ -203,13 +203,7 @@ export const MapPanel = memo(function MapPanel() {
 
       {showPrepArea && (
         <>
-          <section className="grid gap-3.5 p-4 rounded-[20px] bg-[rgba(255,255,255,0.035)] border border-[rgba(255,255,255,0.08)] shadow-[0_18px_50px_rgba(0,0,0,0.16)]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="m-0 mb-[5px] text-[0.68rem] font-extrabold uppercase tracking-[0.1em] text-[#7f8ca3]">Step 0</p>
-                <h3 className="m-0 text-[clamp(1.2rem,1.8vw,1.6rem)] font-extrabold tracking-tight text-[#f7f3e8]">Select the base map</h3>
-              </div>
-            </div>
+          <section className="grid gap-2 p-3 rounded-xl bg-[rgba(255,255,255,0.035)] border border-[rgba(255,255,255,0.08)]">
             <MapBaseSelector currencies={currencies} selectedBaseMapId={selectedBaseMapId} onSelectBase={handleSelectBase} />
           </section>
 
@@ -241,8 +235,8 @@ export const MapPanel = memo(function MapPanel() {
             />
           )}
 
-          {!selectedBaseMapId && !activeMap && <p className="m-0 text-[0.75rem] text-text-muted text-center py-2">Select a base map to start the setup flow, then choose an encounter, craft the route, socket device mods, and launch the run.</p>}
-          {!selectedBaseMapId && activeMap && !queuedMap && <p className="m-0 text-[0.75rem] text-text-muted text-center py-2">Select a base map to prepare the next route while the current one is still running.</p>}
+          {!selectedBaseMapId && !activeMap && <p className="m-0 text-[0.75rem] text-text-muted text-center py-2">Select a base map to begin.</p>}
+          {!selectedBaseMapId && activeMap && !queuedMap && <p className="m-0 text-[0.75rem] text-text-muted text-center py-2">Select a base map to queue next.</p>}
         </>
       )}
     </div>

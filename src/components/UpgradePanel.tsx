@@ -287,173 +287,95 @@ export const UpgradePanel = memo(function UpgradePanel() {
   };
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
-        <div>
-          <h2 className="m-0 text-base font-bold text-accent-gold">Upgrades</h2>
-          <p className="mt-1 mb-0 max-w-[680px] text-[0.74rem] text-[#8c8c94]">
-            Browse one category at a time, compare clean rows, and use the detail panel for the deeper read before you commit currency.
-          </p>
+    <div className="h-full flex flex-col gap-3 overflow-hidden">
+      {/* Header stats row */}
+      <div className="shrink-0 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {upgradeCategories.map((category) => {
+            const stats = categoryStats[category];
+            const active = category === activeCategory;
+            return (
+              <button
+                key={category}
+                type="button"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[0.72rem] font-semibold cursor-pointer transition-all duration-150 ${
+                  active
+                    ? "border-[rgba(244,213,140,0.3)] bg-[rgba(244,213,140,0.12)] text-accent-gold"
+                    : "border-border-subtle bg-transparent text-text-secondary hover:text-text-primary hover:border-border-default"
+                }`}
+                onClick={() => {
+                  setActiveCategory(category);
+                  setSelectedUpgradeId(pickSelectedUpgradeId(rowsByCategory[category]));
+                }}
+              >
+                {getUpgradeCategoryLabel(category)}
+                {stats.affordable > 0 && (
+                  <span className="min-w-[16px] h-4 px-1 rounded-full text-[0.52rem] font-extrabold flex items-center justify-center text-bg-surface bg-accent-gold">
+                    {stats.affordable}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div className="grid grid-cols-[repeat(3,minmax(86px,1fr))] gap-2">
-          <div className="grid gap-0.5 px-2.5 py-2 rounded-[10px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] text-right">
-            <span className="text-[0.88rem] font-bold text-text-bright">{totalAffordable}</span>
-            <span className="text-[0.66rem] text-[#777] uppercase tracking-[0.05em]">Ready now</span>
-          </div>
-          <div className="grid gap-0.5 px-2.5 py-2 rounded-[10px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] text-right">
-            <span className="text-[0.88rem] font-bold text-text-bright">{purchasedCount}</span>
-            <span className="text-[0.66rem] text-[#777] uppercase tracking-[0.05em]">Owned</span>
-          </div>
-          <div className="grid gap-0.5 px-2.5 py-2 rounded-[10px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] text-right">
-            <span className="text-[0.88rem] font-bold text-text-bright">{formatCurrencyValue(prestige.totalMirrorShards)}</span>
-            <span className="text-[0.66rem] text-[#777] uppercase tracking-[0.05em]">Total shards</span>
-          </div>
+        <div className="flex items-center gap-3 text-[0.68rem]">
+          <span className="text-text-secondary"><span className="font-bold text-text-bright">{totalAffordable}</span> ready</span>
+          <span className="text-text-secondary"><span className="font-bold text-text-bright">{purchasedCount}</span> owned</span>
+          <span className="text-text-secondary"><span className="font-bold text-text-bright">{formatCurrencyValue(prestige.totalMirrorShards)}</span> shards</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] xl:grid-cols-[minmax(220px,260px)_minmax(0,1fr)_minmax(320px,360px)] gap-4 items-start">
-        <aside className={`${shellCard} sticky top-0 content-start !gap-3.5`}>
-          <div>
-            <p className={eyebrow}>Categories</p>
-            <h3 className={cardTitle}>Choose a progression track</h3>
-            <p className={subcopy}>Each category keeps its own upgrade lane and affordability summary so you can spot your next spend faster.</p>
-          </div>
-
-          <div className="grid gap-3">
-            {upgradeCategories.map((category) => {
-              const stats = categoryStats[category];
-              const active = category === activeCategory;
-              return (
+      {/* Main 2-column layout */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(300px,340px)] gap-3 overflow-hidden">
+        {/* Upgrade list */}
+        <div className="overflow-y-auto grid gap-2 content-start pr-1">
+          {groupedRows.map((group) => (
+            <section key={group.groupName} className="grid gap-2">
+              <div className="flex items-center justify-between gap-2 px-1">
+                <span className="text-[0.72rem] font-extrabold text-[#7f8ca3] uppercase tracking-[0.08em]">{group.groupName}</span>
+                <div className="flex items-center gap-2">
+                  <span className={pill}>{group.rows.filter((row) => row.level > 0).length} owned</span>
+                  <span className={pill}>{group.rows.filter((row) => row.canBuy).length} ready</span>
+                </div>
+              </div>
+              {group.rows.map((row) => (
                 <button
-                  key={category}
+                  key={row.id}
                   type="button"
-                  className={`grid gap-2 w-full p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-150${active ? " border-[rgba(244,213,140,0.3)] bg-gradient-to-b from-[rgba(244,213,140,0.1)] to-[rgba(255,255,255,0.03)] text-[#f4d58c]" : " border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] text-[#dce5f2] hover:border-[rgba(244,213,140,0.18)] hover:bg-[rgba(255,255,255,0.045)]"}`}
-                  onClick={() => {
-                    setActiveCategory(category);
-                    setSelectedUpgradeId(pickSelectedUpgradeId(rowsByCategory[category]));
-                  }}
+                  className={`w-full grid gap-1 p-2.5 rounded-xl border bg-[rgba(255,255,255,0.03)] text-left cursor-pointer transition-all duration-100 hover:bg-[rgba(255,255,255,0.05)] ${
+                    row.id === selectedUpgrade.id
+                      ? "border-[rgba(244,213,140,0.24)] bg-gradient-to-b from-[rgba(244,213,140,0.08)] to-[rgba(255,255,255,0.03)]"
+                      : row.canBuy
+                        ? "border-[rgba(88,217,139,0.22)]"
+                        : "border-[rgba(255,255,255,0.08)]"
+                  }`}
+                  onClick={() => setSelectedUpgradeId(row.id)}
                 >
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-[0.82rem] font-extrabold text-[#f7f3e8]">{getUpgradeCategoryLabel(category)}</span>
-                    {stats.affordable > 0 ? <span className={`${pill} !bg-[rgba(88,217,139,0.16)] !text-[#9ef0bf]`}>{stats.affordable}</span> : null}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[0.78rem] font-extrabold text-[#f7f3e8]">{row.definition.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`${pill} ${kindColors[row.kind]}`}>{getKindLabel(row.kind)}</span>
+                      <span className={`${pill} ${toneColors[row.tone]}`}>{row.statusLabel}</span>
+                    </div>
                   </div>
-                  <span className={subcopy}>{getUpgradeCategoryDescription(category)}</span>
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className={pill}>{stats.unlocked}/{stats.total} unlocked</span>
-                    <span className={pill}>{stats.affordable} ready</span>
+                  <div className="flex items-center justify-between gap-2 text-[0.68rem]">
+                    <span className="text-text-secondary">Lv {row.level} · {row.currentEffect}</span>
+                    <span className="text-text-secondary tabular-nums">{row.isMaxed ? "Maxed" : row.costLabel}</span>
                   </div>
                 </button>
-              );
-            })}
-          </div>
-        </aside>
+              ))}
+            </section>
+          ))}
+        </div>
 
-        <section className="grid gap-3">
-          <section className={`${shellCard} !gap-3.5`}>
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div>
-                <p className={eyebrow}>Selected category</p>
-                <h3 className={cardTitle}>{getUpgradeCategoryLabel(activeCategory)}</h3>
-                <p className={subcopy}>{getUpgradeCategoryDescription(activeCategory)}</p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-[0.68rem] text-text-secondary">
-                <span className={pill}>{categoryStats[activeCategory].unlocked} unlocked</span>
-                <span className={pill}>{categoryStats[activeCategory].affordable} affordable</span>
-                <span className={pill}>{groupedRows.length} groups</span>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid gap-3">
-            {groupedRows.map((group) => (
-              <section key={group.groupName} className={`${shellCard} !gap-3.5`}>
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div>
-                    <p className={eyebrow}>{group.rows[0]?.lane ?? "Track"}</p>
-                    <h3 className="m-0 text-base font-extrabold text-[#f7f3e8]">{group.groupName}</h3>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={pill}>{group.rows.filter((row) => row.level > 0).length} owned</span>
-                    <span className={pill}>{group.rows.filter((row) => row.canBuy).length} ready</span>
-                  </div>
-                </div>
-
-                <div className="grid gap-3">
-                  {group.rows.map((row) => (
-                    <div
-                      key={row.id}
-                      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-3 p-3 rounded-[18px] border bg-[rgba(255,255,255,0.03)]${row.id === selectedUpgrade.id ? " border-[rgba(244,213,140,0.24)] bg-gradient-to-b from-[rgba(244,213,140,0.08)] to-[rgba(255,255,255,0.03)]" : row.canBuy ? " border-[rgba(88,217,139,0.22)]" : " border-[rgba(255,255,255,0.08)]"}`}
-                    >
-                      <button
-                        type="button"
-                        className="grid gap-2.5 w-full p-0 border-0 bg-transparent text-inherit text-left cursor-pointer"
-                        aria-pressed={row.id === selectedUpgrade.id}
-                        onClick={() => setSelectedUpgradeId(row.id)}
-                      >
-                        <div className="grid gap-1.5">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <span className="text-[0.82rem] font-extrabold text-[#f7f3e8]">{row.definition.name}</span>
-                            <span className={`${pill} ${kindColors[row.kind]}`}>{getKindLabel(row.kind)}</span>
-                            <span className={pill}>Tier {row.tier}</span>
-                          </div>
-                          <p className={subcopy}>{row.definition.description}</p>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className={pill}>Lv {row.level}</span>
-                          <span className={`${pill} ${toneColors[row.tone]}`}>{row.statusLabel}</span>
-                          <span className={metricValue}>{row.isMaxed ? "Maxed" : row.costLabel}</span>
-                        </div>
-
-                        <div className="grid gap-1.5 grid-cols-[repeat(2,minmax(0,1fr))]">
-                          <div className="grid gap-[3px] min-w-0">
-                            <span className={metricLabel}>Current</span>
-                            <span className="text-[0.74rem] leading-[1.45]">{row.currentEffect}</span>
-                          </div>
-                          <div className="grid gap-[3px] min-w-0">
-                            <span className={metricLabel}>Next</span>
-                            <span className="text-[0.74rem] leading-[1.45]">{row.nextEffect}</span>
-                          </div>
-                        </div>
-
-                        <div className={subcopy}>
-                          {row.state === "locked" ? `Locked: ${row.requirementText}` : row.canBuy ? "Affordable now" : "Available once you can afford the cost"}
-                        </div>
-                      </button>
-
-                      <div className="flex items-center justify-end gap-2 flex-wrap content-start min-w-[118px]">
-                        <button type="button" className={btn} onClick={() => setSelectedUpgradeId(row.id)}>
-                          Details
-                        </button>
-                        <button
-                          type="button"
-                          className={btnPrimary}
-                          onClick={() => onBuyUpgrade(row.id)}
-                          disabled={!row.canBuy}
-                        >
-                          {row.isMaxed ? "Maxed" : row.canBuy ? "Buy" : "Blocked"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </section>
-
-        <aside className={`${shellCard} sticky top-0 content-start !gap-3.5`}>
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div>
-              <p className={eyebrow}>Selected upgrade</p>
-              <h3 className="m-0 text-base font-extrabold text-[#f7f3e8]">{selectedUpgrade.definition.name}</h3>
-            </div>
+        {/* Detail panel */}
+        <aside className="overflow-y-auto grid gap-2.5 p-3 rounded-xl bg-[rgba(255,255,255,0.035)] border border-[rgba(255,255,255,0.08)] content-start">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="m-0 text-[0.88rem] font-extrabold text-[#f7f3e8]">{selectedUpgrade.definition.name}</h3>
             <span className={`${pill} ${kindColors[selectedUpgrade.kind]}`}>{getKindLabel(selectedUpgrade.kind)}</span>
           </div>
 
-          <p className={subcopy}>{selectedUpgrade.definition.description}</p>
-
-          <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div className={detailCard}>
               <span className={metricLabel}>Status</span>
               <span className={metricValue}>{selectedUpgrade.statusLabel}</span>
@@ -463,11 +385,11 @@ export const UpgradePanel = memo(function UpgradePanel() {
               <span className={metricValue}>Lv {selectedUpgrade.level}</span>
             </div>
             <div className={detailCard}>
-              <span className={metricLabel}>Current effect</span>
+              <span className={metricLabel}>Current</span>
               <span className={metricValue}>{selectedUpgrade.currentEffect}</span>
             </div>
             <div className={detailCard}>
-              <span className={metricLabel}>Next effect</span>
+              <span className={metricLabel}>Next</span>
               <span className={metricValue}>{selectedUpgrade.nextEffect}</span>
             </div>
             <div className={detailCard}>
@@ -484,34 +406,28 @@ export const UpgradePanel = memo(function UpgradePanel() {
             {selectedUpgrade.isMaxed ? "Maxed" : selectedUpgrade.canBuy ? `Buy for ${selectedUpgrade.costLabel}` : "Not affordable yet"}
           </button>
 
-          <div className="grid gap-1.5">
-            <span className={metricLabel}>Unlocks next</span>
-            {selectedUnlocksNext.length > 0 ? (
-              <div className="flex items-center justify-start gap-2 flex-wrap">
+          {selectedUnlocksNext.length > 0 && (
+            <div className="grid gap-1">
+              <span className={metricLabel}>Unlocks next</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {selectedUnlocksNext.map((name) => (
                   <span key={name} className={pill}>{name}</span>
                 ))}
               </div>
-            ) : (
-              <p className={subcopy}>This upgrade is currently a leaf in the visible chain.</p>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="grid gap-1.5">
-            <span className={metricLabel}>What unlocks soon</span>
-            {upcomingUnlocks.length > 0 ? (
-              <div className="grid gap-3">
-                {upcomingUnlocks.map((upgrade) => (
-                  <div key={upgrade.id} className={detailCard}>
-                    <span className={metricValue}>{upgrade.name}</span>
-                    <span className={subcopy}>{upgrade.requirementText}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={subcopy}>Everything in this category is already open or owned.</p>
-            )}
-          </div>
+          {upcomingUnlocks.length > 0 && (
+            <div className="grid gap-1">
+              <span className={metricLabel}>Upcoming</span>
+              {upcomingUnlocks.map((upgrade) => (
+                <div key={upgrade.id} className={detailCard}>
+                  <span className={metricValue}>{upgrade.name}</span>
+                  <span className="text-[0.65rem] text-text-secondary">{upgrade.requirementText}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </aside>
       </div>
     </div>
