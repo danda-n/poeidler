@@ -161,6 +161,19 @@ Root enforces `h-screen overflow-hidden`. No page-level scrolling anywhere.
 
 ---
 
+## Cross-Cutting: Strip Flavor Text
+
+Applies across all phases. Remove all "tutorial-style" descriptive text that adds no actionable value:
+
+- **Nav rail**: no subtitles under icons (old sidebar had "Core loop and stash", "Economy and system boosts", etc.)
+- **Page headers**: no instructional descriptions ("Browse one category at a time...")
+- **Upgrade categories**: no prose descriptions on category cards ("Immediate output boosts across currency lines..."). Keep only: category name + counts (unlocked/ready)
+- **Upgrade rows**: no flavor text descriptions ("Scale fragment production for the opening loop."). Keep only: name, tier badge, level, cost, current/next effect values
+- **Selected upgrade detail panel**: no description paragraph. Keep only: status, level, effects, cost, prerequisite, buy button
+- **Category selection panel**: no instructional text ("Choose a progression track", "Each category keeps its own upgrade lane..."). Just show the selectable categories
+
+**Principle**: every piece of text on screen should be either a label, a number, or an actionable control. If it's a sentence explaining what the user is looking at, remove it.
+
 ## Key Decisions
 
 1. **Store unchanged** -- all `useGameStore` selectors stay the same. New components subscribe the same way.
@@ -168,6 +181,7 @@ Root enforces `h-screen overflow-hidden`. No page-level scrolling anywhere.
 3. **No default exports** -- all new components use named exports per project convention.
 4. **Tailwind tokens reused** -- existing theme (bg-base, bg-surface, accent-gold, accent-cyan, border-subtle) applies throughout.
 5. **Click card shrinks, never disappears** -- stays in grid as single-column card once generators exist.
+6. **No flavor text** -- strip all tutorial-style descriptions. Labels + numbers + controls only.
 
 ## Verification
 
