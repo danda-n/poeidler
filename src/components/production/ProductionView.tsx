@@ -103,7 +103,7 @@ export const ProductionView = memo(function ProductionView() {
 
       {/* Generator rows */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-[700px] mx-auto flex flex-col gap-0.5">
+        <div className="max-w-[800px] mx-auto flex flex-col gap-0.5">
           <ClickRow
             currenciesState={currencies}
             currencyProduction={currencyProduction}

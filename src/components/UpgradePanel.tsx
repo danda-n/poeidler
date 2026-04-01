@@ -122,7 +122,7 @@ export const UpgradePanel = memo(function UpgradePanel() {
 
       {/* Smart queue grid */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-[700px] mx-auto">
+        <div className="max-w-[800px] mx-auto">
           {smartQueue.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {smartQueue.map((u) => (

@@ -30,11 +30,11 @@ export const MapDevice = memo(function MapDevice({
     <div className="flex flex-col items-center gap-2 py-3">
       {/* Central device visual */}
       <div className="relative w-[240px] px-4 py-3 rounded-2xl border-2 border-[rgba(244,213,140,0.25)] bg-gradient-to-b from-[rgba(244,213,140,0.08)] to-[rgba(255,255,255,0.02)] flex flex-col items-center justify-center gap-1 shadow-[0_0_30px_rgba(244,213,140,0.06)]">
-        <span className="text-[9px] font-extrabold uppercase tracking-[0.1em] text-[#7f8ca3]">Map Device</span>
-        <span className="text-[13px] font-bold text-center whitespace-nowrap" style={{ color: getRarityColor(craftedMap.rarity) }}>
+        <span className="text-[0.56rem] font-extrabold uppercase tracking-[0.1em] text-[#7f8ca3]">Map Device</span>
+        <span className="text-[0.78rem] font-bold text-center whitespace-nowrap" style={{ color: getRarityColor(craftedMap.rarity) }}>
           {getRarityLabel(craftedMap.rarity)} {mapDef.name}
         </span>
-        <div className="flex items-center gap-2 text-[9px] text-text-secondary">
+        <div className="flex items-center gap-2 text-[0.56rem] text-text-secondary">
           <span>T{craftedMap.tier}</span>
           {encounter && <span className="text-accent-gold">{encounter.name}</span>}
           {craftedMap.affixIds.length > 0 && <span>{craftedMap.affixIds.length} affix{craftedMap.affixIds.length !== 1 ? "es" : ""}</span>}

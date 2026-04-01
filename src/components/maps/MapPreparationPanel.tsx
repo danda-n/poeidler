@@ -134,7 +134,7 @@ export const MapPreparationPanel = memo(function MapPreparationPanel({
       />
 
       {/* Stem buttons */}
-      <div className="flex gap-2 w-full max-w-[500px]">
+      <div className="flex gap-2 w-full max-w-[600px]">
         <button type="button" className={`${stemBtn} ${activeStem === "encounter" ? stemActive : stemInactive}`} onClick={() => toggleStem("encounter")}>
           {encounter ? encounter.name : "Encounter"}
         </button>
@@ -148,7 +148,7 @@ export const MapPreparationPanel = memo(function MapPreparationPanel({
 
       {/* Accordion content */}
       {activeStem === "encounter" && (
-        <div className="w-full max-w-[500px] grid gap-1.5 animate-[section-enter_200ms_ease-out]">
+        <div className="w-full max-w-[600px] grid gap-1.5 animate-[section-enter_200ms_ease-out]">
           <button
             type="button"
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
@@ -191,7 +191,7 @@ export const MapPreparationPanel = memo(function MapPreparationPanel({
       )}
 
       {activeStem === "craft" && (
-        <div className="w-full max-w-[500px] grid gap-2 animate-[section-enter_200ms_ease-out]">
+        <div className="w-full max-w-[600px] grid gap-2 animate-[section-enter_200ms_ease-out]">
           <div className="flex flex-wrap gap-1.5">
             {(["transmute", "augment", "alter", "regal", "chaos", "alchemy", "exalt"] as CraftingAction[]).map((action) => {
               const isAvailable = availableActions.includes(action);
@@ -220,7 +220,7 @@ export const MapPreparationPanel = memo(function MapPreparationPanel({
       )}
 
       {activeStem === "mods" && (
-        <div className="w-full max-w-[500px] grid gap-2 animate-[section-enter_200ms_ease-out]">
+        <div className="w-full max-w-[600px] grid gap-2 animate-[section-enter_200ms_ease-out]">
           {/* Applied mods */}
           {appliedMods.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -302,7 +302,7 @@ export const MapPreparationPanel = memo(function MapPreparationPanel({
       )}
 
       {/* Total cost + Run button */}
-      <div className="w-full max-w-[500px] flex flex-col items-center gap-2 pt-2">
+      <div className="w-full max-w-[600px] flex flex-col items-center gap-2 pt-2">
         {totalCost.length > 0 && (
           <div className="flex flex-wrap justify-center gap-2 text-[0.6rem]">
             {totalCost.map(([cid, amount]) => {

@@ -44,19 +44,19 @@ export const UpgradeCard = memo(function UpgradeCard({
       onClick={() => onBuy(id)}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[11px] font-bold text-text-bright">{definition.name}</span>
+        <span className="text-[0.7rem] font-bold text-text-bright">{definition.name}</span>
         {!isMaxed && (
-          <span className="text-[9px] font-semibold text-text-secondary shrink-0">Lv {level}</span>
+          <span className="text-[0.56rem] font-semibold text-text-secondary shrink-0">Lv {level}</span>
         )}
       </div>
 
-      <span className="text-[10px] text-accent-gold leading-snug">{isMaxed ? "Maxed" : nextEffect}</span>
+      <span className="text-[0.62rem] text-accent-gold leading-snug">{isMaxed ? "Maxed" : nextEffect}</span>
 
       <div className="mt-auto pt-1">
         {isMaxed ? (
-          <span className="text-[9px] font-semibold text-[#6ee7a0]">Complete</span>
+          <span className="text-[0.56rem] font-semibold text-[#6ee7a0]">Complete</span>
         ) : (
-          <span className={`text-[10px] font-semibold tabular-nums ${canBuy ? "text-accent-gold" : "text-text-secondary"}`}>
+          <span className={`text-[0.62rem] font-semibold tabular-nums ${canBuy ? "text-accent-gold" : "text-text-secondary"}`}>
             {costLabel}
           </span>
         )}
