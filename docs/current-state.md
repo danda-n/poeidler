@@ -18,13 +18,11 @@
 ## Known issues
 - Store actions are split into 5 slices; state shape is still flat (not nested by domain) which keeps `synchronizeGameState` and game tick simple
 - Late-game balance needs a dedicated pass
-- `OtherUpgradesBar` is dead code (not imported anywhere); can be removed or repurposed for a compact upgrade view
-- 3 pre-existing ESLint warnings (unused imports in gameStore, any type in test file)
 
 ## Next 3 priorities
 - Late-game balance pass
-- Clean up dead code (`OtherUpgradesBar`, unused store imports)
 - Expand test coverage to map completion, prestige payout, and upgrade interaction edge cases
+- Consider adding pre-commit hook to run lint + type-check
 
 ## Files that matter most
 - `src/store/gameStore.ts`
