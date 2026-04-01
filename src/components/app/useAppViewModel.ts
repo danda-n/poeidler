@@ -2,11 +2,14 @@ import { useMemo, useRef } from "react";
 import { type PageId, type PageMeta } from "@/components/layout/NavRail";
 import { generatorIds } from "@/game/generators";
 import { canPrestige } from "@/game/prestige";
+import { getQuestUnlockedFeatures } from "@/game/quests";
 import { getAffordableUpgradeCount } from "@/game/upgradeEngine";
 import { useGameStore } from "@/store/useGameStore";
 
 type AppViewModel = {
   hasAnyGenerator: boolean;
+  hasUpgrades: boolean;
+  hasMapDevice: boolean;
   hasTier4: boolean;
   hasPrestige: boolean;
   hasTalents: boolean;
@@ -25,6 +28,7 @@ export function useAppViewModel(): AppViewModel {
   const prestige = useGameStore((s) => s.prestige);
   const purchasedUpgrades = useGameStore((s) => s.purchasedUpgrades);
   const activeMap = useGameStore((s) => s.activeMap);
+  const questState = useGameStore((s) => s.questState);
 
   const badgeCacheRef = useRef<{ count: number; lastComputedAt: number; purchasedUpgrades: unknown }>({
     count: 0,
@@ -34,14 +38,17 @@ export function useAppViewModel(): AppViewModel {
 
   const flags = useMemo(() => {
     const hasAnyGenerator = generatorIds.some((id) => generatorsOwned[id] > 0);
+    const questFeatures = getQuestUnlockedFeatures(questState);
+    const hasUpgrades = questFeatures.has("upgrades") || hasAnyGenerator;
+    const hasMapDevice = questFeatures.has("mapDevice") || unlockedCurrencies.alterationOrb;
     const hasTier4 = unlockedCurrencies.alterationOrb;
     const hasPrestige =
-      hasTier4 &&
+      hasMapDevice &&
       (prestige.prestigeCount > 0 || prestige.mapsCompleted >= 1 || currencies.jewellersOrb >= 1);
     const hasTalents = prestige.totalMirrorShards > 0;
     const canPrestigeNow = canPrestige(currencies);
-    return { hasAnyGenerator, hasTier4, hasPrestige, hasTalents, canPrestigeNow };
-  }, [generatorsOwned, unlockedCurrencies, prestige, currencies]);
+    return { hasAnyGenerator, hasUpgrades, hasMapDevice, hasTier4, hasPrestige, hasTalents, canPrestigeNow };
+  }, [generatorsOwned, unlockedCurrencies, prestige, currencies, questState]);
 
   const pageMeta = useMemo(() => {
     const now = Date.now();
@@ -62,18 +69,18 @@ export function useAppViewModel(): AppViewModel {
 
     return {
       upgrades: affordableUpgradeCount > 0 ? { badge: String(affordableUpgradeCount), tone: "ready" as const } : undefined,
-      mapDevice: activeMap ? { badge: "Live", tone: "active" as const } : flags.hasTier4 ? { badge: "Ready", tone: "active" as const } : undefined,
+      mapDevice: activeMap ? { badge: "Live", tone: "active" as const } : flags.hasMapDevice ? { badge: "Ready", tone: "active" as const } : undefined,
       progress: flags.canPrestigeNow ? { badge: "Ready", tone: "alert" as const } : flags.hasTalents ? { badge: "Talents", tone: "active" as const } : undefined,
     };
   }, [currencies, purchasedUpgrades, unlockedCurrencies, prestige, activeMap, flags.hasTier4, flags.hasTalents, flags.canPrestigeNow]);
 
   const unlockedPages = useMemo(
     () => ({
-      upgrades: flags.hasAnyGenerator,
-      mapDevice: flags.hasTier4,
+      upgrades: flags.hasUpgrades,
+      mapDevice: flags.hasMapDevice,
       progress: flags.hasPrestige || flags.hasTalents,
     } satisfies Partial<Record<PageId, boolean>>),
-    [flags.hasAnyGenerator, flags.hasTier4, flags.hasPrestige, flags.hasTalents],
+    [flags.hasUpgrades, flags.hasMapDevice, flags.hasPrestige, flags.hasTalents],
   );
 
   const mapStatusLabel = activeMap ? "Map running" : flags.hasTier4 ? "Map device unlocked" : "Atlas locked";

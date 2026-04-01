@@ -17,7 +17,17 @@ type GeneratorRowProps = {
   buyAmount: BuyAmount;
   onBuy: (generatorId: GeneratorId) => void;
   even: boolean;
+  milestoneLevel: number;
+  nextMilestone: number | null;
 };
+
+const milestoneGlow = [
+  "",
+  "shadow-[0_0_4px_rgba(244,213,140,0.12)]",
+  "shadow-[0_0_6px_rgba(244,213,140,0.22)]",
+  "shadow-[0_0_10px_rgba(244,213,140,0.32)]",
+  "shadow-[0_0_14px_rgba(244,213,140,0.45)] border-[rgba(244,213,140,0.2)]",
+];
 
 export const GeneratorRow = memo(function GeneratorRow({
   icon,
@@ -32,20 +42,28 @@ export const GeneratorRow = memo(function GeneratorRow({
   buyAmount,
   onBuy,
   even,
+  milestoneLevel,
+  nextMilestone,
 }: GeneratorRowProps) {
   const buyLabel = buyAmount === "max" ? "Max" : `x${buyAmount}`;
+  const glow = milestoneGlow[milestoneLevel] ?? "";
 
   return (
     <div
-      className={`group flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-100 ${
+      className={`group flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 border border-transparent ${
         even ? "bg-[rgba(255,255,255,0.02)]" : ""
-      } hover:bg-[rgba(255,255,255,0.06)]`}
+      } hover:bg-[rgba(255,255,255,0.06)] ${glow}`}
     >
       <img className="w-5 h-5 rounded-sm object-cover shrink-0" src={icon} alt="" />
 
       <span className="text-[0.74rem] font-semibold text-text-bright w-[7rem] truncate">{name}</span>
 
-      <span className="text-[0.62rem] text-text-secondary tabular-nums w-[2.5rem] text-right">x{generatorCount}</span>
+      <span className="text-[0.62rem] text-text-secondary tabular-nums w-[3.5rem] text-right">
+        x{generatorCount}
+        {nextMilestone && (
+          <span className="text-[0.5rem] text-[#7f8ca3] ml-0.5">→{nextMilestone}</span>
+        )}
+      </span>
 
       <span className="text-[0.78rem] font-bold text-accent-gold tabular-nums w-[4.5rem] text-right">
         {formatCurrencyValue(amount)}

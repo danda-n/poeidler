@@ -56,6 +56,16 @@ import {
   initialTalentsPurchased,
   type TalentPurchasedState,
 } from "./talents";
+import {
+  evaluateQuestCondition,
+  getNextAvailableQuest,
+  getQuestClickBonus,
+  getQuestGeneratorSpeedBonus,
+  initialQuestState,
+  isQuestCompleted,
+  questMap,
+  type QuestState,
+} from "./quests";
 
 export type GameSettings = {
   version: string;
@@ -79,6 +89,8 @@ export type GameState = {
   mapDevice: MapDeviceState;
   queuedMap: QueuedMapSetup | null;
   mapNotification: MapNotification | null;
+  mapFragments: number;
+  questState: QuestState;
 };
 
 export const GAME_VERSION = "1.0.0";
@@ -145,6 +157,7 @@ type SyncCache = {
   generatorsOwned: GeneratorOwnedState;
   talentsPurchased: TalentPurchasedState;
   unlockedCurrenciesIn: UnlockedCurrencyState;
+  completedQuests: QuestState["completedQuests"];
   currencyMultipliers: CurrencyMultipliers;
   unlockedFeatures: FeatureState;
   clickMultiplier: number;
@@ -161,6 +174,7 @@ export function synchronizeGameState(gameState: GameState) {
     && syncCache.generatorsOwned === gameState.generatorsOwned
     && syncCache.talentsPurchased === gameState.talentsPurchased
     && syncCache.unlockedCurrenciesIn === gameState.unlockedCurrencies
+    && syncCache.completedQuests === gameState.questState.completedQuests
   ) {
     return {
       ...gameState,
@@ -178,8 +192,13 @@ export function synchronizeGameState(gameState: GameState) {
   );
 
   const talentClickBonus = getClickPowerBonus(gameState.talentsPurchased);
-  const adjustedClickMultiplier = clickMultiplier * (1 + talentClickBonus);
-  const currencyProduction = calculateCurrencyProduction(gameState.generatorsOwned, currencyMultipliers);
+  const questClickBonus = getQuestClickBonus(gameState.questState);
+  const adjustedClickMultiplier = clickMultiplier * (1 + talentClickBonus + questClickBonus);
+  const questSpeedBonus = getQuestGeneratorSpeedBonus(gameState.questState);
+  const questBoostedMultipliers = questSpeedBonus > 0
+    ? Object.fromEntries(Object.entries(currencyMultipliers).map(([id, mult]) => [id, mult * (1 + questSpeedBonus)]))
+    : currencyMultipliers;
+  const currencyProduction = calculateCurrencyProduction(gameState.generatorsOwned, questBoostedMultipliers);
   const unlockedCurrencies = unlockCurrencies(gameState.unlockedCurrencies, currencyProduction);
 
   syncCache = {
@@ -187,6 +206,7 @@ export function synchronizeGameState(gameState: GameState) {
     generatorsOwned: gameState.generatorsOwned,
     talentsPurchased: gameState.talentsPurchased,
     unlockedCurrenciesIn: gameState.unlockedCurrencies,
+    completedQuests: gameState.questState.completedQuests,
     currencyMultipliers,
     unlockedFeatures,
     clickMultiplier: adjustedClickMultiplier,
@@ -223,6 +243,8 @@ export function createInitialGameState(): GameState {
     mapDevice: { ...initialMapDeviceState },
     queuedMap: null,
     mapNotification: null,
+    mapFragments: 0,
+    questState: { ...initialQuestState },
   });
 }
 
@@ -323,6 +345,68 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     }
   }
 
+  // ── Quest evaluation ──
+  let questState = state.questState;
+  let mapFragments = state.mapFragments;
+  let questGeneratorsOwned = state.generatorsOwned;
+
+  // Clear stale quest notification
+  if (questState.questNotification && now - questState.questNotification.timestamp > NOTIFICATION_TTL_MS) {
+    questState = { ...questState, questNotification: null };
+  }
+  if (questState.fragmentNotification && now - questState.fragmentNotification.timestamp > NOTIFICATION_TTL_MS) {
+    questState = { ...questState, fragmentNotification: null };
+  }
+
+  // Auto-activate next quest
+  if (!questState.activeQuestId) {
+    const nextQuest = getNextAvailableQuest(questState);
+    if (nextQuest) {
+      questState = { ...questState, activeQuestId: nextQuest.id };
+    }
+  }
+
+  // Check active quest completion
+  if (questState.activeQuestId) {
+    const activeQuest = questMap[questState.activeQuestId];
+    if (activeQuest && !isQuestCompleted(questState, activeQuest.id)) {
+      const met = evaluateQuestCondition(
+        activeQuest.condition,
+        currencies,
+        state.generatorsOwned,
+        state.currencyProduction,
+        state.purchasedUpgrades,
+        state.unlockedCurrencies,
+        mapFragments,
+      );
+      if (met) {
+        const completedQuests = { ...questState.completedQuests, [activeQuest.id]: now };
+        for (const reward of activeQuest.rewards) {
+          if (reward.type === "mapFragment") mapFragments += reward.amount;
+          if (reward.type === "autoGenerator") {
+            const currentOwned = questGeneratorsOwned[reward.generatorId] ?? 0;
+            questGeneratorsOwned = { ...questGeneratorsOwned, [reward.generatorId]: currentOwned + reward.amount };
+          }
+        }
+        const nextQuest = getNextAvailableQuest({ ...questState, completedQuests });
+        questState = {
+          ...questState,
+          completedQuests,
+          activeQuestId: nextQuest?.id ?? null,
+          questNotification: { questId: activeQuest.id, title: activeQuest.title, timestamp: now },
+        };
+      }
+    }
+  }
+
+  // Passive map fragment drops (very rare, only after first fragment earned)
+  if (mapFragments > 0 && state.currencyProduction.fragmentOfWisdom > 0) {
+    if (Math.random() < 0.0005 * deltaTimeSeconds) {
+      mapFragments += 1;
+      questState = { ...questState, fragmentNotification: { timestamp: now } };
+    }
+  }
+
   return {
     ...state,
     currencies,
@@ -331,6 +415,9 @@ export function runGameTick(gameState: GameState, deltaTimeSeconds: number) {
     lastMapResult,
     queuedMap,
     mapNotification,
+    mapFragments,
+    questState,
+    generatorsOwned: questGeneratorsOwned,
   };
 }
 

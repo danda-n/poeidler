@@ -6,8 +6,9 @@ import { createEconomySlice, type EconomyActions } from "@/store/slices/economyS
 import { createMapSlice, type MapActions } from "@/store/slices/mapSlice";
 import { createPrestigeSlice, type PrestigeActions } from "@/store/slices/prestigeSlice";
 import { createSystemSlice, type SystemActions } from "@/store/slices/systemSlice";
+import { createQuestSlice, type QuestActions } from "@/store/slices/questSlice";
 
-export type GameActions = CurrencyActions & EconomyActions & MapActions & PrestigeActions & SystemActions;
+export type GameActions = CurrencyActions & EconomyActions & MapActions & PrestigeActions & SystemActions & QuestActions;
 
 export type GameStore = GameState & { actions: GameActions };
 
@@ -18,6 +19,7 @@ export const gameStore = createStore<GameStore>()((...args) => {
   const map = createMapSlice(...args);
   const prestige = createPrestigeSlice(...args);
   const system = createSystemSlice(...args);
+  const quest = createQuestSlice(...args);
 
   return {
     ...loadGameState(),
@@ -27,6 +29,7 @@ export const gameStore = createStore<GameStore>()((...args) => {
       ...map.actions,
       ...prestige.actions,
       ...system.actions,
+      ...quest.actions,
     },
   };
 });

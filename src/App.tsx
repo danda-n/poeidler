@@ -3,6 +3,8 @@ import { useAppViewModel } from "@/components/app/useAppViewModel";
 import { NewAppShell } from "@/components/layout/NewAppShell";
 import type { PageId } from "@/components/layout/NavRail";
 import { MapToast } from "@/components/MapToast";
+import { QuestToast } from "@/components/quest/QuestToast";
+import { FragmentToast } from "@/components/quest/FragmentToast";
 import { ProgressView } from "@/components/progress/ProgressView";
 import { ProductionView } from "@/components/production/ProductionView";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -31,7 +33,7 @@ export function App() {
       return <SettingsPanel />;
     }
 
-    if (activePage === "upgrades" && appView.hasAnyGenerator) {
+    if (activePage === "upgrades" && appView.hasUpgrades) {
       return (
         <div className="h-full animate-[section-enter_350ms_ease-out]">
           <UpgradePanel />
@@ -39,7 +41,7 @@ export function App() {
       );
     }
 
-    if (activePage === "mapDevice" && appView.hasTier4) {
+    if (activePage === "mapDevice" && appView.hasMapDevice) {
       return <MapsScreen />;
     }
 
@@ -48,7 +50,7 @@ export function App() {
     }
 
     return <ProductionView />;
-  }, [activePage, appView.hasAnyGenerator, appView.hasPrestige, appView.hasTalents, appView.hasTier4]);
+  }, [activePage, appView.hasUpgrades, appView.hasMapDevice, appView.hasPrestige, appView.hasTalents]);
 
   return (
     <>
@@ -56,6 +58,8 @@ export function App() {
         {activePageContent}
       </NewAppShell>
       <MapToast />
+      <QuestToast />
+      <FragmentToast />
     </>
   );
 }

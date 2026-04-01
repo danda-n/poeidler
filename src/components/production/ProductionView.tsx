@@ -9,10 +9,12 @@ import {
   getVisibleCurrencies,
 } from "@/game/currencies";
 import {
+  GENERATOR_MILESTONES,
   generatorByCurrency,
   generatorIds,
   getGeneratorCost,
   getMaxAffordableGeneratorPurchases,
+  getNextGeneratorMilestone,
 } from "@/game/generators";
 import { useGameStore } from "@/store/useGameStore";
 import { useActions } from "@/store/selectors/useActions";
@@ -52,6 +54,8 @@ export const ProductionView = memo(function ProductionView() {
         }
 
         const canAfford = availableCurrency >= cost && (buyAmount !== "max" || effectiveQuantity > 0);
+        const milestoneLevel = GENERATOR_MILESTONES.filter((m) => owned >= m).length;
+        const nextMilestone = getNextGeneratorMilestone(owned);
 
         return {
           id: currency.id,
@@ -64,6 +68,8 @@ export const ProductionView = memo(function ProductionView() {
           cost,
           costCurrencyLabel: costCurrency.shortLabel,
           canAfford,
+          milestoneLevel,
+          nextMilestone,
         };
       });
   }, [unlockedCurrencies, generatorsOwned, currencies, currencyProduction, buyAmount]);
@@ -127,6 +133,8 @@ export const ProductionView = memo(function ProductionView() {
                 buyAmount={buyAmount}
                 onBuy={buyGenerator}
                 even={index % 2 === 0}
+                milestoneLevel={row.milestoneLevel}
+                nextMilestone={row.nextMilestone}
               />
             ))}
 

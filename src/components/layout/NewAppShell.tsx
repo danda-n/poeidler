@@ -3,6 +3,7 @@ import { CenterStage } from "@/components/layout/CenterStage";
 import { FooterBar } from "@/components/layout/FooterBar";
 import { NavRail, type PageId } from "@/components/layout/NavRail";
 import { ResourceBar } from "@/components/layout/ResourceBar";
+import { QuestBar } from "@/components/quest/QuestBar";
 
 type NewAppShellProps = {
   activePage: PageId;
@@ -14,6 +15,7 @@ export function NewAppShell({ activePage, onNavigate, children }: NewAppShellPro
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-bg-base">
       <ResourceBar />
+      <QuestBar />
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
         {/* Desktop: left rail */}
         <div className="hidden lg:flex">

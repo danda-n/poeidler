@@ -6,6 +6,7 @@ import { initialPrestigeState } from "./prestige";
 import { getMapCostReduction } from "./talents";
 import { augmentDeviceEffectsForUpgrades, getMapCostReductionUpgradeBonus } from "./upgradeEngine";
 import { initialTalentsPurchased } from "./talents";
+import { initialQuestState, type QuestState } from "./quests";
 
 export const SAVE_KEY = "poe-idle-save";
 export const AUTOSAVE_INTERVAL_MS = 5000;
@@ -23,6 +24,8 @@ type SavePayload = {
   talentsPurchased?: GameState["talentsPurchased"];
   mapDevice?: MapDeviceState;
   queuedMap?: QueuedMapSetup;
+  mapFragments?: number;
+  questState?: QuestState;
 };
 
 function isSavePayload(payload: unknown): payload is SavePayload {
@@ -49,6 +52,8 @@ export function saveGameState(gameState: GameState, timestamp = Date.now()) {
     talentsPurchased: gameState.talentsPurchased,
     mapDevice: gameState.mapDevice,
     queuedMap: gameState.queuedMap ?? undefined,
+    mapFragments: gameState.mapFragments,
+    questState: gameState.questState,
   };
 
   window.localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -240,6 +245,10 @@ export function loadGameState() {
       mapDevice: savedDevice,
       queuedMap: savedQueuedMap,
       mapNotification: null,
+      mapFragments: typeof savePayload.mapFragments === "number" ? savePayload.mapFragments : 0,
+      questState: savePayload.questState
+        ? { ...initialQuestState, ...savePayload.questState, questNotification: null, fragmentNotification: null }
+        : { ...initialQuestState },
     });
 
     if (nextState.activeMap && nextState.activeMap.incomePerSecond <= 0) {

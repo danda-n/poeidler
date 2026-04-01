@@ -10,6 +10,7 @@ export const ResourceBar = memo(function ResourceBar() {
   const currencies = useGameStore((s) => s.currencies);
   const currencyProduction = useGameStore((s) => s.currencyProduction);
   const unlockedCurrencies = useGameStore((s) => s.unlockedCurrencies);
+  const mapFragments = useGameStore((s) => s.mapFragments);
 
   const items = useMemo(() => {
     const visibleCurrencies = getVisibleCurrencies(unlockedCurrencies);
@@ -38,6 +39,15 @@ export const ResourceBar = memo(function ResourceBar() {
 
   return (
     <div className="shrink-0 flex flex-wrap items-center justify-center gap-1.5 px-3 py-1.5 border-b border-border-subtle bg-[rgba(8,11,16,0.88)]">
+      {mapFragments > 0 && (
+        <div
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[rgba(189,147,249,0.08)] border border-[rgba(189,147,249,0.2)]"
+          title={`${mapFragments} Map Fragment${mapFragments !== 1 ? "s" : ""}`}
+        >
+          <span className="text-[0.6rem]">🗺️</span>
+          <span className="text-[0.6rem] font-bold text-accent-purple tabular-nums">{mapFragments}</span>
+        </div>
+      )}
       {items.map((item) => (
         <div
           key={item.id}
