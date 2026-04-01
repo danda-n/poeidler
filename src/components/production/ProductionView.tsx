@@ -1,13 +1,9 @@
 import { memo, useMemo, useState } from "react";
-import { ClickCard } from "@/components/production/ClickCard";
-import { ConversionStrip } from "@/components/production/ConversionStrip";
-import { GeneratorCard } from "@/components/production/GeneratorCard";
-import { NextUnlockTeaser } from "@/components/production/NextUnlockTeaser";
+import { ClickRow } from "@/components/production/ClickRow";
+import { GeneratorRow } from "@/components/production/GeneratorRow";
 import {
   currencyMap,
-  formatCurrencyValue,
   fragmentCurrencyId,
-  getNextLockedCurrencies,
   getVisibleCurrencies,
 } from "@/game/currencies";
 import {
@@ -27,24 +23,16 @@ export const ProductionView = memo(function ProductionView() {
   const clickMultiplier = useGameStore((s) => s.clickMultiplier);
   const generatorsOwned = useGameStore((s) => s.generatorsOwned);
   const unlockedCurrencies = useGameStore((s) => s.unlockedCurrencies);
-  const { generateFragment, buyGenerator, manualConvert } = useActions();
+  const { generateFragment, buyGenerator } = useActions();
 
   const [buyAmount, setBuyAmount] = useState<BuyAmount>(1);
 
   const hasAnyGenerator = useMemo(() => generatorIds.some((id) => generatorsOwned[id] > 0), [generatorsOwned]);
-  const hasNonFragmentUnlocked = useMemo(
-    () => Object.entries(unlockedCurrencies).some(([id, unlocked]) => id !== fragmentCurrencyId && unlocked),
-    [unlockedCurrencies],
-  );
-  const nextLocked = useMemo(() => getNextLockedCurrencies(unlockedCurrencies, 2), [unlockedCurrencies]);
 
-  const generatorCards = useMemo(() => {
+  const generatorRows = useMemo(() => {
     const visibleCurrencies = getVisibleCurrencies(unlockedCurrencies);
     return visibleCurrencies
-      .filter((currency) => {
-        const generator = generatorByCurrency[currency.id];
-        return generator !== undefined;
-      })
+      .filter((currency) => generatorByCurrency[currency.id] !== undefined)
       .map((currency) => {
         const generator = generatorByCurrency[currency.id];
         const owned = generatorsOwned[generator.id];
@@ -78,7 +66,7 @@ export const ProductionView = memo(function ProductionView() {
       });
   }, [unlockedCurrencies, generatorsOwned, currencies, currencyProduction, buyAmount]);
 
-  const showCurrencyList = hasAnyGenerator || currencies[fragmentCurrencyId] >= 10;
+  const showGenerators = hasAnyGenerator || currencies[fragmentCurrencyId] >= 10;
 
   return (
     <div className="h-full flex flex-col gap-2 animate-[section-enter_350ms_ease-out]">
@@ -100,47 +88,36 @@ export const ProductionView = memo(function ProductionView() {
         ))}
       </div>
 
-      {/* Generator grid */}
-      <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 gap-2 content-start">
-        <ClickCard
-          currenciesState={currencies}
-          currencyProduction={currencyProduction}
-          clickMultiplier={clickMultiplier}
-          hasGenerators={hasAnyGenerator}
-          onGenerateFragment={generateFragment}
-        />
-        {showCurrencyList &&
-          generatorCards.map((card) => (
-            <GeneratorCard
-              key={card.id}
-              icon={card.icon}
-              name={card.name}
-              amount={card.amount}
-              productionRate={card.productionRate}
-              generatorCount={card.generatorCount}
-              generatorId={card.generatorId}
-              cost={card.cost}
-              costCurrencyLabel={card.costCurrencyLabel}
-              canAfford={card.canAfford}
-              buyAmount={buyAmount}
-              onBuy={buyGenerator}
-            />
-          ))}
+      {/* Generator rows */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="max-w-[700px] mx-auto flex flex-col gap-0.5">
+          <ClickRow
+            currenciesState={currencies}
+            currencyProduction={currencyProduction}
+            clickMultiplier={clickMultiplier}
+            onGenerateFragment={generateFragment}
+          />
+
+          {showGenerators &&
+            generatorRows.map((row, index) => (
+              <GeneratorRow
+                key={row.id}
+                icon={row.icon}
+                name={row.name}
+                amount={row.amount}
+                productionRate={row.productionRate}
+                generatorCount={row.generatorCount}
+                generatorId={row.generatorId}
+                cost={row.cost}
+                costCurrencyLabel={row.costCurrencyLabel}
+                canAfford={row.canAfford}
+                buyAmount={buyAmount}
+                onBuy={buyGenerator}
+                even={index % 2 === 0}
+              />
+            ))}
+        </div>
       </div>
-
-      {/* Conversion strip */}
-      {hasNonFragmentUnlocked && (
-        <ConversionStrip
-          currenciesState={currencies}
-          unlockedCurrencies={unlockedCurrencies}
-          onConvertCurrency={manualConvert}
-        />
-      )}
-
-      {/* Next unlock teasers */}
-      {hasNonFragmentUnlocked && nextLocked.length > 0 && (
-        <NextUnlockTeaser nextLocked={nextLocked} currencyProduction={currencyProduction} />
-      )}
     </div>
   );
 });

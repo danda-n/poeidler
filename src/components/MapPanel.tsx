@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { MapBaseSelector } from "@/components/maps/MapBaseSelector";
+import { MapBasePicker } from "@/components/maps/MapBasePicker";
 import { MapPreparationPanel } from "@/components/maps/MapPreparationPanel";
 import { MapRunStatus } from "@/components/maps/MapRunStatus";
 import { currencyMap } from "@/game/currencies";
@@ -133,15 +133,11 @@ export const MapPanel = memo(function MapPanel() {
   );
   const canCommit = !queuedMap && loadoutAffordable && mapCostAffordable;
   const rewardPreview = useMemo(() => {
-    if (!mapDef || !craftedMap) {
-      return null;
-    }
-
+    if (!mapDef || !craftedMap) return null;
     const wealthValue = Object.entries(currenciesPostLoadout).reduce(
       (total, [currencyId, amount]) => total + (currencyMap[currencyId as keyof typeof currencyMap]?.baseValue ?? 0) * amount,
       0,
     );
-
     return getMapRewardPreview(
       mapDef,
       craftedMap,
@@ -191,7 +187,7 @@ export const MapPanel = memo(function MapPanel() {
   }
 
   return (
-    <div className="grid gap-3.5">
+    <div className="flex flex-col gap-3">
       <MapRunStatus
         activeMap={activeMap}
         queuedMap={queuedMap}
@@ -203,9 +199,11 @@ export const MapPanel = memo(function MapPanel() {
 
       {showPrepArea && (
         <>
-          <section className="grid gap-2 p-3 rounded-xl bg-[rgba(255,255,255,0.035)] border border-[rgba(255,255,255,0.08)]">
-            <MapBaseSelector currencies={currencies} selectedBaseMapId={selectedBaseMapId} onSelectBase={handleSelectBase} />
-          </section>
+          <MapBasePicker
+            currencies={currencies}
+            selectedBaseMapId={selectedBaseMapId}
+            onSelectBase={handleSelectBase}
+          />
 
           {mapDef && craftedMap && (
             <MapPreparationPanel
@@ -234,9 +232,6 @@ export const MapPanel = memo(function MapPanel() {
               onCommit={handleCommit}
             />
           )}
-
-          {!selectedBaseMapId && !activeMap && <p className="m-0 text-[0.75rem] text-text-muted text-center py-2">Select a base map to begin.</p>}
-          {!selectedBaseMapId && activeMap && !queuedMap && <p className="m-0 text-[0.75rem] text-text-muted text-center py-2">Select a base map to queue next.</p>}
         </>
       )}
     </div>

@@ -10,31 +10,38 @@
 - Tailwind CSS utilities in all components; design tokens in `src/styles/tailwind.css`; `styles.css` contains global resets and keyframes
 - **UI layout**: 3-zone shell (ResourceBar top, NavRail left + CenterStage, FooterBar bottom) — no page-level scrolling
 - **NavRail**: 48px icon-only rail (desktop) / bottom tab bar (mobile), progressive unlock with pop-in animation, badge dots
-- **ResourceBar**: persistent currency display, top 3 producers show inline rates, adaptive compression
+- **ResourceBar**: compact pills showing top 5 currencies (highest tier + actively producing), hover for details
 - **FooterBar**: contextual — shows active map timer, hidden when idle
-- **ProductionView**: card-based generator grid (2-3 cols) with buy 1/10/max toggle, click card, conversion strip
-- **UpgradePanel**: category tabs + upgrade list (internal scroll) + detail panel, no flavor text
-- **MapsScreen**: compact stats header + scrollable MapPanel
+- **ProductionView**: AD-style compact horizontal rows (ClickRow + GeneratorRows) with buy 1/10/max toggle, max-width 700px centered
+- **UpgradePanel**: smart queue showing 6-9 most relevant upgrades as cards (affordable first, cheapest), "show all" expandable list grouped by category
+- **MapsScreen**: compact stats header + visual MapDevice centered with accordion stems (Encounter/Craft/Mods), MapBasePicker cards, MapRunStatus inline
 - **ProgressView**: Prestige/Talents sub-tabs; full-screen prestige overlay for first 5 resets
+- **TalentPanel**: interactive SVG node graph with 13 talent nodes across 3 branches (cartography/economy/reflection), connection lines, click-to-purchase
 - **SettingsPanel**: full CenterStage view with save info, version, reset
-- Design principle: data over prose — labels, numbers, controls only; no explanatory sentences
+- Design principle: data over prose — labels, numbers, controls only; show less, mean more
 - ESLint with typescript-eslint recommended rules; Vitest covers core game logic (58 tests)
 - The game simulation advances every 100 ms; display publishes on every tick via Zustand subscriptions
 
 ## Known issues
 - Store actions split into 5 slices; state shape still flat (not nested by domain)
 - Late-game balance needs a dedicated pass
-- MapPreparationPanel is the tallest single component; may need further internal sectioning on small viewports
+- Talent node graph positions are hardcoded; may need tuning for visual balance
+- Conversion system removed from UI but store action (`manualConvert`) still exists
 
 ## Next 3 priorities
 - Late-game balance pass
+- Visual polish pass on production rows, map device, and talent graph (proper icons, hover states, animations)
 - Expand test coverage to map completion, prestige payout, and upgrade interaction edge cases
-- Visual polish pass on generator cards and nav rail (proper icons, hover states, responsive grid tuning)
 
 ## Files that matter most
 - `src/components/layout/NewAppShell.tsx`
 - `src/components/layout/NavRail.tsx`
 - `src/components/layout/ResourceBar.tsx`
 - `src/components/production/ProductionView.tsx`
+- `src/components/UpgradePanel.tsx`
+- `src/components/MapPanel.tsx`
+- `src/components/TalentPanel.tsx`
+- `src/components/talents/TalentGraph.tsx`
+- `src/components/talents/talentLayout.ts`
 - `src/components/app/useAppViewModel.ts`
 - `src/store/gameStore.ts`
