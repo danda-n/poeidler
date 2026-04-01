@@ -4,9 +4,9 @@ import { NewAppShell } from "@/components/layout/NewAppShell";
 import type { PageId } from "@/components/layout/NavRail";
 import { MapToast } from "@/components/MapToast";
 import { ProgressScreen } from "@/components/ProgressScreen";
+import { ProductionView } from "@/components/production/ProductionView";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { UpgradePanel } from "@/components/UpgradePanel";
-import { CurrencyScreen } from "@/components/screens/CurrencyScreen";
 import { MapsScreen } from "@/components/screens/MapsScreen";
 import { startStoreGameLoop, startStoreAutosave, stopStoreGameLoop } from "@/store/gameStore";
 
@@ -47,7 +47,7 @@ export function App() {
       return <ProgressScreen />;
     }
 
-    return <CurrencyScreen onNavigate={setActivePage} />;
+    return <ProductionView />;
   }, [activePage, appView.hasAnyGenerator, appView.hasPrestige, appView.hasTalents, appView.hasTier4]);
 
   return (
