@@ -3,7 +3,9 @@ import { ClickRow } from "@/components/production/ClickRow";
 import { GeneratorRow } from "@/components/production/GeneratorRow";
 import {
   currencyMap,
+  formatCurrencyValue,
   fragmentCurrencyId,
+  getNextLockedCurrencies,
   getVisibleCurrencies,
 } from "@/game/currencies";
 import {
@@ -68,6 +70,17 @@ export const ProductionView = memo(function ProductionView() {
 
   const showGenerators = hasAnyGenerator || currencies[fragmentCurrencyId] >= 10;
 
+  const nextUnlock = useMemo(() => {
+    const locked = getNextLockedCurrencies(unlockedCurrencies, 1);
+    if (locked.length === 0) return null;
+    const currency = locked[0];
+    const req = currency.unlockRequirement!;
+    const currentRate = currencyProduction[req.currencyId] ?? 0;
+    const targetRate = req.productionPerSecond;
+    const sourceName = currencyMap[req.currencyId].shortLabel;
+    return { currentRate, targetRate, sourceName };
+  }, [unlockedCurrencies, currencyProduction]);
+
   return (
     <div className="h-full flex flex-col gap-2 animate-[section-enter_350ms_ease-out]">
       {/* Buy amount toggle */}
@@ -116,6 +129,19 @@ export const ProductionView = memo(function ProductionView() {
                 even={index % 2 === 0}
               />
             ))}
+
+          {showGenerators && nextUnlock && (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg opacity-40">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#7f8ca3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <rect x="5" y="9" width="10" height="8" rx="1.5" />
+                <path d="M7 9V6a3 3 0 0 1 6 0v3" />
+              </svg>
+              <span className="text-[0.74rem] font-semibold text-text-secondary">???</span>
+              <span className="text-[0.62rem] text-text-secondary tabular-nums ml-auto">
+                {formatCurrencyValue(nextUnlock.currentRate)}/{formatCurrencyValue(nextUnlock.targetRate)}/s {nextUnlock.sourceName}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
