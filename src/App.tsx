@@ -74,15 +74,8 @@ export function App() {
         pageDescription={activePageCopy.description}
         contentWidth={activeContentWidth}
         headerActions={<SettingsPanel />}
-        topBar={
-          <TopStatusStrip
-            items={appView.topStripState.items}
-            totalWealthValue={appView.topStripState.totalWealthValue}
-            totalProductionValue={appView.topStripState.totalProductionValue}
-            hiddenCount={appView.topStripState.hiddenCount}
-          />
-        }
-        sidebar={<Sidebar activePage={activePage} unlockedPages={appView.unlockedPages} pageMeta={appView.pageMeta} onNavigate={setActivePage} />}
+        topBar={<TopStatusStrip />}
+        sidebar={<Sidebar activePage={activePage} onNavigate={setActivePage} />}
         footer={<footer className="mt-1.5 flex items-center justify-start gap-4 pl-0.5 text-[0.68rem] text-[#667389]">v{version}</footer>}
       >
         <ActiveMapBanner mapsUnlocked={appView.hasTier4} />

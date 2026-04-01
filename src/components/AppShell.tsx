@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode } from "react";
+import { forwardRef, useState, type ReactNode } from "react";
 import { ShellHeader } from "@/components/layout/ShellHeader";
 import { ShellPageHeader } from "@/components/layout/ShellPageHeader";
 
@@ -30,13 +30,23 @@ export const AppShell = forwardRef<HTMLElement, AppShellProps>(function AppShell
   },
   ref,
 ) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <ShellHeader brandTitle={brandTitle} statusText={statusText} headerActions={headerActions} topBar={topBar} />
+      <ShellHeader brandTitle={brandTitle} statusText={statusText} headerActions={headerActions} topBar={topBar} onToggleSidebar={() => setSidebarOpen((v) => !v)} />
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-[280px] shrink-0 px-3.5 pt-[18px] pb-[18px] pl-[18px] border-r border-border-subtle bg-[rgba(7,10,14,0.82)]">{sidebar}</aside>
-        <main ref={ref} className="flex-1 min-w-0 overflow-y-auto overscroll-y-contain scroll-smooth px-5 pt-4 pb-5" style={{ scrollbarGutter: "stable" }}>
+        <aside className={`hidden lg:block w-[280px] shrink-0 px-3.5 pt-[18px] pb-[18px] pl-[18px] border-r border-border-subtle bg-[rgba(7,10,14,0.82)]`}>{sidebar}</aside>
+
+        {sidebarOpen && (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+            <aside className="fixed inset-y-0 left-0 z-50 w-[280px] px-3.5 pt-[18px] pb-[18px] pl-[18px] border-r border-border-subtle bg-bg-base lg:hidden overflow-y-auto">{sidebar}</aside>
+          </>
+        )}
+
+        <main ref={ref} className="flex-1 min-w-0 overflow-y-auto overscroll-y-contain scroll-smooth px-3 sm:px-5 pt-4 pb-5" style={{ scrollbarGutter: "stable" }}>
           <div className={`mx-auto grid gap-3.5 pb-4${contentWidth === "wide" ? " w-full max-w-[1680px]" : " w-[min(1280px,100%)]"}`}>
             <ShellPageHeader title={pageTitle} description={pageDescription} />
 

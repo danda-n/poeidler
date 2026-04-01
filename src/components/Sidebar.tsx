@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useAppViewModel } from "@/components/app/useAppViewModel";
 
 export type PageId = "home" | "upgrades" | "mapDevice" | "progress";
 
@@ -31,12 +32,12 @@ const navGroups: { id: NavGroup; label: string }[] = [
 
 type SidebarProps = {
   activePage: PageId;
-  unlockedPages: Partial<Record<PageId, boolean>>;
-  pageMeta?: Partial<Record<PageId, PageMeta>>;
   onNavigate: (page: PageId) => void;
 };
 
-export const Sidebar = memo(function Sidebar({ activePage, unlockedPages, pageMeta = {}, onNavigate }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ activePage, onNavigate }: SidebarProps) {
+  const { unlockedPages, pageMeta } = useAppViewModel();
+
   return (
     <nav className="w-full h-full grid content-start gap-[18px] p-0 bg-transparent">
       {navGroups.map((group) => {

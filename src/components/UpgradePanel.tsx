@@ -288,7 +288,7 @@ export const UpgradePanel = memo(function UpgradePanel() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
         <div>
           <h2 className="m-0 text-base font-bold text-accent-gold">Upgrades</h2>
           <p className="mt-1 mb-0 max-w-[680px] text-[0.74rem] text-[#8c8c94]">
@@ -311,7 +311,7 @@ export const UpgradePanel = memo(function UpgradePanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[minmax(220px,260px)_minmax(0,1fr)_minmax(320px,360px)] gap-4 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] xl:grid-cols-[minmax(220px,260px)_minmax(0,1fr)_minmax(320px,360px)] gap-4 items-start">
         <aside className={`${shellCard} sticky top-0 content-start !gap-3.5`}>
           <div>
             <p className={eyebrow}>Categories</p>

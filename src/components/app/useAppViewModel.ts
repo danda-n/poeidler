@@ -1,12 +1,5 @@
 import { useMemo, useRef } from "react";
 import { type PageId, type PageMeta } from "@/components/Sidebar";
-import {
-  fragmentCurrencyId,
-  getTotalCurrencyValue,
-  getTotalProductionValuePerSecond,
-  getVisibleCurrencies,
-} from "@/game/currencies";
-import type { GameState } from "@/game/gameEngine";
 import { generatorIds } from "@/game/generators";
 import { canPrestige } from "@/game/prestige";
 import { getAffordableUpgradeCount } from "@/game/upgradeEngine";
@@ -31,19 +24,6 @@ export const pageCopy: Record<PageId, { title: string; description: string }> = 
   },
 };
 
-type TopStripState = {
-  items: Array<{
-    id: string;
-    label: string;
-    icon: string;
-    amount: number;
-    productionRate: number;
-  }>;
-  hiddenCount: number;
-  totalWealthValue: number;
-  totalProductionValue: number;
-};
-
 type AppViewModel = {
   hasAnyGenerator: boolean;
   hasTier4: boolean;
@@ -52,47 +32,13 @@ type AppViewModel = {
   canPrestigeNow: boolean;
   unlockedPages: Partial<Record<PageId, boolean>>;
   pageMeta: Partial<Record<PageId, PageMeta>>;
-  topStripState: TopStripState;
   mapStatusLabel: string;
 };
-
-function getTopStripState(currencies: GameState["currencies"], currencyProduction: GameState["currencyProduction"], unlockedCurrencies: GameState["unlockedCurrencies"]): TopStripState {
-  const visibleCurrencies = getVisibleCurrencies(unlockedCurrencies);
-  const wealthCandidates = visibleCurrencies.filter(
-    (currency) =>
-      currency.id === fragmentCurrencyId ||
-      currencies[currency.id] > 0 ||
-      currencyProduction[currency.id] > 0,
-  );
-  const prioritizedHighTier = wealthCandidates
-    .filter((currency) => currency.id !== fragmentCurrencyId)
-    .sort((left, right) => right.tier - left.tier)
-    .slice(0, 4);
-  const priorityIds = new Set([fragmentCurrencyId, ...prioritizedHighTier.map((currency) => currency.id)]);
-  const items = visibleCurrencies
-    .filter((currency) => priorityIds.has(currency.id))
-    .sort((left, right) => left.tier - right.tier)
-    .map((currency) => ({
-      id: currency.id,
-      label: currency.shortLabel,
-      icon: currency.icon,
-      amount: currencies[currency.id],
-      productionRate: currencyProduction[currency.id],
-    }));
-
-  return {
-    items,
-    hiddenCount: Math.max(0, wealthCandidates.filter((currency) => currency.id !== fragmentCurrencyId).length - prioritizedHighTier.length),
-    totalWealthValue: getTotalCurrencyValue(currencies),
-    totalProductionValue: getTotalProductionValuePerSecond(currencyProduction),
-  };
-}
 
 const BADGE_THROTTLE_MS = 1000;
 
 export function useAppViewModel(): AppViewModel {
   const currencies = useGameStore((s) => s.currencies);
-  const currencyProduction = useGameStore((s) => s.currencyProduction);
   const generatorsOwned = useGameStore((s) => s.generatorsOwned);
   const unlockedCurrencies = useGameStore((s) => s.unlockedCurrencies);
   const prestige = useGameStore((s) => s.prestige);
@@ -115,11 +61,6 @@ export function useAppViewModel(): AppViewModel {
     const canPrestigeNow = canPrestige(currencies);
     return { hasAnyGenerator, hasTier4, hasPrestige, hasTalents, canPrestigeNow };
   }, [generatorsOwned, unlockedCurrencies, prestige, currencies]);
-
-  const topStripState = useMemo(
-    () => getTopStripState(currencies, currencyProduction, unlockedCurrencies),
-    [currencies, currencyProduction, unlockedCurrencies],
-  );
 
   const pageMeta = useMemo(() => {
     const now = Date.now();
@@ -160,7 +101,6 @@ export function useAppViewModel(): AppViewModel {
     ...flags,
     unlockedPages,
     pageMeta,
-    topStripState,
     mapStatusLabel,
   };
 }

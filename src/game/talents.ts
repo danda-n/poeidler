@@ -264,8 +264,8 @@ export function getBranchLabel(branch: TalentBranch): string {
 
 export function getBranchIcon(branch: TalentBranch): string {
   switch (branch) {
-    case "cartography": return "???";
-    case "economy": return "??";
-    case "reflection": return "??";
+    case "cartography": return "\u{1F5FA}";
+    case "economy": return "\u{1F4B0}";
+    case "reflection": return "\u{1FA9E}";
   }
 }
