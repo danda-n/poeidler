@@ -32,7 +32,7 @@ export const UpgradeCard = memo(function UpgradeCard({
     <button
       type="button"
       disabled={!canBuy}
-      className={`group flex flex-col gap-1.5 p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer hover:not-disabled:scale-[1.02] active:not-disabled:scale-[0.98] disabled:cursor-not-allowed ${
+      className={`group flex flex-col gap-1 p-2.5 rounded-xl border text-left transition-colors duration-150 cursor-pointer disabled:cursor-not-allowed ${
         canBuy
           ? "border-[rgba(244,213,140,0.28)] bg-[rgba(244,213,140,0.06)] hover:not-disabled:bg-[rgba(244,213,140,0.12)]"
           : isMaxed
@@ -44,19 +44,19 @@ export const UpgradeCard = memo(function UpgradeCard({
       onClick={() => onBuy(id)}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[0.72rem] font-bold text-text-bright truncate">{definition.name}</span>
+        <span className="text-[11px] font-bold text-text-bright">{definition.name}</span>
         {!isMaxed && (
-          <span className="text-[0.58rem] font-semibold text-text-secondary shrink-0">Lv {level}</span>
+          <span className="text-[9px] font-semibold text-text-secondary shrink-0">Lv {level}</span>
         )}
       </div>
 
-      <span className="text-[0.62rem] text-accent-gold leading-tight">{isMaxed ? "Maxed" : nextEffect}</span>
+      <span className="text-[10px] text-accent-gold leading-snug">{isMaxed ? "Maxed" : nextEffect}</span>
 
       <div className="mt-auto pt-1">
         {isMaxed ? (
-          <span className="text-[0.6rem] font-semibold text-[#6ee7a0]">Complete</span>
+          <span className="text-[9px] font-semibold text-[#6ee7a0]">Complete</span>
         ) : (
-          <span className={`text-[0.62rem] font-semibold tabular-nums ${canBuy ? "text-accent-gold" : "text-text-secondary"}`}>
+          <span className={`text-[10px] font-semibold tabular-nums ${canBuy ? "text-accent-gold" : "text-text-secondary"}`}>
             {costLabel}
           </span>
         )}

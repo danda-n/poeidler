@@ -57,15 +57,12 @@ export const GeneratorRow = memo(function GeneratorRow({
 
       <button
         type="button"
-        className="ml-auto relative px-3 py-1 rounded-md text-[0.66rem] font-semibold tabular-nums transition-all duration-100 border cursor-pointer hover:not-disabled:scale-[1.02] active:not-disabled:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed border-[rgba(255,211,106,0.18)] text-accent-gold bg-[rgba(255,211,106,0.05)] hover:not-disabled:bg-[rgba(255,211,106,0.12)] hover:not-disabled:border-[rgba(255,211,106,0.35)]"
+        className="ml-auto shrink-0 px-3 py-1 rounded-md text-[0.66rem] font-semibold tabular-nums transition-colors duration-100 border cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed border-[rgba(255,211,106,0.18)] text-accent-gold bg-[rgba(255,211,106,0.05)] hover:not-disabled:bg-[rgba(255,211,106,0.12)] hover:not-disabled:border-[rgba(255,211,106,0.35)]"
         disabled={!canAfford}
         onClick={() => onBuy(generatorId)}
         title={`${buyLabel} · ${formatCurrencyValue(cost)} ${costCurrencyLabel}`}
       >
-        <span>{buyLabel}</span>
-        <span className="hidden group-hover:inline ml-1 text-[0.58rem] opacity-70">
-          {formatCurrencyValue(cost)} {costCurrencyLabel}
-        </span>
+        {buyLabel} · {formatCurrencyValue(cost)} {costCurrencyLabel}
       </button>
     </div>
   );

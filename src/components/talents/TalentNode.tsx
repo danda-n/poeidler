@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import { formatCurrencyValue } from "@/game/currencies";
 import type { TalentDefinition } from "@/game/talents";
-import { branchColors, type NodePosition } from "./talentLayout";
+import { branchColors, NODE_HEIGHT, NODE_WIDTH, type NodePosition } from "./talentLayout";
 
 type TalentNodeProps = {
   talent: TalentDefinition;
@@ -13,8 +13,6 @@ type TalentNodeProps = {
   cost: number;
   onPurchase: (talentId: string) => void;
 };
-
-const NODE_SIZE = 56;
 
 export const TalentNode = memo(function TalentNode({
   talent,
@@ -50,7 +48,7 @@ export const TalentNode = memo(function TalentNode({
 
   return (
     <g
-      transform={`translate(${position.x - NODE_SIZE / 2}, ${position.y - NODE_SIZE / 2})`}
+      transform={`translate(${position.x - NODE_WIDTH / 2}, ${position.y - NODE_HEIGHT / 2})`}
       style={{ cursor: canBuy ? "pointer" : "default", opacity }}
       onClick={() => canBuy && onPurchase(talent.id)}
       onMouseEnter={() => setHovered(true)}
@@ -58,9 +56,9 @@ export const TalentNode = memo(function TalentNode({
     >
       {/* Node background */}
       <rect
-        width={NODE_SIZE}
-        height={NODE_SIZE}
-        rx={12}
+        width={NODE_WIDTH}
+        height={NODE_HEIGHT}
+        rx={10}
         fill={bgColor}
         stroke={borderColor}
         strokeWidth={isActive || maxed ? 2 : 1}
@@ -69,9 +67,9 @@ export const TalentNode = memo(function TalentNode({
       {/* Glow for active */}
       {isActive && !maxed && (
         <rect
-          width={NODE_SIZE}
-          height={NODE_SIZE}
-          rx={12}
+          width={NODE_WIDTH}
+          height={NODE_HEIGHT}
+          rx={10}
           fill="none"
           stroke={colors.glow}
           strokeWidth={1}
@@ -79,25 +77,25 @@ export const TalentNode = memo(function TalentNode({
         />
       )}
 
-      {/* Short name */}
+      {/* Full name */}
       <text
-        x={NODE_SIZE / 2}
-        y={NODE_SIZE / 2 - 6}
+        x={NODE_WIDTH / 2}
+        y={NODE_HEIGHT / 2 - 5}
         textAnchor="middle"
         fill="#e0e0e0"
-        fontSize={9}
-        fontWeight={700}
+        fontSize={10}
+        fontWeight={600}
       >
-        {talent.name.length > 12 ? talent.name.slice(0, 11) + "…" : talent.name}
+        {talent.name}
       </text>
 
       {/* Rank badge */}
       <text
-        x={NODE_SIZE / 2}
-        y={NODE_SIZE / 2 + 10}
+        x={NODE_WIDTH / 2}
+        y={NODE_HEIGHT / 2 + 10}
         textAnchor="middle"
         fill={maxed ? "#50fa7b" : isActive ? colors.active : "#7f8ca3"}
-        fontSize={10}
+        fontSize={11}
         fontWeight={800}
       >
         {rank}/{talent.maxRank}
@@ -105,22 +103,28 @@ export const TalentNode = memo(function TalentNode({
 
       {/* Hover tooltip */}
       {hovered && (
-        <foreignObject x={-40} y={NODE_SIZE + 6} width={NODE_SIZE + 80} height={80}>
+        <foreignObject
+          x={-20}
+          y={NODE_HEIGHT + 8}
+          width={NODE_WIDTH + 40}
+          height={90}
+        >
           <div
             style={{
-              background: "rgba(14,18,24,0.95)",
-              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(14,18,24,0.96)",
+              border: "1px solid rgba(255,255,255,0.15)",
               borderRadius: 8,
-              padding: "6px 8px",
-              fontSize: "0.6rem",
+              padding: "8px 10px",
+              fontSize: 11,
               color: "#c0c8d8",
-              lineHeight: 1.4,
+              lineHeight: 1.45,
               pointerEvents: "none",
+              whiteSpace: "normal",
             }}
           >
-            <div style={{ fontWeight: 700, color: "#f7f3e8", marginBottom: 2 }}>{talent.name}</div>
+            <div style={{ fontWeight: 700, color: "#f7f3e8", marginBottom: 3 }}>{talent.name}</div>
             <div>{talent.description}</div>
-            {!maxed && <div style={{ color: colors.active, marginTop: 2 }}>{formatCurrencyValue(cost)} Shards</div>}
+            {!maxed && <div style={{ color: colors.active, marginTop: 3, fontWeight: 600 }}>{formatCurrencyValue(cost)} Shards</div>}
           </div>
         </foreignObject>
       )}
