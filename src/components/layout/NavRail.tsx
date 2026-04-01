@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useRef } from "react";
 import { useAppViewModel } from "@/components/app/useAppViewModel";
 
 export type PageId = "home" | "upgrades" | "mapDevice" | "progress" | "settings";
@@ -79,9 +79,23 @@ type NavRailProps = {
 
 export const NavRail = memo(function NavRail({ activePage, onNavigate }: NavRailProps) {
   const { unlockedPages, pageMeta } = useAppViewModel();
+  const prevUnlockedRef = useRef<Set<string>>(new Set(["home"]));
 
   const topItems = navItems.filter((item) => !item.pinBottom);
   const bottomItems = navItems.filter((item) => item.pinBottom);
+
+  // Track newly unlocked items for animation
+  const currentUnlocked = new Set<string>(["home"]);
+  topItems.forEach((item) => {
+    if (!item.unlockKey || unlockedPages[item.unlockKey]) {
+      currentUnlocked.add(item.id);
+    }
+  });
+  const newlyUnlocked = new Set<string>();
+  currentUnlocked.forEach((id) => {
+    if (!prevUnlockedRef.current.has(id)) newlyUnlocked.add(id);
+  });
+  prevUnlockedRef.current = currentUnlocked;
 
   return (
     <nav className="flex flex-col items-center w-12 shrink-0 py-3 gap-1 border-r border-border-subtle bg-[rgba(7,10,14,0.82)]">
@@ -92,13 +106,14 @@ export const NavRail = memo(function NavRail({ activePage, onNavigate }: NavRail
 
           const isActive = item.id === activePage;
           const meta = pageMeta[item.id];
+          const isNew = newlyUnlocked.has(item.id);
 
           return (
             <button
               key={item.id}
               type="button"
               title={item.label}
-              className={`relative flex items-center justify-center w-9 h-9 rounded-lg transition-colors duration-150 ${
+              className={`relative flex items-center justify-center w-9 h-9 rounded-lg transition-colors duration-150 ${isNew ? "animate-[pop-in_300ms_ease-out] " : ""}${
                 isActive
                   ? "bg-[rgba(244,213,140,0.16)] text-accent-gold border border-[rgba(244,213,140,0.22)]"
                   : "text-[#8090a6] hover:text-white hover:bg-[rgba(255,255,255,0.08)] border border-transparent"
