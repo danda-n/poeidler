@@ -15,7 +15,7 @@ import { startStoreGameLoop, startStoreAutosave, stopStoreGameLoop } from "@/sto
 
 export function App() {
   const [activePage, setActivePage] = useState<PageId>("home");
-  const appView = useAppViewModel(useGameStore((s) => s));
+  const appView = useAppViewModel();
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const hasScrolledBetweenPagesRef = useRef(false);
   const lastSaveTime = useGameStore((s) => s.lastSaveTime);
