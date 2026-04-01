@@ -3,7 +3,7 @@ import { useAppViewModel } from "@/components/app/useAppViewModel";
 import { NewAppShell } from "@/components/layout/NewAppShell";
 import type { PageId } from "@/components/layout/NavRail";
 import { MapToast } from "@/components/MapToast";
-import { ProgressScreen } from "@/components/ProgressScreen";
+import { ProgressView } from "@/components/progress/ProgressView";
 import { ProductionView } from "@/components/production/ProductionView";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { UpgradePanel } from "@/components/UpgradePanel";
@@ -44,7 +44,7 @@ export function App() {
     }
 
     if (activePage === "progress" && (appView.hasPrestige || appView.hasTalents)) {
-      return <ProgressScreen />;
+      return <ProgressView />;
     }
 
     return <ProductionView />;

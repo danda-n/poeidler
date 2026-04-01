@@ -2,6 +2,7 @@ import { useState } from "react";
 import { formatCurrencyValue } from "@/game/currencies";
 import { calculatePrestigeShards, canPrestige } from "@/game/prestige";
 import { getEncounterPrestigeBonus } from "@/game/talents";
+import { PrestigeOverlay } from "@/components/progress/PrestigeOverlay";
 import { useGameStore } from "@/store/useGameStore";
 import { useActions } from "@/store/selectors/useActions";
 
@@ -12,6 +13,8 @@ export function PrestigePanel() {
   const talentsPurchased = useGameStore((s) => s.talentsPurchased);
   const { prestige: onPrestige } = useActions();
   const [confirming, setConfirming] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const useOverlayMode = prestige.prestigeCount < 5;
 
   const eligible = canPrestige(currencies);
   const crackedMirrorRank = talentsPurchased.crackedMirror ?? 0;
@@ -26,6 +29,10 @@ export function PrestigePanel() {
   );
 
   function handlePrestige() {
+    if (useOverlayMode) {
+      setShowOverlay(true);
+      return;
+    }
     if (!confirming) {
       setConfirming(true);
       return;
@@ -36,10 +43,23 @@ export function PrestigePanel() {
 
   function handleCancel() {
     setConfirming(false);
+    setShowOverlay(false);
+  }
+
+  function handleOverlayConfirm() {
+    setShowOverlay(false);
+    onPrestige();
   }
 
   return (
     <div className="grid gap-3.5">
+      {showOverlay && (
+        <PrestigeOverlay
+          projectedShards={projectedShards}
+          onConfirm={handleOverlayConfirm}
+          onCancel={handleCancel}
+        />
+      )}
       <div className="flex items-center justify-between px-1">
         <h2 className="m-0 text-base font-bold text-accent-purple">Prestige</h2>
         <div className="flex items-center gap-1.5">
